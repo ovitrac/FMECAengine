@@ -183,7 +183,7 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 % Any question to this script/function must be addressed to: olivier.vitrac@agroparistech.fr
 % The script/function was designed to run on the cluster of JRU 1145 Food Process Engineering (admin: Olivier Vitrac)
 %
-% Migration 2.1 (Fmecaengine v0.45) - 10/04/2011 - INRA\Olivier Vitrac - Audrey Goujon - rev. 26/08/2011
+% Migration 2.1 (Fmecaengine v0.46) - 10/04/2011 - INRA\Olivier Vitrac - Audrey Goujon - rev. 28/08/2011
 
 % Revision history
 % 06/04/2011 release candidate
@@ -223,9 +223,10 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 % 24/08/2011 add sample
 % 25/08/2011 use nearestpoint in keyval = keysample(nearestpoint(median(keysample),keysample)); keysample = setdiff(keysample,keyval); 
 % 26/08/2011 update help
+% 30/08/2011 'database',struct([]) and diplay a warning when values in base are used as inputs
 
 %% Fmecaengine version
-versn = 0.45; % official release
+versn = 0.46; % official release
 mlmver = ver('matlab');
 extension = struct('Foscale','Fo%d%d','Kscale','K%d%d','ALT','%sc%d'); % naming extensions (associated to scaling)
 prop2scale = struct('Foscale','regular_D','Kscale','regular_K'); % name of columns
@@ -238,7 +239,7 @@ default = struct('local','','inputpath','','outputpath','','fmecamainfile','','f
                  'headers',2,... number of header lines
                  'nograph',false,... if true, unable graphs
                  'noprint',false,... if true, unable prints
-                 'database','',... database to be used with keys
+                 'database',struct([]),... database to be used with keys
                  'databaseheaders',1,... number of header lines for database
                  'regular_l','^l\d+m$',... regular expression to check l
                  'regular_D','^D\d+m2s$',... regular expression to check D
@@ -262,6 +263,7 @@ default = struct('local','','inputpath','','outputpath','','fmecamainfile','','f
 vlist = fieldnames(default)';
 for v=vlist(1:6)
     if isempty(default.(v{1})) && evalin('base',sprintf('exist(''%s'',''var'')',v{1}))
+        dispf('WARNING: the value of ''%s'' is derived from the one defined in base, please check',v{1})
         default.(v{1}) = evalin('base',v{1});
     end
 end
