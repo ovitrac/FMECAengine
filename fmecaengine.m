@@ -194,7 +194,7 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 % Any question to this script/function must be addressed to: olivier.vitrac@agroparistech.fr
 % The script/function was designed to run on the cluster of JRU 1145 Food Process Engineering (admin: Olivier Vitrac)
 %
-% Migration 2.1 (Fmecaengine v0.47) - 10/04/2011 - INRA\Olivier Vitrac - Audrey Goujon - rev. 31/08/2011
+% Migration 2.1 (Fmecaengine v0.48) - 10/04/2011 - INRA\Olivier Vitrac - Audrey Goujon - rev. 31/08/2011
 
 % Revision history
 % 06/04/2011 release candidate
@@ -237,10 +237,10 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 % 30/08/2011 'database',struct([]) and diplay a warning when values in base are used as inputs
 % 30/08/2011 replace denormal numbers in CF plots (absolute value lower than realmin) by 0 (http://en.wikipedia.org/wiki/Denormal_number)
 %            see the following bug (no plot): figure, ha=plot([1 2],[0 0.035]*9.9e-323)
-% 31/08/2011 add Notes 7-9
+% 31/08/2011 add Notes 7-9, fix user override of default values with variables in base when they are not of type char
 
 %% Fmecaengine version
-versn = 0.47; % official release
+versn = 0.48; % official release
 mlmver = ver('matlab');
 extension = struct('Foscale','Fo%d%d','Kscale','K%d%d','ALT','%sc%d'); % naming extensions (associated to scaling)
 prop2scale = struct('Foscale','regular_D','Kscale','regular_K'); % name of columns
@@ -274,15 +274,19 @@ default = struct('local','','inputpath','','outputpath','','fmecamainfile','','f
                  'severity',@(CF,SML) 100*99./max(100*SML./CF-1,0),...
                  'sample',@(x) prctile(x,[5 50 95]) ...
                  ); kwdefault = {'noprint' 'nograph'};
+% Possible user override of default values by defining variables with similar name in workspace 'base' and char content
+% recognized variables: local, inputpath, outputpath, fmecamainfile, fmecadbfile, fmecasheetname
 vlist = fieldnames(default)';
 for v=vlist(1:6)
     if isempty(default.(v{1})) && evalin('base',sprintf('exist(''%s'',''var'')',v{1}))
         dispf('WARNING: the value of ''%s'' is derived from the one defined in base, please check',v{1})
-        default.(v{1}) = evalin('base',v{1});
+        uservarinbase = evalin('base',v{1});
+        if ischar(uservarinbase), default.(v{1}) = uservarinbase; end
     end
 end
-iconfile = 'table.png';
-iconpath = fullfile(find_path_toolbox('migration'),'media');
+iconfile = 'table.png'; % default icon for browser
+iconpath = fullfile(find_path_toolbox('migration'),'media'); % expected path
+if ~exist('media','dir'),  iconpath = find_path_toolbox('migration'); end
 % Default root directory
 if isempty(default.local)
     switch localname % according to the name of the machine (either Windows or Linux)
