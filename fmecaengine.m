@@ -139,8 +139,19 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 %   Note 6: Creation of PDF files on the fly may interact with antivirus software on windows systems. If you get randomly
 %           messages such as "print at XXX %temp%\tempfile.ps: Cannot open file: permission denied.", restart the script/function
 %           and it should solve the issue.
+%   Note 7: If you restart FMECAengine with a modified topology (e.g. the user removed one or several steps), impacted steps
+%           will be correctly updated but the deleted steps will not be removed from the database of results. As undesirable steps
+%           might impart future interpreations, it is recommended either to restart the whole project or to remove by hands with
+%           rmfield the unnecessary steps in the object fmecadb (stored in fmecadbfile). It is worth to notice that FMECAengine
+%           regenerate all its plots by reading each time 'sim' so that deleted steps are correctly detected and removed from
+%           graphical plots.
+%   Note 8: Additional columns/properties (e.g. SML) supplied in 'sim' must be considered as informative tought they may be stored
+%           in fmecadb. Changing their values will not force FMECAengine to restart simulations or to update its databases.
+%   Note 9: FMECAengine decides to restart simulations ONLY when its detects that the results of a simulation can be modified
+%           according to the input parameters supplied to SENSPATANKAR, SENSPATANKARC, SETOFFPATANKAR... Dependent steps
+%           are forced to update to keep the consistency of results.
 %
-% SEE ALSO: FMECASINGLE FMECAROOT BUILDMARKOV KEY2KEY LOADFMECAENGINEDB
+% SEE ALSO: FMECASINGLE FMECAROOT BUILDMARKOV KEY2KEY LOADFMECAENGINEDB FMECAGRAPH
 %
 % DEPENDENCY INFORMATION TO IMPLEMENT THIS SCRIPT/FUNCTION IN OTHER PROJECTS
 % > Dependencies to other functions (written by INRA\Olivier Vitrac)
@@ -183,7 +194,7 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 % Any question to this script/function must be addressed to: olivier.vitrac@agroparistech.fr
 % The script/function was designed to run on the cluster of JRU 1145 Food Process Engineering (admin: Olivier Vitrac)
 %
-% Migration 2.1 (Fmecaengine v0.46) - 10/04/2011 - INRA\Olivier Vitrac - Audrey Goujon - rev. 28/08/2011
+% Migration 2.1 (Fmecaengine v0.47) - 10/04/2011 - INRA\Olivier Vitrac - Audrey Goujon - rev. 31/08/2011
 
 % Revision history
 % 06/04/2011 release candidate
@@ -224,9 +235,12 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 % 25/08/2011 use nearestpoint in keyval = keysample(nearestpoint(median(keysample),keysample)); keysample = setdiff(keysample,keyval); 
 % 26/08/2011 update help
 % 30/08/2011 'database',struct([]) and diplay a warning when values in base are used as inputs
+% 30/08/2011 replace denormal numbers in CF plots (absolute value lower than realmin) by 0 (http://en.wikipedia.org/wiki/Denormal_number)
+%            see the following bug (no plot): figure, ha=plot([1 2],[0 0.035]*9.9e-323)
+% 31/08/2011 add Notes 7-9
 
 %% Fmecaengine version
-versn = 0.46; % official release
+versn = 0.47; % official release
 mlmver = ver('matlab');
 extension = struct('Foscale','Fo%d%d','Kscale','K%d%d','ALT','%sc%d'); % naming extensions (associated to scaling)
 prop2scale = struct('Foscale','regular_D','Kscale','regular_K'); % name of columns
@@ -726,6 +740,7 @@ for iseries = 1:nseries  % Main loop on each series of independent simulations (
             ylabel('C(x) (kg\cdotm^{-3})','fontsize',14)            
             title(sprintf('\\bf%s\\rm: Concentration profile in P at t=%0.3g days',currentid,requestedtime/days),'fontsize',14)
             subplot(hs(2)), hold on
+            r.CF(abs(r.CF)<realmin) = 0; % remove denormalized numbers (prevent plots)
             plot(r.days,r.CF,'-','linewidth',2,'color',rgb('CornflowerBlue'))
             line(requestedtime/days*[1;1],[0;Cfatrequestedtime],'linestyle',':','linewidth',2,'color',rgb('LightSlateGray'))
             plot(requestedtime/days,Cfatrequestedtime,'bo','markersize',12)
