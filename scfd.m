@@ -3,12 +3,14 @@ function scfd(data,varargin)
 %   syntax: scfd(data)
 %   options: scfd(data [,'noaxes','nolegend'])
 
-% INRA\Olivier Vitrac 28/10/02 - rev. 09/11/09
+% INRA\Olivier Vitrac 28/10/02 - rev. 01/09/11
 
 % REVISION HISTORY
 % 29/10/02 release candidate
 % 09/11/09 add text object
 % 20/02/11 add nolegend
+% 31/08/11 fix nolegend
+% 01/09/11 prevent empty strings from being printed (text(.5,.5,[]) generates an error)
 
 % definitions
 propAXESlist = {'sXlabel','sYlabel','nXscale','nYscale','nXlim','nYlim'};
@@ -71,9 +73,11 @@ for i=1:length(data)
                         end
                     end
                     hl = [];
-                    if nline>1 && nline<5 && nolegend, hl = legend(hp,legp,0);
-                    elseif nline>4 && nline<10, hl = legend(hp,legp,-1); end
-                    if any(hl), set(hl,'box','off'), end
+                    if  ~nolegend
+                        if nline>1 && nline<5, hl = legend(hp,legp,0);
+                        elseif nline>4 && nline<10, hl = legend(hp,legp,-1); end
+                        if any(hl), set(hl,'box','off'), end
+                    end
                 case 'image'
                     propOBJECTlist = propIMAGElist;
                     for j = 1:length(data(i).image)
@@ -86,10 +90,12 @@ for i=1:length(data)
                 case 'text'
                     propOBJECTlist = propTEXTlist;
                     for j = 1:length(data(i).text)
-                        hp = text(data(i).text(j).Position(1),data(i).text(j).Position(2),data(i).text(j).Position(3),data(i).text(j).String);
-                        for p = propOBJECTlist
-                            value = getfield(data,{i},'text',{j},p{1});
-                            if any(value), set(hp,p{1},value), end
+                        if ~isempty(data(i).text(j).String)
+                            hp = text(data(i).text(j).Position(1),data(i).text(j).Position(2),data(i).text(j).Position(3),data(i).text(j).String);
+                            for p = propOBJECTlist
+                                value = getfield(data,{i},'text',{j},p{1});
+                                if any(value), set(hp,p{1},value), end
+                            end
                         end
                     end
             end % end switch
