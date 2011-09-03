@@ -1,0 +1,412 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<!-- 02-Sep-2011 10:16:54: fmecaengine on mol10.agroparistech.fr
+     INRA\Olivier Vitrac -->
+
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+        <link rel="shortcut icon" href="./table.png" type="image/x-icon">
+        <title>omission.ods</title>
+        <style type="text/css">
+        <!--
+        body {font-family: Arial, Helvetica, sans-serif; font-size: 12px; }
+        #wrapper {margin: 0 auto; }
+        #leftheader { color: #333; border: 1px solid #ccc; background: #BD9C8C; margin: 0px 5px 5px 0px; padding: 10px; height: 100px; width: 300px; float: left; }
+        #header { color: #333; padding: 10px; border: 1px solid #ccc; height: 100px;  width: 500px;  margin: 0px 5px 5px 0px; background: #E7DBD5;
+                  font:normal 20px georgia,garamond,serif; float: right; display: inline; font-weight:bold; text-transform:uppercase; letter-spacing:4px; text-align:right; }
+        #nfo { color: #333; padding: 10px; border: 1px solid #ccc; margin: 0px 0px 5px 0px; background: #DAC8BF; clear:both;}
+        #content { color: #333; border: 1px solid #ccc; background: #F2F2E6; margin: 0px 0px 5px 0px; padding: 10px; }
+        table { background:#D3E4E5; border:1px solid gray; border-collapse:collapse; color:#fff; font:normal 12px verdana, arial, helvetica, sans-serif; margin-left: auto; margin-right: auto; }
+        caption { border:1px solid #5C443A; color:#5C443A; font-weight:bold; letter-spacing:2px; padding:6px 4px 8px 0px; text-align:center; text-transform:uppercase; }
+        td, th { color:#363636; padding:.4em; }
+        tr { border:1px dotted gray; }
+        thead th, tfoot th { background:#5C443A; color:#FFFFFF; padding:3px 10px 3px 10px; text-align:center; }
+        tbody td a { color:#363636; text-decoration:none; }
+        tbody td a:visited { color:gray; text-decoration:line-through; }
+        tbody td a:hover { text-decoration:underline; }
+        tbody th a { color:#363636; font-weight:normal; text-decoration:none; }
+        tbody th a:hover { color:#363636; }
+        tbody td+td+td+td a { background-position:left center; background-repeat:no-repeat; color:#03476F; padding-left:15px; }
+        tbody td+td+td+td a:visited { background-position:left center; background-repeat:no-repeat; }
+        tbody th, tbody td { vertical-align:top; }
+        tfoot td { background:#5C443A;color:#FFFFFF; padding-top:3px; }
+        .odd { background:#fff; }
+        .txtnoherit { font-weight:bold; text-align:left; }
+        .numnoherit { font-style:normal; text-align:right; }
+        .numinherit { font-style:italic; text-decoration:line-through; text-align:right}
+        tbody tr:hover { background:#99BCBF; border:1px solid #03476F; color:#000000; }
+        -->
+       </style>
+    </head>
+    <body><div id="wrapper">
+        <div id="leftheader">
+           <a href="http://modmol.agroparistech.fr/SFPD/"><img src="http://modmol.agroparistech.fr/SFPD/css/SFPD_txtsmall.png" alt="SafeFoodPack Design"></a>
+        </div>
+        <div id="header">
+         Failure mode,<br />effects,<br/> and criticality analysis<br/>(FMECA)
+        </div>
+        <div id="nfo">Engine="<b>fmecaengine</b>" (version <b>0.48</b>)&nbsp;&nbsp;&nbsp;&nbsp;Host="<b>olivier</b>@<b>mol10.agroparistech.fr</b>" (mlm release <b>R2010b</b>)&nbsp;&nbsp;&nbsp;&nbsp;Local Path="<b>/home/olivier/MaiNguyen/ANR_SFPD/WP2_FMECA/production</b>"<br />
+        Worksheet="<b>sim1</b>"&nbsp;&nbsp;&nbsp;&nbsp;Input File="<b>omission.ods</b>"&nbsp;&nbsp;&nbsp;&nbsp;FMECA Database="<b>fmecamodal.mat</b>"&nbsp;&nbsp;&nbsp;&nbsp;Input Folder="<b>--> script: </b>"&nbsp;&nbsp;&nbsp;&nbsp;Output Folder="<b>multilayer_scenarios/omission1</b>"
+<br /><a href="omission.html" title="go to results">result page</a>
+
+&nbsp;&nbsp;&raquo;&nbsp;<a href="omission.input.graph.png" title="open depedence graph as an image" target="dependence">dependence graph</a>&nbsp;(<a href="omission.input.graph.pdf" title="open dependence graph as a pdf" target="dependence">pdf</a>)
+</div>
+        <div id="content"><p><hr /></p>
+        <table>
+
+<caption>data 10x1 struct array (34952 bytes) :</caption>
+
+
+<thead>
+
+<tr><th>nfo</th>
+<th>inherit</th>
+<th>id</th>
+<th>parent</th>
+<th>Foscale</th>
+<th>rhoF</th>
+<th>t</th>
+<th>l<sub>F</sub></th>
+<th>l<sub>1</sub></th>
+<th>l<sub>2</sub></th>
+<th>l<sub>3</sub></th>
+<th>l<sub>4</sub></th>
+<th>SML</th>
+<th>CP<sub>1</sub><sup>0</sup></th>
+<th>CP<sub>2</sub><sup>0</sup></th>
+<th>CP<sub>3</sub><sup>0</sup></th>
+<th>CP<sub>4</sub><sup>0</sup></th>
+<th>KFP<sub>1</sub></th>
+<th>KFP<sub>2</sub></th>
+<th>KFP<sub>3</sub></th>
+<th>KFP<sub>4</sub></th>
+<th>Bi</th>
+<th>D<sub>1</sub></th>
+<th>D<sub>2</sub></th>
+<th>D<sub>3</sub></th>
+<th>D<sub>4</sub></th>
+
+<tr><th><small><i>nfo</i></small></th>
+<th><small><i>inherit</i></small></th>
+<th><small><i>usercode</i></small></th>
+<th><small><i></i></small></th>
+<th><small><i>Foscale</i></small></th>
+<th><small><i>rhoF</i></small></th>
+<th><small><i>s</i></small></th>
+<th><small><i>m</i></small></th>
+<th><small><i>m</i></small></th>
+<th><small><i>m</i></small></th>
+<th><small><i>m</i></small></th>
+<th><small><i>m</i></small></th>
+<th><small><i>kg/m<sup>3</sup></i></small></th>
+<th><small><i>kg/m<sup>3</sup></i></small></th>
+<th><small><i>kg/m<sup>3</sup></i></small></th>
+<th><small><i>kg/m<sup>3</sup></i></small></th>
+<th><small><i>kg/m<sup>3</sup></i></small></th>
+<th><small><i>(kg/m<sup>3</sup>)/(kg/m<sup>3</sup>)</i></small></th>
+<th><small><i>(kg/m<sup>3</sup>)/(kg/m<sup>3</sup>)</i></small></th>
+<th><small><i>(kg/m<sup>3</sup>)/(kg/m<sup>3</sup>)</i></small></th>
+<th><small><i>(kg/m<sup>3</sup>)/(kg/m<sup>3</sup>)</i></small></th>
+<th><small><i>no unit</i></small></th>
+<th><small><i>m<sup>2</sup>/s</i></small></th>
+<th><small><i>m<sup>2</sup>/s</i></small></th>
+<th><small><i>m<sup>2</sup>/s</i></small></th>
+<th><small><i>m<sup>2</sup>/s</i></small></th>
+
+</thead>
+
+<tfoot><tr><th scope="row">INPUT TABLE</th><td colspan="4">10 simulation definitions</td>
+<th scope="row">date</th><td colspan="4">02-Sep-2011 10:16:54</td></tr></tfoot>
+
+
+<tbody>
+
+
+<tr class="odd"><td class="txtnoherit"></td>
+<td class="txtnoherit"></td>
+<td class="txtnoherit">XstorageBeforeUseA0</td>
+<td class="txtnoherit"></td>
+<td class="txtnoherit">[0 0]</td>
+<td class="numnoherit">1000</td>
+<td class="numnoherit">1.58112e+07</td>
+<td class="numnoherit">0.00961538</td>
+<td class="numnoherit">1e-05</td>
+<td class="numnoherit">0.0002</td>
+<td class="numnoherit">7e-06</td>
+<td class="numnoherit">3e-06</td>
+<td class="numnoherit">0.0006</td>
+<td class="numnoherit">0</td>
+<td class="numnoherit">0</td>
+<td class="numnoherit">0</td>
+<td class="numnoherit">16.38</td>
+<td class="numnoherit">1</td>
+<td class="numnoherit">10</td>
+<td class="numnoherit">1</td>
+<td class="numnoherit">0.1</td>
+<td class="numnoherit">-1000</td>
+<td class="numnoherit">1.33557e-12</td>
+<td class="numnoherit">1.17136e-13</td>
+<td class="numnoherit">1.33557e-12</td>
+<td class="numnoherit">1.33557e-12</td>
+</tr>
+
+<tr><td class="txtnoherit">XhotFillingA0.Kscale=[1;<br />0.1]</td>
+<td class="txtnoherit"></td>
+<td class="txtnoherit">XhotFillingA0</td>
+<td class="txtnoherit">XstorageBeforeUseA0</td>
+<td class="txtnoherit">[0 0]</td>
+<td class="numinherit">1000</td>
+<td class="numnoherit">18000</td>
+<td class="numinherit">0.00961538</td>
+<td class="numinherit">1e-05</td>
+<td class="numinherit">0.0002</td>
+<td class="numinherit">7e-06</td>
+<td class="numinherit">3e-06</td>
+<td class="numinherit">0.0006</td>
+<td class="numinherit">0</td>
+<td class="numinherit">0</td>
+<td class="numinherit">0</td>
+<td class="numinherit">16.38</td>
+<td class="numinherit">1</td>
+<td class="numinherit">10</td>
+<td class="numinherit">1</td>
+<td class="numinherit">0.1</td>
+<td class="numnoherit">1000</td>
+<td class="numnoherit">3.13162e-10</td>
+<td class="numnoherit">1.24802e-11</td>
+<td class="numnoherit">3.13162e-10</td>
+<td class="numnoherit">3.13162e-10</td>
+</tr>
+
+<tr class="odd"><td class="txtnoherit">XhotFillingA0.Kscale=[1;<br />0.1]</td>
+<td class="txtnoherit"></td>
+<td class="txtnoherit">XstorageA0</td>
+<td class="txtnoherit">XhotFillingA0</td>
+<td class="txtnoherit">[0 0]</td>
+<td class="numinherit">1000</td>
+<td class="numnoherit">2.592e+06</td>
+<td class="numinherit">0.00961538</td>
+<td class="numinherit">1e-05</td>
+<td class="numinherit">0.0002</td>
+<td class="numinherit">7e-06</td>
+<td class="numinherit">3e-06</td>
+<td class="numinherit">0.0006</td>
+<td class="numinherit">0</td>
+<td class="numinherit">0</td>
+<td class="numinherit">0</td>
+<td class="numinherit">16.38</td>
+<td class="numinherit">1</td>
+<td class="numinherit">10</td>
+<td class="numinherit">1</td>
+<td class="numinherit">0.1</td>
+<td class="numinherit">1000</td>
+<td class="numnoherit">9.38978e-14</td>
+<td class="numnoherit">1.20874e-14</td>
+<td class="numnoherit">9.38978e-14</td>
+<td class="numnoherit">9.38978e-14</td>
+</tr>
+
+<tr><td class="txtnoherit"></td>
+<td class="txtnoherit"></td>
+<td class="txtnoherit">YstorageBeforeUseA0</td>
+<td class="txtnoherit"></td>
+<td class="txtnoherit">[0 0]</td>
+<td class="numnoherit">1000</td>
+<td class="numnoherit">1.58112e+07</td>
+<td class="numnoherit">0.00961538</td>
+<td class="numnoherit">1e-05</td>
+<td class="numnoherit">0.0002</td>
+<td class="numnoherit">7e-06</td>
+<td class="numnoherit">3e-06</td>
+<td class="numnoherit">0.0012</td>
+<td class="numnoherit">0</td>
+<td class="numnoherit">0</td>
+<td class="numnoherit">0</td>
+<td class="numnoherit">1.638</td>
+<td class="numnoherit">1</td>
+<td class="numnoherit">10</td>
+<td class="numnoherit">1</td>
+<td class="numnoherit">0.1</td>
+<td class="numnoherit">-1000</td>
+<td class="numnoherit">2.02314e-12</td>
+<td class="numnoherit">1.77438e-13</td>
+<td class="numnoherit">2.02314e-12</td>
+<td class="numnoherit">2.02314e-12</td>
+</tr>
+
+<tr class="odd"><td class="txtnoherit">YhotFillingA0.Kscale=[1;<br />0.1]</td>
+<td class="txtnoherit"></td>
+<td class="txtnoherit">YhotFillingA0</td>
+<td class="txtnoherit">YstorageBeforeUseA0</td>
+<td class="txtnoherit">[0 0]</td>
+<td class="numinherit">1000</td>
+<td class="numnoherit">18000</td>
+<td class="numinherit">0.00961538</td>
+<td class="numinherit">1e-05</td>
+<td class="numinherit">0.0002</td>
+<td class="numinherit">7e-06</td>
+<td class="numinherit">3e-06</td>
+<td class="numinherit">0.0012</td>
+<td class="numinherit">0</td>
+<td class="numinherit">0</td>
+<td class="numinherit">0</td>
+<td class="numinherit">1.638</td>
+<td class="numinherit">1</td>
+<td class="numinherit">10</td>
+<td class="numinherit">1</td>
+<td class="numinherit">0.1</td>
+<td class="numnoherit">1000</td>
+<td class="numnoherit">4.7438e-10</td>
+<td class="numnoherit">1.89051e-11</td>
+<td class="numnoherit">4.7438e-10</td>
+<td class="numnoherit">4.7438e-10</td>
+</tr>
+
+<tr><td class="txtnoherit">YhotFillingA0.Kscale=[1;<br />0.1]</td>
+<td class="txtnoherit"></td>
+<td class="txtnoherit">YstorageA0</td>
+<td class="txtnoherit">YhotFillingA0</td>
+<td class="txtnoherit">[0 0]</td>
+<td class="numinherit">1000</td>
+<td class="numnoherit">2.592e+06</td>
+<td class="numinherit">0.00961538</td>
+<td class="numinherit">1e-05</td>
+<td class="numinherit">0.0002</td>
+<td class="numinherit">7e-06</td>
+<td class="numinherit">3e-06</td>
+<td class="numinherit">0.0012</td>
+<td class="numinherit">0</td>
+<td class="numinherit">0</td>
+<td class="numinherit">0</td>
+<td class="numinherit">1.638</td>
+<td class="numinherit">1</td>
+<td class="numinherit">10</td>
+<td class="numinherit">1</td>
+<td class="numinherit">0.1</td>
+<td class="numinherit">1000</td>
+<td class="numnoherit">1.42237e-13</td>
+<td class="numnoherit">1.831e-14</td>
+<td class="numnoherit">1.42237e-13</td>
+<td class="numnoherit">1.42237e-13</td>
+</tr>
+
+<tr class="odd"><td class="txtnoherit">XhotFillingA0.Kscale=0.1</td>
+<td class="txtnoherit">XhotFillingA0</td>
+<td class="txtnoherit">XhotFillingA0K11</td>
+<td class="txtnoherit">XstorageBeforeUseA0</td>
+<td class="txtnoherit">[0 0]</td>
+<td class="numinherit">1000</td>
+<td class="numinherit">18000</td>
+<td class="numinherit">0.00961538</td>
+<td class="numinherit">1e-05</td>
+<td class="numinherit">0.0002</td>
+<td class="numinherit">7e-06</td>
+<td class="numinherit">3e-06</td>
+<td class="numinherit">0.0006</td>
+<td class="numinherit">0</td>
+<td class="numinherit">0</td>
+<td class="numinherit">0</td>
+<td class="numinherit">16.38</td>
+<td class="numnoherit">0.1</td>
+<td class="numnoherit">1</td>
+<td class="numnoherit">0.1</td>
+<td class="numnoherit">0.01</td>
+<td class="numinherit">1000</td>
+<td class="numinherit">3.13162e-10</td>
+<td class="numinherit">1.24802e-11</td>
+<td class="numinherit">3.13162e-10</td>
+<td class="numinherit">3.13162e-10</td>
+</tr>
+
+<tr><td class="txtnoherit">XhotFillingA0.Kscale=0.1</td>
+<td class="txtnoherit">XstorageA0</td>
+<td class="txtnoherit">XstorageA0K21</td>
+<td class="txtnoherit">XhotFillingA0K11</td>
+<td class="txtnoherit">[0 0]</td>
+<td class="numinherit">1000</td>
+<td class="numinherit">2.592e+06</td>
+<td class="numinherit">0.00961538</td>
+<td class="numinherit">1e-05</td>
+<td class="numinherit">0.0002</td>
+<td class="numinherit">7e-06</td>
+<td class="numinherit">3e-06</td>
+<td class="numinherit">0.0006</td>
+<td class="numinherit">0</td>
+<td class="numinherit">0</td>
+<td class="numinherit">0</td>
+<td class="numinherit">16.38</td>
+<td class="numinherit">0.1</td>
+<td class="numinherit">1</td>
+<td class="numinherit">0.1</td>
+<td class="numinherit">0.01</td>
+<td class="numinherit">1000</td>
+<td class="numinherit">9.38978e-14</td>
+<td class="numinherit">1.20874e-14</td>
+<td class="numinherit">9.38978e-14</td>
+<td class="numinherit">9.38978e-14</td>
+</tr>
+
+<tr class="odd"><td class="txtnoherit">YhotFillingA0.Kscale=0.1</td>
+<td class="txtnoherit">YhotFillingA0</td>
+<td class="txtnoherit">YhotFillingA0K11</td>
+<td class="txtnoherit">YstorageBeforeUseA0</td>
+<td class="txtnoherit">[0 0]</td>
+<td class="numinherit">1000</td>
+<td class="numinherit">18000</td>
+<td class="numinherit">0.00961538</td>
+<td class="numinherit">1e-05</td>
+<td class="numinherit">0.0002</td>
+<td class="numinherit">7e-06</td>
+<td class="numinherit">3e-06</td>
+<td class="numinherit">0.0012</td>
+<td class="numinherit">0</td>
+<td class="numinherit">0</td>
+<td class="numinherit">0</td>
+<td class="numinherit">1.638</td>
+<td class="numnoherit">0.1</td>
+<td class="numnoherit">1</td>
+<td class="numnoherit">0.1</td>
+<td class="numnoherit">0.01</td>
+<td class="numinherit">1000</td>
+<td class="numinherit">4.7438e-10</td>
+<td class="numinherit">1.89051e-11</td>
+<td class="numinherit">4.7438e-10</td>
+<td class="numinherit">4.7438e-10</td>
+</tr>
+
+<tr><td class="txtnoherit">YhotFillingA0.Kscale=0.1</td>
+<td class="txtnoherit">YstorageA0</td>
+<td class="txtnoherit">YstorageA0K21</td>
+<td class="txtnoherit">YhotFillingA0K11</td>
+<td class="txtnoherit">[0 0]</td>
+<td class="numinherit">1000</td>
+<td class="numinherit">2.592e+06</td>
+<td class="numinherit">0.00961538</td>
+<td class="numinherit">1e-05</td>
+<td class="numinherit">0.0002</td>
+<td class="numinherit">7e-06</td>
+<td class="numinherit">3e-06</td>
+<td class="numinherit">0.0012</td>
+<td class="numinherit">0</td>
+<td class="numinherit">0</td>
+<td class="numinherit">0</td>
+<td class="numinherit">1.638</td>
+<td class="numinherit">0.1</td>
+<td class="numinherit">1</td>
+<td class="numinherit">0.1</td>
+<td class="numinherit">0.01</td>
+<td class="numinherit">1000</td>
+<td class="numinherit">1.42237e-13</td>
+<td class="numinherit">1.831e-14</td>
+<td class="numinherit">1.42237e-13</td>
+<td class="numinherit">1.42237e-13</td>
+</tr>
+
+
+</tbody>
+
+        </table>
+       </div>
+      <p /><hr /><p align="center">&mdash;&nbsp;02-Sep-2011 10:16:54&nbsp;&mdash;<br />&copy;<a href="http://www.inra.fr">INRA</a>/<a href="mailto:olivier.vitrac@agroparistech.fr">Olivier Vitrac</a></p>
+</div></body>
+</html>
