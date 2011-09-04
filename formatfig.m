@@ -6,10 +6,11 @@ function formatfig(hfig,varargin)
 %      property/value any valid axes properties
 %      property 'figname' codes for the name of the file (' ' and ':' are replaced respectively by '_' and '-')
 
-% MS 2.1 - 28/12/09  - INRA\Olivier Vitrac - rev. 22/04/11
+% MS 2.1 - 28/12/09  - INRA\Olivier Vitrac - rev. 04/09/11
 
 % Revision history
-%22/04/11 force case sensitive values (required for filename on Linux)
+% 22/04/11 force case sensitive values (required for filename on Linux)
+% 04/09/11 replace ifig by hfig(ifig) for figure numbering
 
 arg_default = struct(...
 'figname'  ,sprintf('fig_%s',datestr(now)),...
@@ -45,6 +46,7 @@ nfig = length(hfig);
 % change the name in the titlebar
 if ~isempty(arg.figname)
     for ifig=1:nfig
-        set(hfig(ifig),'Name',sprintf('%0.2d: %s',ifig,arg.figname),'FileName',arg.figname,'NumberTitle','off')
+        % before 4/9/11: set(hfig(ifig),'Name',sprintf('%0.2d: %s',ifig,arg.figname),'FileName',arg.figname,'NumberTitle','off')
+        set(hfig(ifig),'Name',sprintf('%0.2d: %s',hfig(ifig),arg.figname),'FileName',arg.figname,'NumberTitle','off')
     end
 end
