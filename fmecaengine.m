@@ -194,7 +194,7 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 % Any question to this script/function must be addressed to: olivier.vitrac@agroparistech.fr
 % The script/function was designed to run on the cluster of JRU 1145 Food Process Engineering (admin: Olivier Vitrac)
 %
-% Migration 2.1 (Fmecaengine v0.48) - 10/04/2011 - INRA\Olivier Vitrac - Audrey Goujon - rev. 31/08/2011
+% Migration 2.1 (Fmecaengine v0.49) - 10/04/2011 - INRA\Olivier Vitrac - Audrey Goujon - rev. 24/10/2011
 
 % Revision history
 % 06/04/2011 release candidate
@@ -238,9 +238,10 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 % 30/08/2011 replace denormal numbers in CF plots (absolute value lower than realmin) by 0 (http://en.wikipedia.org/wiki/Denormal_number)
 %            see the following bug (no plot): figure, ha=plot([1 2],[0 0.035]*9.9e-323)
 % 31/08/2011 add Notes 7-9, fix user override of default values with variables in base when they are not of type char
+% 24/10/2011 minor fixes, add CF and CP%d to result table (version 0.49)
 
 %% Fmecaengine version
-versn = 0.48; % official release
+versn = 0.49; % official release
 mlmver = ver('matlab');
 extension = struct('Foscale','Fo%d%d','Kscale','K%d%d','ALT','%sc%d'); % naming extensions (associated to scaling)
 prop2scale = struct('Foscale','regular_D','Kscale','regular_K'); % name of columns
@@ -717,6 +718,13 @@ for iseries = 1:nseries  % Main loop on each series of independent simulations (
                     fmecadb(1).(currentid).dCF = fmecadb(1).(currentid).CF - fmecadb(1).(previousid).CF;
                     if abs(fmecadb(1).(previousid).CF-r.CF(1))>eps, error('inconsistent result between ''%s'' and its ancestor ''%s''',currentid,previousid); end
                 end
+                % concentrations in each layer (added 24/10/11)
+                CP = interp1(r.tC*r.timebase,r.Cx,data(map(isim,iseries)).(o.print_t),'cubic'); % interpolated profile for desired time
+                lcum = [0 r.F.lrefc];
+                for jlayer = 1:nCfield
+                    layerind = find((r.x>=lcum(jlayer)) & (r.x<lcum(jlayer+1)));
+                    fmecadb(1).(currentid).(sprintf('CP%d',jlayer)) = trapz(r.x(layerind),CP(layerind)) / ( r.x(layerind(end))-r.x(layerind(1)) );
+                end % end (added 24/10/11)
                 
                 % Save current simulation
                 save(fullfile(o.local,o.outputpath,[currentid '.mat']),'r');
@@ -1214,7 +1222,8 @@ if nargout>2, options = o; end
         else                          modifyer = {'</tr>' '<tr>'};
         end
         if htmlopt.links
-            MATcol = sprintf('<th>PDF output</th>\n<th>PNG output</th>\n<th>MAT date</th>\n<th>MAT size</th>\n</tr>\n');
+            CONCcol = ['<th>CF</th>\n' sprintf('<th>CP%d</th>\n',1:nCfield)]; % concentration columns (added 24/10/11)
+            MATcol = sprintf('<th>PDF output</th>\n<th>PNG output</th>\n<th>MAT date</th>\n<th>MAT size</th>\n%s</tr>\n',CONCcol);
             nfodb=fileinfo(fullfile(o.local,o.outputpath,o.fmecadbfile));
             tablefooter = {
                 sprintf('\n<tfoot><tr><th scope="row">FMECA database</th><td colspan="4">%d simulations</td><td colspan="4">%s</td><th scope="row">last update</th><td colspan="4">%s</td>%s',...
@@ -1222,7 +1231,7 @@ if nargout>2, options = o; end
                 sprintf('%s<th scope="row">last report</th><td colspan="4">%s</td></tr></tfoot>\n',modifyer{2},report)
             };
         else
-            MATcol='';
+            MATcol='</tr>\n'; % before 24/10/11 ''
             tablefooter = {
                 sprintf('\n<tfoot><tr><th scope="row">INPUT TABLE</th><td colspan="4">%d simulation definitions</td>',ndata)
                 sprintf('<th scope="row">date</th><td colspan="4">%s</td></tr></tfoot>\n',datestr(now))
@@ -1243,7 +1252,12 @@ if nargout>2, options = o; end
             sprintf('\n<tbody>\n')
             }; % 1st row = variable, 2nd row = unit
         % table body
-        if htmlopt.links, MATcol = [repmat('<td align="center">%s</td>\n',1,2) repmat('<td align="center"><small>%s</small></td>\n',1,2)]; else MATcol=''; end
+        if htmlopt.links
+            CONCcol = ['<td>%0.6g</td>\n' repmat('<td>%0.6g</td>\n',1,nCfield)]; % concentration columns (added 24/10/11)
+            MATcol = [repmat('<td align="center">%s</td>\n',1,2) repmat('<td align="center"><small>%s</small></td>\n',1,2) CONCcol];
+        else
+            MATcol='';
+        end
         tr = {['<tr>%s'             MATcol '</tr>\n']
               ['<tr class="odd">%s' MATcol '</tr>\n']};
         tdformat = {'<td class="%s">%s</td>\n' '<td class="%s">%g</td>\n'};  td = [tdformat{isnum(isvalid)+1}];
@@ -1273,13 +1287,17 @@ if nargout>2, options = o; end
                 [~,nfomat] = fileinfo(fullfile(o.local,o.outputpath,[data(i).(o.print_id) '.mat']),'',false);
                 nfomat=regexp(nfomat,'\s{2,}','split');
                 if datenum(nfomat{2})<today, nfomat{2} = char(regexp(nfomat{2},'^[^\s]+','match')); end % remove timestamp if file older than 1 day
-                table{i+9} = sprintf(tr{mod(i,2)+1},sprintf(td,tmp{:}),...
+                validlayers = 1:nCfield;
+                validCPfield = arrayfun(@(jlayer) isfield(fmecadb.(data(i).(o.print_id)),sprintf('CP%d',jlayer)),validlayers);
+                validlayers = validlayers(validCPfield);
+                table{i+8} = sprintf(tr{mod(i,2)+1},sprintf(td,tmp{:}),... fixed 8 instead 9 (24/10/11)
                     sprintf(pdflink,data(i).(o.print_id)),...
                     sprintf(pnglink,data(i).(o.print_id)),...
-                    nfomat{2},nfomat{3} ...
+                    nfomat{2},nfomat{3}, ...
+                    cellfun(@(f) fmecadb.(data(i).(o.print_id)).(f),[{'CF'} arrayfun(@(jlayer) sprintf('CP%d',jlayer),validlayers,'UniformOutput',false)]) ...
                     );
             else
-                table{i+9} = sprintf(tr{mod(i,2)+1},sprintf(td,tmp{:}));
+                table{i+8} = sprintf(tr{mod(i,2)+1},sprintf(td,tmp{:}));
             end
         end
         htmlbottom = {
