@@ -239,9 +239,10 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 %            see the following bug (no plot): figure, ha=plot([1 2],[0 0.035]*9.9e-323)
 % 31/08/2011 add Notes 7-9, fix user override of default values with variables in base when they are not of type char
 % 24/10/2011 minor fixes, add CF and CP%d to result table (version 0.49)
+% 24/10/2011 fix no color when CF=0 for all steps (no contamination). It occurs when FMECAengine is used along with Bi=0 (no mass transfer in F)
 
 %% Fmecaengine version
-versn = 0.49; % official release
+versn = 0.491; % official release
 mlmver = ver('matlab');
 extension = struct('Foscale','Fo%d%d','Kscale','K%d%d','ALT','%sc%d'); % naming extensions (associated to scaling)
 prop2scale = struct('Foscale','regular_D','Kscale','regular_K'); % name of columns
@@ -825,9 +826,10 @@ ranks = flipud(ranks(:));
 [x,y] = KineticsAssembling(fullpaths); % be patient
 hgraph(5) = figure;
 hs = subplots([.7 .3],1,.05);
+plotpubcolor = interp1(linspace(0,1,ncol),jet(ncol),CFvalues(terminalnodes(ranks))/CFmax);
+if any(isnan(plotpubcolor(:))), plotpubcolor = [0 0 0]; end
 subplot(hs(1))
-hp = plotpub(x(ranks),y(ranks),'linestyle','-','linewidth',1,'marker','none',...
-    'color',interp1(linspace(0,1,ncol),jet(ncol),CFvalues(terminalnodes(ranks))/CFmax));
+hp = plotpub(x(ranks),y(ranks),'linestyle','-','linewidth',1,'marker','none','color',plotpubcolor);
 xlabel('time (days)','fontsize',14)
 ylabel('C_F','fontsize',14)
 formatax(hs(1),'fontsize',12)
@@ -1363,8 +1365,10 @@ if nargout>2, options = o; end
             if ~isempty(graphopt.value)
                 col = interp1(linspace(0,1,ncol),jet(ncol),graphopt.value/max(graphopt.value));
                 for i=1:ndata
-                    set(hobj.Nodes(i),'color',col(i,:))
-                    if sum(col(i,:))/3<.4, set(hobj.Nodes(i),'textcolor',[1 1 1]); else set(hobj.Nodes(i),'textcolor',[0 0 0]); end
+                    if ~any(isnan(col(i,:)))
+                        set(hobj.Nodes(i),'color',col(i,:))
+                        if sum(col(i,:))/3<.4, set(hobj.Nodes(i),'textcolor',[1 1 1]); else set(hobj.Nodes(i),'textcolor',[0 0 0]); end
+                    end
                 end
                 if nterminalnodestoadd>0, set(hobj.Nodes((1:nterminalnodestoadd)+ndata),'Shape','ellipse'); end
             end
