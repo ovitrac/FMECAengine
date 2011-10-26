@@ -27,7 +27,7 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 %                     Alternative, define first NOELfact = 100;
 %                     @(CF,SML) NOELfact*(NOELfact-1)./max(NOELfact*SML./CF-1,0)
 %              sample anonymous function to setup how a one->many or a many->many relationship is sampled
-%                      default = @(x) prctile(x,[5 50 95]) (only 5th, 50th and 95th percentiles are consideredà
+%                      default = @(x) prctile(x,[5 50 95]) (only 5th, 50th and 95th percentiles are consideredï¿½
 %                      versions older than 0.43 used @(x) [min(x) median(x) max(x)]
 %                      Note that Foscale and Kscale derived from one->many or a many->many relationships are normalized from the median of
 %                      the sample: setdiff(sample,median(sample))/median(sample)
@@ -37,6 +37,8 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 %                     default value = odeset('RelTol',1e-4,'AbsTol',1e-4,'Initialstep',1e-8,'Maxstep',1e3,'Maxorder',2); % note based on dimensionless times
 %               nmesh number of finite volumes for a layer with a dimensionless thickness of 1 (accurate for most of purposes)
 %                     default value = 200
+%            nmeshmin minimum number of mesh for a layer
+%                     default value = 10;
 %       fmecamainfile  matching the output structure data0 can be used instead of a filename to link several calls of fmecaengine
 %           inputpath (when fmecamainfile is a structure) setups the pattern for output filenames (it must include the extension .ods)
 %
@@ -194,7 +196,7 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 % Any question to this script/function must be addressed to: olivier.vitrac@agroparistech.fr
 % The script/function was designed to run on the cluster of JRU 1145 Food Process Engineering (admin: Olivier Vitrac)
 %
-% Migration 2.1 (Fmecaengine v0.49) - 10/04/2011 - INRA\Olivier Vitrac - Audrey Goujon - rev. 24/10/2011
+% Migration 2.1 (Fmecaengine v0.493) - 10/04/2011 - INRA\Olivier Vitrac - Audrey Goujon - rev. 26/10/2011
 
 % Revision history
 % 06/04/2011 release candidate
@@ -239,10 +241,12 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 %            see the following bug (no plot): figure, ha=plot([1 2],[0 0.035]*9.9e-323)
 % 31/08/2011 add Notes 7-9, fix user override of default values with variables in base when they are not of type char
 % 24/10/2011 minor fixes, add CF and CP%d to result table (version 0.49)
-% 24/10/2011 fix no color when CF=0 for all steps (no contamination). It occurs when FMECAengine is used along with Bi=0 (no mass transfer in F)
+% 24/10/2011 fix no color when CF=0 for all steps (no contamination). It occurs when FMECAengine is used along with Bi=0 (no mass transfer in F) (version 0.491)
+% 26/10/2011 fix two </tr>\n, </th>\n badly printed since 0.491 (version 0.492)
+% 26/10/2011 add nmeshmin (version 0.493)
 
 %% Fmecaengine version
-versn = 0.491; % official release
+versn = 0.493; % official release
 mlmver = ver('matlab');
 extension = struct('Foscale','Fo%d%d','Kscale','K%d%d','ALT','%sc%d'); % naming extensions (associated to scaling)
 prop2scale = struct('Foscale','regular_D','Kscale','regular_K'); % name of columns
@@ -252,6 +256,7 @@ ncol = 64;
 default = struct('local','','inputpath','','outputpath','','fmecamainfile','','fmecadbfile','','fmecasheetname','',... properties that can overriden in base
                  'options',odeset('RelTol',1e-4,'AbsTol',1e-4,'Initialstep',1e-8,'Maxstep',1e3,'Maxorder',2),...
                  'nmesh',200,...
+                 'nmeshmin',10,...
                  'headers',2,... number of header lines
                  'nograph',false,... if true, unable graphs
                  'noprint',false,... if true, unable prints
@@ -545,6 +550,7 @@ days = 24*3600;    % s
 s0 = senspatankar; % prototype of simulation object (constructor)
 s0.options = o.options; % user override
 s0.nmesh = o.nmesh;     % user override
+s0.nmeshmin = o.nmeshmin; % user override
 screen = '';       % screen backstore (for text animation)
 tstart = clock;    % starting time (to compute elpased time)
 
@@ -1224,7 +1230,7 @@ if nargout>2, options = o; end
         else                          modifyer = {'</tr>' '<tr>'};
         end
         if htmlopt.links
-            CONCcol = ['<th>CF</th>\n' sprintf('<th>CP%d</th>\n',1:nCfield)]; % concentration columns (added 24/10/11)
+            CONCcol = [sprintf('<th>CF</th>\n') sprintf('<th>CP%d</th>\n',1:nCfield)]; % concentration columns (added 24/10/11)
             MATcol = sprintf('<th>PDF output</th>\n<th>PNG output</th>\n<th>MAT date</th>\n<th>MAT size</th>\n%s</tr>\n',CONCcol);
             nfodb=fileinfo(fullfile(o.local,o.outputpath,o.fmecadbfile));
             tablefooter = {
@@ -1233,7 +1239,7 @@ if nargout>2, options = o; end
                 sprintf('%s<th scope="row">last report</th><td colspan="4">%s</td></tr></tfoot>\n',modifyer{2},report)
             };
         else
-            MATcol='</tr>\n'; % before 24/10/11 ''
+            MATcol=sprintf('</tr>\n'); % before 24/10/11 ''
             tablefooter = {
                 sprintf('\n<tfoot><tr><th scope="row">INPUT TABLE</th><td colspan="4">%d simulation definitions</td>',ndata)
                 sprintf('<th scope="row">date</th><td colspan="4">%s</td></tr></tfoot>\n',datestr(now))

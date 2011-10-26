@@ -5,12 +5,13 @@ function res = senspatankarC(F,ploton,dispon)
 %   IT IS THE RESPONSABILITY OF THE USER TO PROVIDE THE APPROPRIATE DIMENSIONLESS NUMBERS
 %   a wrapper used for the online version is available in ../www/home/diffusion_1DFVn.m
 
-% MS-MATLAB-WEB 1.0 - 25/09/09 - Olivier Vitrac - rev. 29/04/11
+% MS-MATLAB-WEB 1.0 - 25/09/09 - Olivier Vitrac - rev. 26/10/11
 
 % Revision history
 % 01/10/07 improve speed
 % 16/03/09 add restart
 % 29/04/11 add F.restart.CF
+% 26/10/11 replace xmesh/xmesh(end) xmesh/F.lrefc(end) in the interpolation (thanks to Nicolas)
 
 % definitions
 global timeout
@@ -152,7 +153,7 @@ end
 CF0 = 0; % default initial concentration in F
 if isfield(F,'restart') && ~isempty(F.restart) && isstruct(F.restart) && isfield(F.restart,'x') && isfield(F.restart,'C')
     if ~isfield(F.restart,'method'), F.restart.method = 'linear'; end
-    C0 = interp1(F.restart.x/F.restart.x(end),F.restart.C,xmesh/xmesh(end),F.restart.method)/C0eq;
+    C0 = interp1(F.restart.x/F.restart.x(end),F.restart.C,xmesh/F.lrefc(end),F.restart.method)/C0eq;
     if isfield(F.restart,'CF'), CF0 = F.restart.CF/C0eq; end
 end
 
@@ -168,11 +169,11 @@ end
 he(1:F.nmesh-1) = hw(2:F.nmesh); %flux continuity
 he(end) = 0; % impervious BC
 % control (for debug)
-% clf, hold on
-% plot(xmesh,zeros(size(xmesh)),'ro')
-% plot(xmesh+de,zeros(size(xmesh)),'^')
-% plot(xmesh-dw,zeros(size(xmesh)),'v')
-% line(repmat(F.lrefc,2,1),repmat(ylim',1,F.m),'color','k')
+clf, hold on
+plot(xmesh,zeros(size(xmesh)),'ro')
+plot(xmesh+de,zeros(size(xmesh)),'^')
+plot(xmesh-dw,zeros(size(xmesh)),'v')
+line(repmat(F.lrefc,2,1),repmat(ylim',1,F.m),'color','k')
 
 % Assembling
 A = zeros(F.nmesh+1,F.nmesh+1);
