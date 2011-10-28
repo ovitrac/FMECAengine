@@ -247,7 +247,7 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 % 28/10/2011 fix unmodified inputs when CP\d was stored in output table, fix warning message (version 0.494)
 
 %% Fmecaengine version
-versn = 0.493; % official release
+versn = 0.494; % official release
 mlmver = ver('matlab');
 extension = struct('Foscale','Fo%d%d','Kscale','K%d%d','ALT','%sc%d'); % naming extensions (associated to scaling)
 prop2scale = struct('Foscale','regular_D','Kscale','regular_K'); % name of columns
