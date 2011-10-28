@@ -196,7 +196,7 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 % Any question to this script/function must be addressed to: olivier.vitrac@agroparistech.fr
 % The script/function was designed to run on the cluster of JRU 1145 Food Process Engineering (admin: Olivier Vitrac)
 %
-% Migration 2.1 (Fmecaengine v0.493) - 10/04/2011 - INRA\Olivier Vitrac - Audrey Goujon - rev. 26/10/2011
+% Migration 2.1 (Fmecaengine v0.494) - 10/04/2011 - INRA\Olivier Vitrac - Audrey Goujon - rev. 28/10/2011
 
 % Revision history
 % 06/04/2011 release candidate
@@ -244,6 +244,7 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 % 24/10/2011 fix no color when CF=0 for all steps (no contamination). It occurs when FMECAengine is used along with Bi=0 (no mass transfer in F) (version 0.491)
 % 26/10/2011 fix two </tr>\n, </th>\n badly printed since 0.491 (version 0.492)
 % 26/10/2011 add nmeshmin (version 0.493)
+% 28/10/2011 fix unmodified inputs when CP\d was stored in output table, fix warning message (version 0.494)
 
 %% Fmecaengine version
 versn = 0.493; % official release
@@ -297,7 +298,7 @@ if ~exist('media','dir'),  iconpath = find_path_toolbox('migration'); end
 % Default root directory
 if isempty(default.local)
     switch localname % according to the name of the machine (either Windows or Linux)
-        case {'WSLP-OLIVIER2' 'mol15.agroparistech.fr'}  % developement platforms
+        case {'WSLP-OLIVIER2' 'mol15.agroparistech.fr'}  % development platforms
             default.local = find_path_toolbox('migration'); %             %local = '\\ws-mol4\c$\data\olivier\Audrey_Goujon\Matlab';
             default.inputpath = filesep;
             default.outputpath = 'tmp';
@@ -622,7 +623,8 @@ for iseries = 1:nseries  % Main loop on each series of independent simulations (
         % if yes test whether the simulation conditions has been modified
         % (comparisons are based on s while discarding fields: parent','path','isterminal','restart')
         if exist(currentresfile,'file') && isfield(fmecadb,currentid) % the simulation result is known
-            if structcmp(s(map(isim,iseries)),fmecadb.(currentid),{'parent', 'inherit','path','isterminal','restart','CF','dCF','t','SML'}) % compare simulation parameters
+            CPdbfields = uncell(regexp(fieldnames(fmecadb.(currentid)),'^CP\d+','match'),[],[],true)'; % added 28/10/11
+            if structcmp(s(map(isim,iseries)),fmecadb.(currentid),[{'parent', 'inherit','path','isterminal','restart','CF','dCF','t','SML'} CPdbfields]) % compare simulation parameters
                 screen = dispb(screen,'[%d/%d (%d)]\t%s\t already available\n(to restart this simulation remove the file ''%s'')',count,countmax,nsimtot,currentid,currentresfile);
                 if ~exist(regexprep(currentresfile,'\.mat$','.pdf','ignorecase'),'file') || ~exist(regexprep(currentresfile,'\.mat$','.png','ignorecase'),'file')
                     action(isim,iseries) = 4; % simulation results present by PDF and PNG files are missing
@@ -987,7 +989,7 @@ if nargout>2, options = o; end
                                 itstpath = itstpath+1;
                             end
                             if isnan(valuetoscale)
-                                dispf('WARNING: Unable to find a valid value for the propery ''%s'' of the new node ''%s''. Check your input table.',prop{1},copy(ii,jj).(o.print_id))
+                                dispf('WARNING: Unable to find a valid value for the property ''%s'' of the new node ''%s''. Check your input table.',prop{1},copy(ii,jj).(o.print_id))
                             end
                         end
                         if scale(jj) == 0; % special case (node to be removed)
