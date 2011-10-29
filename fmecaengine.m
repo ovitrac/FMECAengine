@@ -196,7 +196,7 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 % Any question to this script/function must be addressed to: olivier.vitrac@agroparistech.fr
 % The script/function was designed to run on the cluster of JRU 1145 Food Process Engineering (admin: Olivier Vitrac)
 %
-% Migration 2.1 (Fmecaengine v0.494) - 10/04/2011 - INRA\Olivier Vitrac - Audrey Goujon - rev. 28/10/2011
+% Migration 2.1 (Fmecaengine v0.494) - 10/04/2011 - INRA\Olivier Vitrac - Audrey Goujon - rev. 29/10/2011
 
 % Revision history
 % 06/04/2011 release candidate
@@ -245,9 +245,10 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 % 26/10/2011 fix two </tr>\n, </th>\n badly printed since 0.491 (version 0.492)
 % 26/10/2011 add nmeshmin (version 0.493)
 % 28/10/2011 fix unmodified inputs when CP\d was stored in output table, fix warning message (version 0.494)
+% 29/10/2011 consolidated ApplyInheritanceStrategy(), inheritance applied before propagating Foscale and Kscale (version 0.495)
 
 %% Fmecaengine version
-versn = 0.494; % official release
+versn = 0.495; % official release
 mlmver = ver('matlab');
 extension = struct('Foscale','Fo%d%d','Kscale','K%d%d','ALT','%sc%d'); % naming extensions (associated to scaling)
 prop2scale = struct('Foscale','regular_D','Kscale','regular_K'); % name of columns
@@ -298,7 +299,7 @@ if ~exist('media','dir'),  iconpath = find_path_toolbox('migration'); end
 % Default root directory
 if isempty(default.local)
     switch localname % according to the name of the machine (either Windows or Linux)
-        case {'WSLP-OLIVIER2' 'mol15.agroparistech.fr'}  % development platforms
+        case {'WSLP-OLIVIER' 'mol15.agroparistech.fr'}  % development platforms
             default.local = find_path_toolbox('migration'); %             %local = '\\ws-mol4\c$\data\olivier\Audrey_Goujon\Matlab';
             default.inputpath = filesep;
             default.outputpath = 'tmp';
@@ -520,16 +521,20 @@ end % for kp
 % Note that these properties are not inheritable (scaling must be performed before any inheritance)
 newroots = false; allreadyinherited = false;
 if isfield(data,'Foscale')
-    newroots = PropagateScale('Foscale');
-    if isfield(data,'Foscalecopy'), data = rmfield(data,'Foscalecopy');
-    end
-    ApplyInheritanceStrategy(newroots); % apply the whole inheritance strategy
+    ApplyInheritanceStrategy(true); % forced inheritance before propagating scaling (to populate Foscale)
     allreadyinherited = true;
+    newroots = PropagateScale('Foscale');
+    if isfield(data,'Foscalecopy'), data = rmfield(data,'Foscalecopy');  end
 end
 if isfield(data,'Kscale')
+    if ~allreadyinherited
+        ApplyInheritanceStrategy(true); % forced inheritance before propagating scaling (to populate Kscale)
+    end
     allreadyinherited = false;
     newroots = newroots | PropagateScale('Kscale');
     if isfield(data,'Kscalecopy'), data = rmfield(data,'Kscalecopy'); end
+else
+    allreadyinherited = false;
 end
 if ~allreadyinherited, ApplyInheritanceStrategy(newroots); end
 
@@ -864,14 +869,18 @@ if nargout>2, options = o; end
     % Inheritance strategy (see also: PropagateInheritance())
     % This strategy must be forced each time PropagateScale() is called
     % Note that additional inheritance is propagated with parent during simulation
-    % If forced (hen new roots are created), all modes of inheritance must be considered.
+    % If forced (then new roots are created), all modes of inheritance must be considered.
     %%%% --------------------------------------------------------------------------------------
     function ApplyInheritanceStrategy(forced)
         if forced % propagate first along the tree provided by user and long the new tree
+            % FIRST STEP: inheritance propagated the sole original nodes
             PropagateInheritance('inherit','descend',1:ndata0); % higher precedence
             PropagateInheritance('parent','descend',1:ndata0);
-            PropagateInheritance('inherit','descend'); % higher precedence
-            PropagateInheritance('parent','descend');
+            % SECOND STEP: inheritance propagted to the remainder nodes
+            if length(data)>ndata0
+                PropagateInheritance('inherit','descend'); % higher precedence
+                PropagateInheritance('parent','descend');
+            end
         else
             PropagateInheritance('inherit','descend'); % build all possible paths for inheritance (start with largest ones, likely to include root)
         end
@@ -887,7 +896,8 @@ if nargout>2, options = o; end
         %properties not to be modified by PropagateInheritance()
         protectedproperties = intersect(fieldnames(data)',{o.print_parent 'nfo' 'Foscale' 'Kscale'});
         cache = cell2struct(repmat({[]},1,length(protectedproperties)),protectedproperties,2);
-        if nargin<3, ind = 1:length(data); end
+        if nargin<3, ind = []; end
+        if isempty(ind), ind = 1:length(data); end
         switch dependence
             case 'inherit'
                 if isfield(data,o.print_inherit)
