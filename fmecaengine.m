@@ -196,7 +196,7 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 % Any question to this script/function must be addressed to: olivier.vitrac@agroparistech.fr
 % The script/function was designed to run on the cluster of JRU 1145 Food Process Engineering (admin: Olivier Vitrac)
 %
-% Migration 2.1 (Fmecaengine v0.494) - 10/04/2011 - INRA\Olivier Vitrac - Audrey Goujon - rev. 29/10/2011
+% Migration 2.1 (Fmecaengine v0.495) - 10/04/2011 - INRA\Olivier Vitrac - Audrey Goujon - rev. 29/10/2011
 
 % Revision history
 % 06/04/2011 release candidate
@@ -299,7 +299,7 @@ if ~exist('media','dir'),  iconpath = find_path_toolbox('migration'); end
 % Default root directory
 if isempty(default.local)
     switch localname % according to the name of the machine (either Windows or Linux)
-        case {'WSLP-OLIVIER' 'mol15.agroparistech.fr'}  % development platforms
+        case {'WSLP-OLIVIER2' 'mol15.agroparistech.fr'}  % development platforms
             default.local = find_path_toolbox('migration'); %             %local = '\\ws-mol4\c$\data\olivier\Audrey_Goujon\Matlab';
             default.inputpath = filesep;
             default.outputpath = 'tmp';
