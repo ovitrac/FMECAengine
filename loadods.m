@@ -22,7 +22,7 @@ function dataout = loadods(infile,varargin)
 %
 % SEE ALSO: XLSTBLREAD, XLSREAD
 
-% MS 2.1 - 11/02/11 - INRA\Olivier Vitrac - rev. 08/05/11
+% MS 2.1 - 11/02/11 - INRA\Olivier Vitrac - rev. 16/09/11
 % Initial code from (C) 2007 Alex Marten - alex.marten@gmail.com
 
 % Revision history
@@ -36,6 +36,7 @@ function dataout = loadods(infile,varargin)
 %   06/04/11 add structarray
 %   13/04/11 fix headers on empty sheets
 %   08/05/11 add MaxlengthField
+%   16/09/11 force allsheets = true when the name of the first sheet cannot be determined
 
 % Set default options
 validchars = '[^a-zA-Z0-9]'; % accepted characters for fields
@@ -95,8 +96,13 @@ if isempty(options.sheetname)
     if nodesinsheet.getLength==0 % work arround to remove table:calculation-settings (OV)
         sheet = nodes_sheets.item(1);
     end
-    options.sheetname = {get_attribute(sheet,'table:name')};
+    temp = get_attribute(sheet,'table:name'); % may return [] (OV: 16/09/11)
+    if ~isempty(temp), options.sheetname = {temp}; end
 elseif ischar(options.sheetname) && strcmp(options.sheetname,'all')
+    allsheets = true;
+end
+if isempty(options.sheetname)
+    dispf('\tWARNING: the name of the first sheet has not been determined, all sheets will be re read.\n\tSupply the name of the first sheet to remove this message.')
     allsheets = true;
 end
 if ~iscell(options.sheetname), options.sheetname = {options.sheetname}; end
