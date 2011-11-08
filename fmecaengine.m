@@ -196,7 +196,7 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 % Any question to this script/function must be addressed to: olivier.vitrac@agroparistech.fr
 % The script/function was designed to run on the cluster of JRU 1145 Food Process Engineering (admin: Olivier Vitrac)
 %
-% Migration 2.1 (Fmecaengine v0.496) - 10/04/2011 - INRA\Olivier Vitrac - Audrey Goujon - rev. 08/11/2011
+% Migration 2.1 (Fmecaengine v0.497) - 10/04/2011 - INRA\Olivier Vitrac - Audrey Goujon - rev. 08/11/2011
 
 % Revision history
 % 06/04/2011 release candidate
@@ -247,9 +247,10 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 % 28/10/2011 fix unmodified inputs when CP\d was stored in output table, fix warning message (version 0.494)
 % 29/10/2011 consolidated ApplyInheritanceStrategy(), inheritance applied before propagating Foscale and Kscale (version 0.495)
 % 08/10/2011 fix iconpath when the toolbox migration is not installed (machines outside our laboratory) (version 0.496)
+% 08/10/2011 fix iconpath when fmecaengine is in the path (version 0.497)
 
 %% Fmecaengine version
-versn = 0.496; % official release
+versn = 0.497; % official release
 mlmver = ver('matlab');
 extension = struct('Foscale','Fo%d%d','Kscale','K%d%d','ALT','%sc%d'); % naming extensions (associated to scaling)
 prop2scale = struct('Foscale','regular_D','Kscale','regular_K'); % name of columns
@@ -296,8 +297,9 @@ for v=vlist(1:6)
 end
 iconfile = 'table.png'; % default icon for browser
 iconpath = fullfile(find_path_toolbox('migration'),'media'); % expected path
-if ~exist(fullfile(inconpath,inconfile),'file'),  iconpath = find_path_toolbox('migration'); end % alternative path
-if ~exist(fullfile(inconpath,inconfile),'file'), iconpath = rootdir(mfilename('fullpath')); end
+if ~exist(fullfile(iconpath,iconfile),'file'),  iconpath = find_path_toolbox('migration'); end % alternative path
+if ~exist(fullfile(iconpath,iconfile),'file'), iconpath = rootdir(mfilename('fullpath')); end
+if ~exist(iconpath,'dir'), iconpath = rootdir(mfilename('fullpath')); end
 % Default root directory
 if isempty(default.local)
     switch localname % according to the name of the machine (either Windows or Linux)
