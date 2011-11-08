@@ -196,7 +196,7 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 % Any question to this script/function must be addressed to: olivier.vitrac@agroparistech.fr
 % The script/function was designed to run on the cluster of JRU 1145 Food Process Engineering (admin: Olivier Vitrac)
 %
-% Migration 2.1 (Fmecaengine v0.495) - 10/04/2011 - INRA\Olivier Vitrac - Audrey Goujon - rev. 29/10/2011
+% Migration 2.1 (Fmecaengine v0.496) - 10/04/2011 - INRA\Olivier Vitrac - Audrey Goujon - rev. 08/11/2011
 
 % Revision history
 % 06/04/2011 release candidate
@@ -246,9 +246,10 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 % 26/10/2011 add nmeshmin (version 0.493)
 % 28/10/2011 fix unmodified inputs when CP\d was stored in output table, fix warning message (version 0.494)
 % 29/10/2011 consolidated ApplyInheritanceStrategy(), inheritance applied before propagating Foscale and Kscale (version 0.495)
+% 08/10/2011 fix iconpath when the toolbox migration is not installed (machines outside our laboratory) (version 0.496)
 
 %% Fmecaengine version
-versn = 0.495; % official release
+versn = 0.496; % official release
 mlmver = ver('matlab');
 extension = struct('Foscale','Fo%d%d','Kscale','K%d%d','ALT','%sc%d'); % naming extensions (associated to scaling)
 prop2scale = struct('Foscale','regular_D','Kscale','regular_K'); % name of columns
@@ -295,7 +296,8 @@ for v=vlist(1:6)
 end
 iconfile = 'table.png'; % default icon for browser
 iconpath = fullfile(find_path_toolbox('migration'),'media'); % expected path
-if ~exist('media','dir'),  iconpath = find_path_toolbox('migration'); end
+if ~exist(fullfile(inconpath,inconfile),'file'),  iconpath = find_path_toolbox('migration'); end % alternative path
+if ~exist(fullfile(inconpath,inconfile),'file'), iconpath = rootdir(mfilename('fullpath')); end
 % Default root directory
 if isempty(default.local)
     switch localname % according to the name of the machine (either Windows or Linux)
@@ -1336,6 +1338,8 @@ if nargout>2, options = o; end
         % add icon
         if exist(fullfile(iconpath,iconfile),'file')
             copyfile(fullfile(iconpath,iconfile),fullfile(o.local,o.outputpath,iconfile));
+        else
+            dispf('WARNING: unable to find the icon file ''%s''\nExpected directory ''%s''\nCorrupted installation?',iconfile,iconpath)
         end
         if nargout, doc = htmlfile; end
         
