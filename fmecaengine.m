@@ -27,7 +27,7 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 %                     Alternative, define first NOELfact = 100;
 %                     @(CF,SML) NOELfact*(NOELfact-1)./max(NOELfact*SML./CF-1,0)
 %              sample anonymous function to setup how a one->many or a many->many relationship is sampled
-%                      default = @(x) prctile(x,[5 50 95]) (only 5th, 50th and 95th percentiles are considered�
+%                      default = @(x) prctile(x,[5 50 95]) (only 5th, 50th and 95th percentiles are considered
 %                      versions older than 0.43 used @(x) [min(x) median(x) max(x)]
 %                      Note that Foscale and Kscale derived from one->many or a many->many relationships are normalized from the median of
 %                      the sample: setdiff(sample,median(sample))/median(sample)
@@ -109,7 +109,7 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 % > To assess the effect of a single setup, use 0 as scaling parameter (non-propagable value). The corresponding step
 %   will be removed. When required, new roots are added to the simulation tree.
 %
-%   FMECAENGINE can be linked with internal and external databases with keyword 'database' and relational syntaxes (see KEY2KEY).
+%   FMECAENGINE can be linked with internal and external databases with the keyword 'database' and relational syntaxes (see KEY2KEY).
 %   EXAMPLES for fmeca_demo3.ods:
 %    100*(test_key:sim::id->CP20) to reuse the concentration value of the simulation with the id test_key
 %    1000*min(PP:polymer::name->classadditives:substance::class->SML) replacing a numerical SML value
@@ -126,8 +126,8 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 %
 % > FMECAENGINE is designed to run in paralell (trough several instances) on the computing cluster of JRU 1145
 %   on either Windows or Linux (preferred for efficiency) nodes.
-% > Please write, an additional script or function for complex post-treatment. It was not the intend of this script. Please,
-%   note that for accuracy while preserving memory a linear time scale is used for kinetics and time scale propertional to the
+% > Please write, an additional script or function for complex post-treatment. It was not the intend of this function. Please,
+%   note that for accuracy while preserving memory a linear time scale is used for kinetics and a time scale propertional to the
 %   square root of time is used for concentration profiles.
 %
 % ADDITIONAL COMMENTS
@@ -196,7 +196,7 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 % Any question to this script/function must be addressed to: olivier.vitrac@agroparistech.fr
 % The script/function was designed to run on the cluster of JRU 1145 Food Process Engineering (admin: Olivier Vitrac)
 %
-% Migration 2.1 (Fmecaengine v0.497) - 10/04/2011 - INRA\Olivier Vitrac - Audrey Goujon - rev. 08/11/2011
+% Migration 2.1 (Fmecaengine v0.497) - 10/04/2011 - INRA\Olivier Vitrac - Audrey Goujon - rev. 28/11/2011
 
 % Revision history
 % 06/04/2011 release candidate
@@ -248,13 +248,19 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 % 29/10/2011 consolidated ApplyInheritanceStrategy(), inheritance applied before propagating Foscale and Kscale (version 0.495)
 % 08/10/2011 fix iconpath when the toolbox migration is not installed (machines outside our laboratory) (version 0.496)
 % 08/10/2011 fix iconpath when fmecaengine is in the path (version 0.497)
+% 28/11/2011 check whether the toolbox BIOINFO is installed (if not graphs are disabled), implementation of GRAPHVIZ is pending (version 0.498)
 
 %% Fmecaengine version
-versn = 0.497; % official release
+versn = 0.498; % official release
 mlmver = ver('matlab');
 extension = struct('Foscale','Fo%d%d','Kscale','K%d%d','ALT','%sc%d'); % naming extensions (associated to scaling)
 prop2scale = struct('Foscale','regular_D','Kscale','regular_K'); % name of columns
-ncol = 64;
+ncol = 64; % number of reference colors for colormaps (note that used colors are linearly interpolated among ncol colors)
+
+%% Check for a valid installation of the toolbox bioinfo
+% if missing, graphs are not plotted
+% next versions will switch to graphviz instead (http://www.graphviz.org/)
+bioinfo_is_installed = ~isempty(find_path_toolbox('bioinfo'));
 
 %% Default, if variables are defined in base their values are used as default values (to mimic a function usage as script)
 default = struct('local','','inputpath','','outputpath','','fmecamainfile','','fmecadbfile','','fmecasheetname','',... properties that can overriden in base
@@ -337,6 +343,9 @@ if o.nograph, o.noprint=true; end
 
 %% load FMECA main file (simulation definition): only ODS file is accepted for compatibility with LINUX (convert any XLS file to ODS if required)
 clc
+if ~bioinfo_is_installed
+    dispf('WARNING: disabled features:\n\tThe toolbox ''bioinfo'' is not installed on your computer.\n\tPlots will be available but the graphs will be disabled.\n\tNext versions will propose <a href="http://www.graphviz.org/">GRAPHIZ</a> as an alternative.\n')
+end
 if ischar(o.fmecamainfile)
     dispf('\t%s - %s\n\t%s in %s\n\tINRA\\Olivier Vitrac\n',mfilename,datestr(now),o.fmecamainfile,fullfile(o.local,o.inputpath))
 else
@@ -1352,9 +1361,9 @@ if nargout>2, options = o; end
     %%%% properties: ref, prop, color, colorref, textcolor, value, weight, terminalnodes
     %%%% --------------------------------------------------------------------------------------
     function hgraphtmp = fmeca2graph(varargin)
+        if o.nograph || ~bioinfo_is_installed, hgraphtmp=NaN; return, end
         ndata = length(data);
         paperprop = {'PaperUnits','Centimeters','PaperType','A0','PaperOrientation','Landscape'};
-        if o.nograph, hgraphtmp=NaN; return, end
         graphopt = argcheck(varargin,struct('ref',[],'prop',o.print_parent,'color',[],'colorref',rgb('PeachPuff'),'textcolor',[],'value',[],'weight',[],'terminalnodes',[]));
         if isempty(graphopt.weight), w = ones(1,ndata); else w = graphopt.weight(:)'; w(w==0)=1e-99; end
         if ~isfield(data,graphopt.prop), hgraphtmp=NaN; return, end
