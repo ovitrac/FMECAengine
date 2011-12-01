@@ -196,7 +196,7 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 % Any question to this script/function must be addressed to: olivier.vitrac@agroparistech.fr
 % The script/function was designed to run on the cluster of JRU 1145 Food Process Engineering (admin: Olivier Vitrac)
 %
-% Migration 2.1 (Fmecaengine v0.497) - 10/04/2011 - INRA\Olivier Vitrac - Audrey Goujon - rev. 28/11/2011
+% Migration 2.1 (Fmecaengine v0.497) - 10/04/2011 - INRA\Olivier Vitrac - Audrey Goujon - rev. 01/12/2011
 
 % Revision history
 % 06/04/2011 release candidate
@@ -249,9 +249,10 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 % 08/10/2011 fix iconpath when the toolbox migration is not installed (machines outside our laboratory) (version 0.496)
 % 08/10/2011 fix iconpath when fmecaengine is in the path (version 0.497)
 % 28/11/2011 check whether the toolbox BIOINFO is installed (if not graphs are disabled), implementation of GRAPHVIZ is pending (version 0.498)
+% 01/12/2011 fix default sample value when prctile (from the Statistics Toolbox) is not available (version 0.499)
 
 %% Fmecaengine version
-versn = 0.498; % official release
+versn = 0.499; % official release
 mlmver = ver('matlab');
 extension = struct('Foscale','Fo%d%d','Kscale','K%d%d','ALT','%sc%d'); % naming extensions (associated to scaling)
 prop2scale = struct('Foscale','regular_D','Kscale','regular_K'); % name of columns
@@ -340,6 +341,15 @@ close all
 hgraph = [NaN NaN NaN NaN NaN NaN]; % dependence inheritance result pareto kinetics
 delete(findall(0,'Tag','BioGraphTool')) % remove any previous graph
 if o.nograph, o.noprint=true; end
+
+% check whether sample is a valid anonymous function
+if ~isa(o.sample,'function_handle'), error('sample must be an anonymous function, e.g.: @(x)prctile(x,[5,50,95])'); end
+try
+    o.sample(1);
+catch errmsg
+    dispf('WARNING:: sample generated the following error:\n%s\n\t==>To prevent further errors, it is replaced by @(x)median(x).',errmsg)
+    o.sample = @(x)median(x);
+end
 
 %% load FMECA main file (simulation definition): only ODS file is accepted for compatibility with LINUX (convert any XLS file to ODS if required)
 clc
