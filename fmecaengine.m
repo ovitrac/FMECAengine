@@ -196,7 +196,7 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 % Any question to this script/function must be addressed to: olivier.vitrac@agroparistech.fr
 % The script/function was designed to run on the cluster of JRU 1145 Food Process Engineering (admin: Olivier Vitrac)
 %
-% Migration 2.1 (Fmecaengine v0.497) - 10/04/2011 - INRA\Olivier Vitrac - Audrey Goujon - rev. 01/12/2011
+% Migration 2.1 (Fmecaengine v0.4991) - 10/04/2011 - INRA\Olivier Vitrac - Audrey Goujon - rev. 03/12/2011
 
 % Revision history
 % 06/04/2011 release candidate
@@ -250,9 +250,11 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 % 08/10/2011 fix iconpath when fmecaengine is in the path (version 0.497)
 % 28/11/2011 check whether the toolbox BIOINFO is installed (if not graphs are disabled), implementation of GRAPHVIZ is pending (version 0.498)
 % 01/12/2011 fix default sample value when prctile (from the Statistics Toolbox) is not available (version 0.499)
+% 03/12/2011 fix error message, add today (version 0.4991) - this version has been tested on a Virtual Machine running R2011b without any toolbox
+
 
 %% Fmecaengine version
-versn = 0.499; % official release
+versn = 0.4991; % official release
 mlmver = ver('matlab');
 extension = struct('Foscale','Fo%d%d','Kscale','K%d%d','ALT','%sc%d'); % naming extensions (associated to scaling)
 prop2scale = struct('Foscale','regular_D','Kscale','regular_K'); % name of columns
@@ -347,7 +349,7 @@ if ~isa(o.sample,'function_handle'), error('sample must be an anonymous function
 try
     o.sample(1);
 catch errmsg
-    dispf('WARNING:: sample generated the following error:\n%s\n\t==>To prevent further errors, it is replaced by @(x)median(x).',errmsg)
+    dispf('WARNING:: sample generated the following error:\n\t%s\n%s\n\t==>To prevent further errors, it is replaced by @(x)median(x).',errmsg.identifier,errmsg.message)
     o.sample = @(x)median(x);
 end
 
@@ -1525,4 +1527,12 @@ function s=vec2str(x,formatx)
     s = strtrim(sprintf([formatx ' '],x(:)));
     if length(x)>1, s = sprintf('[%s]',s); end
     if size(x,1)>size(x,2), s = [s '''']; end
+end
+
+%%%% --------------------------------------------------------------------------------------
+%%%% today() returns the current date.
+%%%% --------------------------------------------------------------------------------------
+function aujourdhui = today 
+c = clock; 
+aujourdhui = datenum(c(1),c(2),c(3)); 
 end
