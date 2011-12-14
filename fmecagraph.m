@@ -18,7 +18,7 @@ function [hgraphtmp,hparentobjout] = fmecagraph(fmecadb,values,varargin)
 %
 %   OPTIONS: [hg,hbiograph] = fmecagraph(...) returns also the original biograph object (interactive)
 %
-%   TIP: use content = gcfd(hg); and figure, scfd(content,'noaxes','noplot') to recopy the graph into new axes (e.g. a subplot)
+%   TIP: use content = gcfd(hg); and figure, scfd(content,'noaxes','nolengend') to recopy the graph into new axes (e.g. a subplot)
 %
 %
 %   See also: PNGTRUNCATEIM, FMECAENGINE, FMECASINGLE, GCFD, SCFD
