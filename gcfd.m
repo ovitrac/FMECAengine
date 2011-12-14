@@ -1,26 +1,41 @@
-function data = gcfd
+function data = gcfd(figurehandle)
 %  GCFD get current figure data
-% INRA\Olivier Vitrac 28/10/02 - rev. 09/11/09
+%   syntax: a=gcfd;
+%           a=gcfd(gcf);
+%
+%   See also: scfd
+
+% INRA\Olivier Vitrac 28/10/02 - rev. 14/12/11
 
 % REVISION HISTORY
 % 29/10/02 release candidate
 % 09/11/09 add text
+% 14/12/11 add figurehandle, add patch objects, help update
 
+% Default properties
 propAXESlist  = {'sXlabel','sYlabel','nXscale','nYscale','nXlim','nYlim'};
 propLINElist  = {'Color','LineStyle','LineWidth','Marker','MarkerSize','MarkerEdgeColor','MarkerFaceColor','Xdata','Ydata','Zdata'};
 propIMAGElist = {'Xdata','Ydata','CData','AlphaData','CDataMapping','AlphaDataMapping','tag'};
 propTEXTlist  = {'BackgroundColor','Color','EdgeColor','FontAngle','FontName','FontSize','FontUnits','FontWeight','HorizontalAlignment','Interpreter',...
     'LineStyle', 'LineWidth','Margin','Position','Rotation','String','Units','VerticalAlignment'};
-typeOBJECTlist = {'line','image','text'};
+propPATCHlist = {'CData','FaceVertexAlphaData','FaceVertexCData','EdgeAlpha','EdgeColor','FaceAlpha','FaceColor','Faces','LineStyle','LineWidth',...
+    'Marker','MarkerEdgeColor','MarkerFaceColor','MarkerSize','Vertices','XData','YData','ZData'};
+typeOBJECTlist = {'line','image','text','patch'};
 excludedTAG = {'legend','Colorbar'};
 data = [];
-set(gcf,'units','normalized','position',[0 0 .5 .5])
 
-hc = get(gcf,'children');
+% inputs
+if nargin<1, figurehandle = gcf; end
+if ~ishandle(figurehandle), error('the input must be a handle'); end
+if ~get(figurehandle,'type'), error('the object matching the supplied handle is not a figure'); end
+
+% reposition and children
+set(figurehandle,'units','normalized','position',[0 0 .5 .5])
+hc = get(figurehandle,'children');
 indisaxes = find(strcmp(get(hc,'type'),'axes'));
 if any(indisaxes)
     n = length(indisaxes);
-    disp(sprintf('...%d axes objects found in %d children',n,length(hc)))
+    dispf('...%d axes objects found in %d children',n,length(hc))
 else
     disp('no axes objects'), return
 end
@@ -29,9 +44,9 @@ i = 0;
 for hi = flipud(hc(indisaxes))'
     tagname = get(hi,'tag');
     if ismember(tagname,excludedTAG)
-        disp(sprintf('AXES [%d] = ''%s'' is excluded',i+1,tagname))
+        dispf('AXES [%d] = ''%s'' is excluded',i+1,tagname)
     else
-        i = i+1; disp(sprintf('AXES [%d]',i))
+        i = i+1; dispf('AXES [%d]',i)
         hp = flipud(get(hi,'children'));
         % Axes properties
         for p = propAXESlist
@@ -49,11 +64,12 @@ for hi = flipud(hc(indisaxes))'
             case 'line' , propOBJECTlist = propLINElist;
             case 'image', propOBJECTlist = propIMAGElist;
             case 'text' , propOBJECTlist = propTEXTlist;
+            case 'patch', propOBJECTlist = propPATCHlist;
             end
             indisobject = find(strcmp(get(hp,'type'),typeOBJECT));
             m = length(indisobject);
             if any(indisobject)
-                disp(sprintf('...%d ''%s'' objects found in %d children',m,typeOBJECT{1},length(hp)));
+                dispf('...%d ''%s'' objects found in %d children',m,typeOBJECT{1},length(hp));
                 j = 0;
                 for hl=hp(indisobject)'
                     j= j+1;

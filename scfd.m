@@ -3,7 +3,7 @@ function scfd(data,varargin)
 %   syntax: scfd(data)
 %   options: scfd(data [,'noaxes','nolegend'])
 
-% INRA\Olivier Vitrac 28/10/02 - rev. 01/09/11
+% INRA\Olivier Vitrac 28/10/02 - rev. 14/12/11
 
 % REVISION HISTORY
 % 29/10/02 release candidate
@@ -11,14 +11,17 @@ function scfd(data,varargin)
 % 20/02/11 add nolegend
 % 31/08/11 fix nolegend
 % 01/09/11 prevent empty strings from being printed (text(.5,.5,[]) generates an error)
+% 14/12/11 add pacth
 
-% definitions
+% object properties
 propAXESlist = {'sXlabel','sYlabel','nXscale','nYscale','nXlim','nYlim'};
 propLINElist = {'Color','LineStyle','LineWidth','Marker','MarkerSize','MarkerEdgeColor','MarkerFaceColor','Xdata','Ydata','Zdata'};
 propIMAGElist = {'Xdata','Ydata','CData','AlphaData','CDataMapping','AlphaDataMapping','tag'};
 propTEXTlist  = {'BackgroundColor','Color','EdgeColor','FontAngle','FontName','FontSize','FontUnits','FontWeight','HorizontalAlignment','Interpreter',...
     'LineStyle', 'LineWidth','Margin','Position','Rotation','String','Units','VerticalAlignment'};
-typeOBJECTlist = {'line','image','text'};
+propPATCHlist = {'CData','FaceVertexAlphaData','FaceVertexCData','EdgeAlpha','EdgeColor','FaceAlpha','FaceColor','Faces','LineStyle','LineWidth',...
+    'Marker','MarkerEdgeColor','MarkerFaceColor','MarkerSize','Vertices','XData','YData','ZData'};
+typeOBJECTlist = {'line','image','text','patch'};
 
 
 % arg check
@@ -97,6 +100,13 @@ for i=1:length(data)
                                 if any(value), set(hp,p{1},value), end
                             end
                         end
+                    end
+                case 'patch'
+                    propOBJECTlist = propPATCHlist;
+                    for j = 1:length(data(i).patch)
+                        tmp = [propOBJECTlist;struct2cell(data(i).patch(j))'];
+                        tmp = tmp(:,~cellfun('isempty',tmp(2,:)));
+                        patch(tmp{:});
                     end
             end % end switch
         end % endif ~isempty

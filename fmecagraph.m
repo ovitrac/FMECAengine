@@ -1,11 +1,12 @@
 function [hgraphtmp,hparentobjout] = fmecagraph(fmecadb,values,varargin)
 %FMECAGRAPH plots a graph from a FMECAdatabase (as FMECAENGINE does)
-%   SYNTAX: fmecagraph(fmecadb [values,property,value,...])
-%           hg = fmecagraph(...) to retrieve the handle of the axes that contain the graph
+%   SYNTAX: fmecagraph(fmecadb [,values,property1,propvalue1,property2,propvalue2,...])
+%           hg = fmecagraph(...) to retrieve the handle of the axes that contain the graph (not interactive)
 %       fmecadb: FMECA database (output of fmeaengine)
 %        values: values to set a colorscale such values.(nodes{i}) = value of the ith node
 %                default = 0;
 %       Implemented pair properties values
+%          parent: 'parent' (default) or 'inherit'
 %             min: minimal value for color scale
 %             max: maximal value for color scale
 %        colormap: colorscale setup between min and max (default = jet(64))
@@ -15,12 +16,21 @@ function [hgraphtmp,hparentobjout] = fmecagraph(fmecadb,values,varargin)
 %  defaultmagnify: box magnification for out of bounds values (default = 1.2)
 %     operation: operation to apply when several values are found (default = @(x) max(x))
 %
-%   See also: PNGTRUNCATEIM, FMECAENGINE, FMECASINGLE
+%   OPTIONS: [hg,hbiograph] = fmecagraph(...) returns also the original biograph object (interactive)
+%
+%   TIP: use content = gcfd(hg); and figure, scfd(content,'noaxes','noplot') to recopy the graph into new axes (e.g. a subplot)
+%
+%
+%   See also: PNGTRUNCATEIM, FMECAENGINE, FMECASINGLE, GCFD, SCFD
 
-% Migration 2.0 - 24/05/11 - INRA\Olivier Vitrac - rev.
+% Migration 2.0 - 24/05/11 - INRA\Olivier Vitrac - rev. 14/12/11
+
+% Revision history
+% 14/12/11 add parent as property, update help to enable the copy of a graph
 
 % Default
 default = struct(...
+    'parent','parent',...
     'min',-Inf,...
     'max',Inf,...
     'colormap',jet(64),...
@@ -61,7 +71,7 @@ col(bad,:) = repmat(options.defaultfacecolor,length(find(bad)),1);
 codes = cell2struct(num2cell((1:nvalues)',2),fvalues);
 g = sparse(nvalues,nvalues);
 for i=1:nvalues
-    p = fmecadb.(fvalues{i}).parent;
+    p = fmecadb.(fvalues{i}).(options.parent);
     if ~isempty(p), g(codes.(p),codes.(fvalues{i})) = 1; end
 end
 
