@@ -97,7 +97,7 @@ for i=1:length(data)
                             hp = text(data(i).text(j).Position(1),data(i).text(j).Position(2),data(i).text(j).Position(3),data(i).text(j).String);
                             for p = propOBJECTlist
                                 value = getfield(data,{i},'text',{j},p{1});
-                                if any(value), set(hp,p{1},value), end
+                                if ~isempty(value), set(hp,p{1},value), end
                             end
                         end
                     end

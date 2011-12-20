@@ -196,7 +196,7 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 % Any question to this script/function must be addressed to: olivier.vitrac@agroparistech.fr
 % The script/function was designed to run on the cluster of JRU 1145 Food Process Engineering (admin: Olivier Vitrac)
 %
-% Migration 2.1 (Fmecaengine v0.4991) - 10/04/2011 - INRA\Olivier Vitrac - Audrey Goujon - rev. 03/12/2011
+% Migration 2.1 (Fmecaengine v0.4995) - 10/04/2011 - INRA\Olivier Vitrac - Audrey Goujon - rev. 19/12/2011
 
 % Revision history
 % 06/04/2011 release candidate
@@ -251,10 +251,11 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 % 28/11/2011 check whether the toolbox BIOINFO is installed (if not graphs are disabled), implementation of GRAPHVIZ is pending (version 0.498)
 % 01/12/2011 fix default sample value when prctile (from the Statistics Toolbox) is not available (version 0.499)
 % 03/12/2011 fix error message, add today (version 0.4991) - this version has been tested on a Virtual Machine running R2011b without any toolbox
+% 19/12/2011 in graphs, replace 1e-99 by a true 0 (same tip as in fmecagraph)
 
 
 %% Fmecaengine version
-versn = 0.4991; % official release
+versn = 0.4995; % official release
 mlmver = ver('matlab');
 extension = struct('Foscale','Fo%d%d','Kscale','K%d%d','ALT','%sc%d'); % naming extensions (associated to scaling)
 prop2scale = struct('Foscale','regular_D','Kscale','regular_K'); % name of columns
@@ -1377,7 +1378,7 @@ if nargout>2, options = o; end
         ndata = length(data);
         paperprop = {'PaperUnits','Centimeters','PaperType','A0','PaperOrientation','Landscape'};
         graphopt = argcheck(varargin,struct('ref',[],'prop',o.print_parent,'color',[],'colorref',rgb('PeachPuff'),'textcolor',[],'value',[],'weight',[],'terminalnodes',[]));
-        if isempty(graphopt.weight), w = ones(1,ndata); else w = graphopt.weight(:)'; w(w==0)=1e-99; end
+        if isempty(graphopt.weight), w = ones(1,ndata); else w = graphopt.weight(:)'; w(w==0)=NaN; end
         if ~isfield(data,graphopt.prop), hgraphtmp=NaN; return, end
         [~,~,~,c] = buildmarkov({data.(o.print_id)},{data.(graphopt.prop)});
         nterminalnodestoadd = length(graphopt.terminalnodes);
@@ -1417,7 +1418,12 @@ if nargout>2, options = o; end
                 end
                 if nterminalnodestoadd>0, set(hobj.Nodes((1:nterminalnodestoadd)+ndata),'Shape','ellipse'); end
             end
-            if ~isempty(graphopt.weight), set(hobj,'ShowWeights','on'), end
+            if ~isempty(graphopt.weight)
+                set(hobj,'ShowWeights','on')
+                for i=1:length(hobj.Edges) % replace NaN by 0
+                    if isnan(hobj.Edges(i).Weight), hobj.Edges(i).Weight = 0; end
+                end
+            end
             if ~isempty(graphopt.color), set(hobj.Nodes,'color',graphopt.color); end
             if ~isempty(graphopt.textcolor), set(hobj.Nodes,'textcolor',graphopt.textcolor); end
             if ~isempty(graphopt.ref), set(hobj.Nodes(graphopt.ref),'color',graphopt.colorref), end
