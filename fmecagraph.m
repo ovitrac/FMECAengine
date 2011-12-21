@@ -22,6 +22,9 @@ function [hgraphtmp,hparentobjout] = fmecagraph(fmecadb,values,varargin)
 %           weights: value connecting between nodes{i} and nodes{i+1} (default=1) coded as weights.(nodes{i})=value
 %                    'auto' forces weights to be calculated as: values.(nodes{i})-values.(nodes{i-1})
 %shapeterminalnodes: shape for terminal nodes (default = 'ellipse')
+%                    available shapes: 'box', 'ellipse', 'circle', 'rectangle', 'diamond', 'trapezium', 'invtrapezium',
+%                    'house', 'inverse', 'parallelogram'
+% sizeterminalnodes: two-element numeric vector in dpi (default = [])
 %         rootvalue: root value to be used for calculating weights
 %          fontsize: as text()
 %         
@@ -33,12 +36,13 @@ function [hgraphtmp,hparentobjout] = fmecagraph(fmecadb,values,varargin)
 %
 %   See also: PNGTRUNCATEIM, FMECAENGINE, FMECASINGLE, GCFD, SCFD
 
-% Migration 2.0 - 24/05/11 - INRA\Olivier Vitrac - rev. 19/12/11
+% Migration 2.0 - 24/05/11 - INRA\Olivier Vitrac - rev. 20/12/11
 
 % Revision history
 % 14/12/11 add parent as property, update help to enable the copy of a graph
 % 18/12/11 fix NaN as color, add names, weights, terminalnodes, shapeterminalnodes
 % 19/12/11 fix weights calculations, add placeholders, fontsize
+% 20/12/11 add sizeterminalnodes, improved help
 
 % Default
 autoweights = false;
@@ -58,6 +62,7 @@ default = struct(...
     'weights',[],...
     'terminalnodes',[],...
     'shapeterminalnodes','ellipse',...
+    'sizeterminalnodes',[],...
     'rootvalue',0,...
     'fontsize',10);
 minplaceholderlength = 4;
@@ -178,6 +183,9 @@ gobj = biograph(g,gnames);
 for i=1:length(gobj.Nodes)
     gobj.Nodes(i).Label = names.(gobj.Nodes(i).ID);
     gobj.Nodes(i).UserData = gobj.Nodes(i).ID;
+%     if ~isfield(fmecadb,gobj.Nodes(i).ID) && ~isempty(options.sizeterminalnodes) % is terminal (it is only a virtual name)
+%         gobj.Nodes(i).size = options.sizeterminalnodes;
+%     end
 end
 
 
@@ -194,7 +202,12 @@ for i=1:nvalues
         end
     end
 end
-if nterminalnodestoadd>0, set(hobj.Nodes((1:nterminalnodestoadd)+nvalues),'Shape',options.shapeterminalnodes); end
+if nterminalnodestoadd>0
+    set(hobj.Nodes((1:nterminalnodestoadd)+nvalues),'Shape',options.shapeterminalnodes);
+    if ~isempty(options.sizeterminalnodes)
+        set(hobj.Nodes((1:nterminalnodestoadd)+nvalues),'size',options.sizeterminalnodes);
+    end
+end
 
 % display edges/weights
 if ~all(w==1)
