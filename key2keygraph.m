@@ -1,15 +1,28 @@
 function hout = key2keygraph(keytree,hax,varargin)
 %KEY2KEYGRAPH plots a key2key query as a tree (based on fmecagraph)
-%   Syntax: hax = key2keygraph(keytree [,hax,'parameter1',value1,'parameter2',value2,...])
-%      keytree: key2key object (see third output of key2key)
+%   Syntax: hax = key2keygraph(keyquery [,hax,'parameter1',value1,'parameter2',value2,...])
+%      keyquery: key2key object (third output of key2key)
 %           hax: axes handle to plot the tree (default=[])
-%          
+%
+% ------------------------------------------------------------------
+%   keyquery: structure with fields node1,node2...noden
+% ------------------------------------------------------------------
+%   nodei is a sub-structure with fields:
+%              parent: parent node (string)
+%                 key: subkey (string)
+%              values: result of the subkey (double array or char array)
+%          isterminal: flag (true if the node is terminal)
+%  TIP: set isterminal flag to false to remove the display of final or intermediate query results
+%
+% ------------------------------------------------------------------
 %   Pair property/value: (default=default_value)
 %   (properties derived from fmecagraph are noted with [*])
+% ------------------------------------------------------------------
 %         'alignment': HorizontalAlignement (default='center') [*]
 %          'fontsize': fontsize (default=10)                   [*]
 %       'layoutscale': layout scale (default=1)                [*]
 %        'layouttype': tree layout (default='hierarchical')    [*]
+%                      alternatives: 'radial', 'equilibrium'
 %           'nocolor': flag to remove color scale (default=false)
 %      'placeholders': (default='')                            [*]
 %             'scale': (default=1)                             [*]
@@ -27,7 +40,12 @@ function hout = key2keygraph(keytree,hax,varargin)
 
 %   See also: KEY2KEY, FMECAGRAPH
 
-% Migration 2.0 - 06/12/2011 - INRA\Olivier Vitrac - rev. 
+% Migration 2.0 - 24/12/2011 - INRA\Olivier Vitrac - rev. 29/12/2011
+
+% Revision history
+% 27/12/2011 release candidate
+% 28/12/2011 add shapenodes, sizenodes
+% 29/12/2011 improved help, fix cla
 
 % Default parameters
 eol = char(10);
@@ -67,12 +85,11 @@ isterminal = cellfun(@(f) keytree.(f).isterminal, nodetreelist);
 
 % check handle
 if isempty(hax)
-    hfig = gcf; hax = gca; newax = true;
+    hfig = gcf; hax = gca; cla, newax = true;
 else
     if ~ishandle(hax) || strcmp(get(hax,'Type'),'axes'), error('hax must be a valid axes handle'), end
     hfig = get(hax,'Parent');
     figure(hfig), subplot(hax)
-    cla
     newax = false;
 end
 

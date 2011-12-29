@@ -66,9 +66,15 @@ function [val,dbout,keytreeout] = key2key(db,key,interpreterflag,recursionflag,s
 %
 %   Advanced syntaxes: [val,dbout] = key2key(...)
 %                         dbout: database (loaded if needed)
-%                      [val,dbout,keytree] = key2key(...)
-%                         keytree: structure with fields nodei.parent and nodei.key where i=1..nnodes
-%                         to be used with fmecagraph
+%                      [val,dbout,querytree] = key2key(...)
+%                         querytree: structure matching the query and to be used with KEY2KEYGRAPH 
+%                           with fields node1, node2,...noden, where nodei is a sub-structure with fields:
+%                               parent: parent node (string)
+%                                  key: subkey (string)
+%                               values: result of the subkey (double array or char array)
+%                           isterminal: flag (true if the node is terminal)
+%                      NB: in case of multiple subqueries (see example 9), bifurcations are correctly depicted
+%                      final results are attached to the longest chain of queries
 %               
 %   Internal syntax: val = key2key(db,key,interpreterflag,recursionflag)
 %                   interpreterflag (default = true) executes keys as possible Matlab expressions
@@ -166,6 +172,7 @@ function [val,dbout,keytreeout] = key2key(db,key,interpreterflag,recursionflag,s
 %     key2key(db,key8e)
 %     key2key(db,key8f)
 %    [~,~,details] = key2key(db,key8a); key2keygraph(details)
+%    [~,~,details] = key2key(db,key8f); key2keygraph(details)
 % %}
 % %{
 % %  EXAMPLE 9: example 8a with double and triple keys
@@ -178,6 +185,7 @@ function [val,dbout,keytreeout] = key2key(db,key,interpreterflag,recursionflag,s
 %     key9c = 'Dpiringer((scenarioA:scenario::id->polymer),(scenarioA:scenario::id->polymer:polymer::name->classadditives:substance::class->M),(cond3:contact::condition->temperature))';
 %     key2key(db,key9c)
 %     [~,~,details] = key2key(db,key9a); key2keygraph(details)
+%     [~,~,details] = key2key(db,key9c); key2keygraph(details)
 % %}
 %
 %
@@ -185,7 +193,7 @@ function [val,dbout,keytreeout] = key2key(db,key,interpreterflag,recursionflag,s
 %   See also: FMECAENGINE FMECASINGLE ISMEMBERLIST EXPANDTEXTASLIST LOADFMECAENGINEDB KEY2KEYGRAPH
 
 
-% Migration 2.0 - 06/05/2011 - INRA\Olivier Vitrac - rev. 27/12/11
+% Migration 2.0 - 06/05/2011 - INRA\Olivier Vitrac - rev. 29/12/11
 
 % Revision history
 % 07/05/11 add Matlab expressions
@@ -199,7 +207,8 @@ function [val,dbout,keytreeout] = key2key(db,key,interpreterflag,recursionflag,s
 % 23/12/11 add KEYTREE, keytreeout
 % 27/12/11 do not update KEYTREE when keytreeout is not requested
 % 27/12/11 keytreeout returns val and isterminal
-% 29/12/11 fix multiple keys
+% 28/12/11 modified examples to plot the the query tree
+% 29/12/11 fix multiple keys, fix static/dynamic nodes
 
 %default (do not modify the regular expressions without keeping a copy)
 % patternkey = '^(?<key>[A-Za-z0-9_\.\-;,\|\s\\#\{\}\?]+):(?<tablesource>[A-Za-z][A-Za-z0-9_]*)::(?<columnsource>[A-Za-z][A-Za-z0-9_]*)->(?<columndestination>[A-Za-z][A-Za-z0-9_]*)';
@@ -281,16 +290,25 @@ if ~recursionflag
         return
     elseif ischar(key) && interpreterflag && ~isempty(regexp(key,patternisakey,'once')) % MULTIPLE KEYS
         %%% convert the key expression, add terminal ';', remove assignment if any
-        if useKEYTREE % dynamic nextkeynode
+        staticnode = true; % static by default (no bifurcation)
+        if useKEYTREE
             if keynode.nodeidx>0, parent = sprintf(nodename,keynode.nodeidx); else parent=''; end
-            KEYTREE(1).(sprintf(nodename,KEYTREE.lastidx+1)) = struct('parent',parent,'key',key,'values',[]); % store the key in KEYTREE
-            KEYTREE.lastidx = KEYTREE.lastidx + 1;
-            nextkeynode = @(currentidx) struct('parent',sprintf(nodename,KEYTREE.lastidx),'nodeidx',currentidx+1,'values',[]); %#ok<NASGU>
-            key = regexprep(key,{patternisakey,'([^;])$','^[^(]*='},{'key2key(db,''$1'',false,false,sample,nextkeynode(KEYTREE.lastidx))','$1;',''});
+            if length(regexp(key,patternisakey))>1 || isDpiringer % multiple keys => dynamic nextkeynode => bifurcatons
+                staticnode = false;
+                KEYTREE(1).(sprintf(nodename,KEYTREE.lastidx+1)) = struct('parent',parent,'key',key,'values',[]); % store the key in KEYTREE
+                KEYTREE.lastidx = KEYTREE.lastidx + 1;
+                nextkeynode = @(currentidx) struct('parent',sprintf(nodename,KEYTREE.lastidx),'nodeidx',currentidx+1,'values',[]); %#ok<NASGU>
+                key = regexprep(key,{patternisakey,'([^;])$','^[^(]*='},{'key2key(db,''$1'',false,false,sample,nextkeynode(KEYTREE.lastidx))','$1;',''});
+            else % single key
+                nextkeynode = struct('parent',parent,'nodeidx',keynode.nodeidx+1,'values',[]); %#ok<NASGU>
+            end
         else % static nextkeynode
             nextkeynode = struct([]); %#ok<NASGU>
-            key = regexprep(key,{patternisakey,'([^;])$','^[^(]*='},{'key2key(db,''$1'',false,false,sample,nextkeynode)','$1;',''});
         end        %%% check whether Diringer is used
+        if staticnode % default behavior
+            key = regexprep(key,{patternisakey,'([^;])$','^[^(]*='},{'key2key(db,''$1'',false,false,sample,nextkeynode)','$1;',''});
+        end
+
         % indentify the span of Dpiringer(...) even if it contains subexpressions with additional ()
         [start,stop] = regexpi(key,'Dpiringer\(');
         if length(stop)>1, error('Error in ''%s''\nMultiple expressions of Dpiringer() are not allowed (no restrictions for other functions).',key), end 
@@ -420,5 +438,9 @@ function keytree = addisterminal(keytree)
     terminalnodes = cellfun(@(f) f{end},paths,'UniformOutput',false); %unique not required as (single parent)
     for f = nodetreelist
         keytree.(f{1}).isterminal = ismember(f,terminalnodes);
+        % force all nodes with numeric data to be terminal (GOAL: forces key2keygraph to display the results of intermediate queries)
+        if isnumeric(keytree.(f{1}).values) && ~isempty(keytree.(f{1}).values)
+            keytree.(f{1}).isterminal = true;
+        end
     end
 end % end keytree
