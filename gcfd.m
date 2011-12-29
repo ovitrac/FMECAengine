@@ -5,15 +5,16 @@ function data = gcfd(figurehandle)
 %
 %   See also: scfd
 
-% INRA\Olivier Vitrac 28/10/02 - rev. 14/12/11
+% INRA\Olivier Vitrac 28/10/02 - rev. 28/12/11
 
 % REVISION HISTORY
 % 29/10/02 release candidate
 % 09/11/09 add text
 % 14/12/11 add figurehandle, add patch objects, help update
+% 28/12/11 add Position, Units, fix texts on several lines
 
 % Default properties
-propAXESlist  = {'sXlabel','sYlabel','nXscale','nYscale','nXlim','nYlim'};
+propAXESlist  = {'sXlabel','sYlabel','nXscale','nYscale','nXlim','nYlim','nPosition','nUnits'};
 propLINElist  = {'Color','LineStyle','LineWidth','Marker','MarkerSize','MarkerEdgeColor','MarkerFaceColor','Xdata','Ydata','Zdata'};
 propIMAGElist = {'Xdata','Ydata','CData','AlphaData','CDataMapping','AlphaDataMapping','tag'};
 propTEXTlist  = {'BackgroundColor','Color','EdgeColor','FontAngle','FontName','FontSize','FontUnits','FontWeight','HorizontalAlignment','Interpreter',...
@@ -23,6 +24,7 @@ propPATCHlist = {'CData','FaceVertexAlphaData','FaceVertexCData','EdgeAlpha','Ed
 typeOBJECTlist = {'line','image','text','patch'};
 excludedTAG = {'legend','Colorbar'};
 data = [];
+eol = char(10);
 
 % inputs
 if nargin<1, figurehandle = gcf; end
@@ -80,6 +82,11 @@ for hi = flipud(hc(indisaxes))'
                         else
                              data = setfield(data,{i},typeOBJECT{1},{j},p{1},[]);
                          end
+                    end
+                    % fix replace strings stored as array of strings by single strings including \n
+                    if strcmp(typeOBJECT,'text') && size(data(i).text(j).String,1)>0
+                        tmp = [cellstr(data(i).text(j).String)'; repmat({eol},1, size(data(i).text(j).String,1))];
+                        data(i).text(j).String = [tmp{1:end-1}]; %#ok<AGROW>
                     end
                 end
             end

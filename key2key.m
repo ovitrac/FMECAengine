@@ -1,4 +1,4 @@
-function [val,dbout] = key2key(db,key,interpreterflag,recursionflag,sample)
+function [val,dbout,keytreeout] = key2key(db,key,interpreterflag,recursionflag,sample,keynode)
 %KEY2KEY returns the values related to keyA:tableA::columnA->tableB::columnB:tableC::columnC->tableD::columnD...
 %      SCOPE key2key is a multivalued function (in a Mathematical sense) that implements cardinality operations also known as relationships
 %           between tables via primary key, super key and foreign keys. Implemented relationships include:
@@ -24,7 +24,9 @@ function [val,dbout] = key2key(db,key,interpreterflag,recursionflag,sample)
 %
 %   Basic syntax: val = key2key(db,key)
 %
+%  -------------------------------------------------------------------------------
 %      INPUTS
+%  -------------------------------------------------------------------------------
 %             db: structure such as db.tableX.columnY = numerical value or string
 %                 alternatively a structure coding for an ODS file such as: db=struct('filename',...,'headers',...)
 %            key: string or a 1xn/nx1 string cell array coding for
@@ -56,12 +58,17 @@ function [val,dbout] = key2key(db,key,interpreterflag,recursionflag,sample)
 %           Dpiringer(polymercode,key:table1::columnA1->columnB1:table2::columnA2->columnB2 ...->M)
 %           Dpiringer(polymercode,key:table1::columnA1->columnB1:table2::columnA2->columnB2 ...->M,temperature)
 %           
+%  -------------------------------------------------------------------------------
 %      OUTPUTS
+%  -------------------------------------------------------------------------------
 %            val: array of values as stored in db when key is a string
 %                 a nx3 array as [min(values median(values) maximum(values)]
 %
-%   Advanced syntax: [val,dbout] = key2key(...)
-%                    dbout: database (loaded if needed)
+%   Advanced syntaxes: [val,dbout] = key2key(...)
+%                         dbout: database (loaded if needed)
+%                      [val,dbout,keytree] = key2key(...)
+%                         keytree: structure with fields nodei.parent and nodei.key where i=1..nnodes
+%                         to be used with fmecagraph
 %               
 %   Internal syntax: val = key2key(db,key,interpreterflag,recursionflag)
 %                   interpreterflag (default = true) executes keys as possible Matlab expressions
@@ -71,7 +78,10 @@ function [val,dbout] = key2key(db,key,interpreterflag,recursionflag,sample)
 %                    val = key2key(db,keyarray,[],[],percentiles)
 %                    default percentiles = 5th, 50th, 100th
 %
-% TOY EXAMPLES, execute lines between {} with F9 (evaluate)
+%
+%  -------------------------------------------------------------------------------
+%      EXAMPLES: execute lines between {} with F9 (evaluate)
+%  -------------------------------------------------------------------------------
 % %{
 %  %  EXAMPLE 1 (full toy example)
 %        key = 'PP:polymer::name->classadditives:substance::class->name';
@@ -85,11 +95,13 @@ function [val,dbout] = key2key(db,key,interpreterflag,recursionflag,sample)
 %                   'M',     [  101       102      103       201       202       203 ]'...
 %                   );
 %        key2key(db,key)
+%        [~,~,details] = key2key(db,key); key2keygraph(details)
 % %}
 % %{ 
 % %  EXAMPLE 2: Variation based on example 1 (not very useful but illustrate the jump between multiple tables)
 %        key2 = 'PP:polymer::name->classadditives:substance::class->name:substance::name->M';
 %        key2key(db,key2)
+%        [~,~,details] = key2key(db,key2); key2keygraph(details)
 % %}
 % %{
 % %  EXAMPLE 3: Variation based on example 2 (use of superclass as key)
@@ -99,16 +111,19 @@ function [val,dbout] = key2key(db,key,interpreterflag,recursionflag,sample)
 %             'polymer',{{'LLDPE;LDPE|MDPE;HDPE;PP' 'HIPS;PS'}'} ....
 %             );
 %     key2key(db,key3)
+%     [~,~,details] = key2key(db,key3); key2keygraph(details)
 % %}
 % %{
 % %  EXAMPLE 4: Variation based on example 3 (behavior in presence of missing values)
 %     key4 = 'LDPE|undefined|PP:polymer::name->classadditives:substance::class->name:substance::name->M';
 %     key2key(db,key4)
+%     [~,~,details] = key2key(db,key4); key2keygraph(details)
 % %}
 % %{
 % %  EXAMPLE 5: Variation based on example 4 (alternative values, note that extra spaces can be included arround operator '|')
 %     key5 = 'antiUV2 | antiox1 | antiUV3 :substance::name->M';
 %     key2key(db,key5)
+%     [~,~,details] = key2key(db,key5); key2keygraph(details)
 % %}
 % %{
 % %  EXAMPLES 6: Variation based on example 5 (search all anitUVi with i=0..9)
@@ -120,6 +135,7 @@ function [val,dbout] = key2key(db,key,interpreterflag,recursionflag,sample)
 %     key2key(db,key6b)
 %     key2key(db,key6c)
 %     key2key(db,key6d)
+%     [~,~,details] = key2key(db,key6a); key2keygraph(details)
 % %}
 % %{
 % %  EXAMPLES 7: Variation based on example 6 (to illustrate the difference beween regular expressions)
@@ -133,6 +149,7 @@ function [val,dbout] = key2key(db,key,interpreterflag,recursionflag,sample)
 %     key2key(db,key7c)
 %     key2key(db,key7d)
 %     key2key(db,key7e)
+%     [~,~,details] = key2key(db,key7a); key2keygraph(details)
 % %}
 % %{
 % %  EXAMPLES 8: with mathematical formula
@@ -148,6 +165,7 @@ function [val,dbout] = key2key(db,key,interpreterflag,recursionflag,sample)
 %     key2key(db,key8d)
 %     key2key(db,key8e)
 %     key2key(db,key8f)
+%    [~,~,details] = key2key(db,key8a); key2keygraph(details)
 % %}
 % %{
 % %  EXAMPLE 9: example 8a with double and triple keys
@@ -159,14 +177,15 @@ function [val,dbout] = key2key(db,key,interpreterflag,recursionflag,sample)
 %     key2key(db,key9b)
 %     key9c = 'Dpiringer((scenarioA:scenario::id->polymer),(scenarioA:scenario::id->polymer:polymer::name->classadditives:substance::class->M),(cond3:contact::condition->temperature))';
 %     key2key(db,key9c)
+%     [~,~,details] = key2key(db,key9a); key2keygraph(details)
 % %}
 %
 %
 %
-%   See also: FMECAENGINE FMECASINGLE ISMEMBERLIST EXPANDTEXTASLIST LOADFMECAENGINEDB
+%   See also: FMECAENGINE FMECASINGLE ISMEMBERLIST EXPANDTEXTASLIST LOADFMECAENGINEDB KEY2KEYGRAPH
 
 
-% Migration 2.0 - 06/05/2011 - INRA\Olivier Vitrac - rev. 26/08/11
+% Migration 2.0 - 06/05/2011 - INRA\Olivier Vitrac - rev. 27/12/11
 
 % Revision history
 % 07/05/11 add Matlab expressions
@@ -177,6 +196,10 @@ function [val,dbout] = key2key(db,key,interpreterflag,recursionflag,sample)
 % 25/07/11 add examples 9 (multiple keys within Dpiringer)
 % 25/08/11 split final results that include lists of strings (with ';' or '|')
 % 26/08/11 fix isDpiringer for cell arrays, add sample
+% 23/12/11 add KEYTREE, keytreeout
+% 27/12/11 do not update KEYTREE when keytreeout is not requested
+% 27/12/11 keytreeout returns val and isterminal
+% 29/12/11 fix multiple keys
 
 %default (do not modify the regular expressions without keeping a copy)
 % patternkey = '^(?<key>[A-Za-z0-9_\.\-;,\|\s\\#\{\}\?]+):(?<tablesource>[A-Za-z][A-Za-z0-9_]*)::(?<columnsource>[A-Za-z][A-Za-z0-9_]*)->(?<columndestination>[A-Za-z][A-Za-z0-9_]*)';
@@ -189,18 +212,27 @@ splitstr = '\s*[;\|]+\s*';
 interpreterflag_default = true;
 recursionflag_default = false;
 sample_default = [5 50 95];
+nodename = 'node%d';
+rootnode = sprintf(nodename,1);
+
+% Peristent variable
+persistent KEYTREE
 
 % arg check
 if nargin<2, error('Two arguments are required'); end
 if ~isstruct(db), error('the first argument must be a structure'); end
-if isempty(key), val = []; if nargout>1, dbout=db; end; return; end
+if isempty(key), val = []; if nargout>1, dbout=db; end; if nargout>2, keytreeout=struct([]); end, return; end
+if nargin==2, if nargout>2, KEYTREE = struct('lastidx',0); else KEYTREE = struct([]); end, end
 if nargin<3, interpreterflag = []; end
 if nargin<4, recursionflag = []; end
 if nargin<5, sample = []; end
+if nargin<6, keynode = []; end
 if isempty(interpreterflag), interpreterflag = interpreterflag_default; end
 if isempty(recursionflag), recursionflag = recursionflag_default; end
 if isempty(sample), sample = sample_default; end
+if isempty(keynode), keynode = struct('parent','','nodeidx',0); end
 sample = sample(:)';
+useKEYTREE = isfield(KEYTREE,'lastidx');
 
 % Remove , when Dpiringer is used
 if ischar(key) 
@@ -223,14 +255,14 @@ if ~recursionflag
         return
     elseif iscell(key) % cell array containing keys
         nkey = length(key);
-        tmp = key2key(db,key{1});
+        tmp = key2key(db,key{1},interpreterflag_default); % interpretation flag set to true (as default) to avoid resetting KEYTREE
         if isnumeric(tmp)
             val =zeros(nkey,3); 
             for i=1:nkey
                 if isnumeric(key{i}) % keep the value
                     val(i,:) = [1 1 1]*key{i};
                 else % key to interpret
-                    tmp = key2key(db,key{i});
+                    tmp = key2key(db,key{i},interpreterflag_default); % interpretation flag set to true (as default) to avoid resetting KEYTREE
                     % before sample
                     %nnan = ~isnan(tmp);
                     %if any(nnan), med = median(tmp(nnan)); else med = NaN; end
@@ -239,14 +271,26 @@ if ~recursionflag
                 end
             end
         else
-            val =cell(nkey); for i=1:nkey, val{i} = key2key(db,key{i}); end 
+            val =cell(nkey); for i=1:nkey, val{i} = key2key(db,key{i},interpreterflag_default); end % interpretation flag set to true (as default) to avoid resetting KEYTREE
         end
         if nargout>1, dbout=db; end;
+        if nargout>2
+            if isfield(KEYTREE,rootnode), KEYTREE.(rootnode).values = val; end
+            keytreeout = addisterminal(KEYTREE);
+        end
         return
-    elseif ischar(key) && interpreterflag && ~isempty(regexp(key,patternisakey,'once')) %KEY
+    elseif ischar(key) && interpreterflag && ~isempty(regexp(key,patternisakey,'once')) % MULTIPLE KEYS
         %%% convert the key expression, add terminal ';', remove assignment if any
-        key = regexprep(key,{patternisakey,'([^;])$','^[^(]*='},{'key2key(db,''$1'',false,false)','$1;',''});
-        %%% check whether Diringer is used
+        if useKEYTREE % dynamic nextkeynode
+            if keynode.nodeidx>0, parent = sprintf(nodename,keynode.nodeidx); else parent=''; end
+            KEYTREE(1).(sprintf(nodename,KEYTREE.lastidx+1)) = struct('parent',parent,'key',key,'values',[]); % store the key in KEYTREE
+            KEYTREE.lastidx = KEYTREE.lastidx + 1;
+            nextkeynode = @(currentidx) struct('parent',sprintf(nodename,KEYTREE.lastidx),'nodeidx',currentidx+1,'values',[]); %#ok<NASGU>
+            key = regexprep(key,{patternisakey,'([^;])$','^[^(]*='},{'key2key(db,''$1'',false,false,sample,nextkeynode(KEYTREE.lastidx))','$1;',''});
+        else % static nextkeynode
+            nextkeynode = struct([]); %#ok<NASGU>
+            key = regexprep(key,{patternisakey,'([^;])$','^[^(]*='},{'key2key(db,''$1'',false,false,sample,nextkeynode)','$1;',''});
+        end        %%% check whether Diringer is used
         % indentify the span of Dpiringer(...) even if it contains subexpressions with additional ()
         [start,stop] = regexpi(key,'Dpiringer\(');
         if length(stop)>1, error('Error in ''%s''\nMultiple expressions of Dpiringer() are not allowed (no restrictions for other functions).',key), end 
@@ -270,16 +314,25 @@ if ~recursionflag
             rethrow(err)
         end
         if nargout>1, dbout=db; end;
+        if nargout>2
+            if isfield(KEYTREE,rootnode), KEYTREE.(rootnode).values = val; end
+            keytreeout = addisterminal(KEYTREE);
+        end
         return
     end
 end % recursion flag
 
 %%% execute key code
+if useKEYTREE
+    KEYTREE(1).(sprintf(nodename,keynode.nodeidx)) = struct('parent',keynode.parent,'key',key,'values',[]); % store the key in KEYTREE
+    KEYTREE.lastidx = KEYTREE.lastidx + 1;
+end
 [start,stop] = regexp(key,patternkey);
 if isempty(start) % invalid key but try to interpret literally the code
     try
         val = eval(key);
         if nargout>1, dbout=db; end;
+        if useKEYTREE, KEYTREE.(sprintf(nodename,keynode.nodeidx)).val = val; end
         return
     catch %#ok<CTCH>
         dispf('WARNING: unrecognized syntax for ''%s''.\nTry to read numbers literally, please check',key)
@@ -324,13 +377,48 @@ if isempty(remainderkey)
     else
         val = found;
     end
+    if useKEYTREE, KEYTREE.(sprintf(nodename,keynode.nodeidx)).values = val; end
         
 else
+    
+    if useKEYTREE
+        nextkeynode = struct('parent',sprintf(nodename,keynode.nodeidx),'nodeidx',[]);
+    else
+        nextkeynode = struct([]);
+    end
     val = cell(0,1);
     for i=1:length(found)
-        tmp = key2key(db,sprintf('%s%s',found{i},remainderkey),false,true); % call with recursion
-        if i==1, val = tmp; else val = [val;tmp]; end %#ok<AGROW> 
+        if useKEYTREE, nextkeynode.nodeidx = KEYTREE.lastidx+1; end
+        tmp = key2key(db,sprintf('%s%s',found{i},remainderkey),false,true,sample,nextkeynode); % call with recursion
+        if i==1, val = tmp; else val = [val;tmp]; end %#ok<AGROW>
+        if useKEYTREE
+            KEYTREE.(sprintf(nodename,nextkeynode.nodeidx)).values = tmp;
+        end
     end
+    
 end
 
+%% additional outputs
 if nargout>1, dbout = db; end
+if nargout>2
+    if isfield(KEYTREE,rootnode), KEYTREE.(rootnode).values = val; end
+    keytreeout = addisterminal(KEYTREE);
+end
+
+end % end main function
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% PRIVATE FUNCTION
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% ADDISTERMINAL set isterminal field to true when the node is terminal
+function keytree = addisterminal(keytree)
+    keytree = rmfield(keytree,'lastidx');
+    nodetreelist = fieldnames(keytree)';
+    paths = buildmarkov(keytree);
+    terminalnodes = cellfun(@(f) f{end},paths,'UniformOutput',false); %unique not required as (single parent)
+    for f = nodetreelist
+        keytree.(f{1}).isterminal = ismember(f,terminalnodes);
+    end
+end % end keytree

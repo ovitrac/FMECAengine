@@ -15,18 +15,24 @@ function [hgraphtmp,hparentobjout] = fmecagraph(fmecadb,values,varargin)
 %  defaultlinewidth: linewidth for out of bounds values (default = 2)
 %    defaultmagnify: box magnification for out of bounds values (default = 1.2)
 %         operation: operation to apply when several values are found (default = @(x) max(x))
+%        layouttype: tree layout 'hierarchical' (default), 'equilibrium', 'radial' (see biograph for details)
+%       layoutscale: layout scale (default=1) (see biograph for details)
+%             scale: 1 (see biograph for details)
 %             names: alternate node names for plotting coded as names.(nodes{i})='alternate name'
 %                    used either in orginal (interactive) graph and copied graph
 %      placeholders: as names but to force a precribed design
 %     terminalnodes: terminal values plotted as terminal nodes codes as terminalnodes.(nodes{i})='some text'
 %           weights: value connecting between nodes{i} and nodes{i+1} (default=1) coded as weights.(nodes{i})=value
 %                    'auto' forces weights to be calculated as: values.(nodes{i})-values.(nodes{i-1})
+%        shapenodes: shape for non-terminal bodes (see shapeterminalnodes for details)
+%         sizenodes: two-element numeric vector in dpi (default = [])
 %shapeterminalnodes: shape for terminal nodes (default = 'ellipse')
 %                    available shapes: 'box', 'ellipse', 'circle', 'rectangle', 'diamond', 'trapezium', 'invtrapezium',
 %                    'house', 'inverse', 'parallelogram'
 % sizeterminalnodes: two-element numeric vector in dpi (default = [])
 %         rootvalue: root value to be used for calculating weights
 %          fontsize: as text()
+%         alignment: HorizontalAlignment
 %         
 %
 %   OPTIONS: [hg,hbiograph] = fmecagraph(...) returns also the original biograph object (interactive)
@@ -34,15 +40,18 @@ function [hgraphtmp,hparentobjout] = fmecagraph(fmecadb,values,varargin)
 %   TIP: use content = gcfd(hg); and figure, scfd(content,'noaxes','nolengend') to recopy the graph into new axes (e.g. a subplot)
 %
 %
-%   See also: PNGTRUNCATEIM, FMECAENGINE, FMECASINGLE, GCFD, SCFD
+%   See also: PNGTRUNCATEIM, FMECAENGINE, FMECASINGLE, GCFD, SCFD, KEY2KEYGRAPH, KEY2KEY
 
-% Migration 2.0 - 24/05/11 - INRA\Olivier Vitrac - rev. 20/12/11
+% Migration 2.0 - 24/05/11 - INRA\Olivier Vitrac - rev. 28/12/11
 
 % Revision history
 % 14/12/11 add parent as property, update help to enable the copy of a graph
 % 18/12/11 fix NaN as color, add names, weights, terminalnodes, shapeterminalnodes
 % 19/12/11 fix weights calculations, add placeholders, fontsize
 % 20/12/11 add sizeterminalnodes, improved help
+% 26/12/11 add layouttype, layoutscale, layouttype, shapenodes, sizenodes
+% 27/12/11 fix empty texts in children
+% 28/12/11 add alignment
 
 % Default
 autoweights = false;
@@ -57,14 +66,20 @@ default = struct(...
     'defaultmagnify',1.2,...
     'operation',@(x) max(x),...
     'paperproperties',struct('PaperUnits','Centimeters','PaperType','A0','PaperOrientation','Landscape'),...
+    'layouttype','hierarchical',...
+    'layoutscale',1,...
+    'scale',1,...
     'names',struct([]),...
     'placeholders',struct([]),...
     'weights',[],...
     'terminalnodes',[],...
+    'shapenodes','box',...
+    'sizenodes',[],...
     'shapeterminalnodes','ellipse',...
     'sizeterminalnodes',[],...
     'rootvalue',0,...
-    'fontsize',10);
+    'fontsize',10,...
+    'alignment','');
 minplaceholderlength = 4;
 placeholderidx = sprintf('%%0.%dd',minplaceholderlength-1);
 
@@ -190,6 +205,7 @@ end
 
 
 % plot graph and apply layout
+set(gobj,'LayoutType',options.layouttype,'LayoutScale',options.layoutscale,'Scale',options.scale);
 hobj=view(gobj);
 for i=1:nvalues
     if ~isnan(col(i,:))
@@ -202,10 +218,14 @@ for i=1:nvalues
         end
     end
 end
+% layout for regular nodes
+set(hobj.Nodes(1:nvalues),'Shape',options.shapenodes);
+if ~isempty(options.sizenodes), set(hobj.Nodes(1:nvalues),'Size',options.sizenodes); end
+% layout for terminal nodes
 if nterminalnodestoadd>0
     set(hobj.Nodes((1:nterminalnodestoadd)+nvalues),'Shape',options.shapeterminalnodes);
     if ~isempty(options.sizeterminalnodes)
-        set(hobj.Nodes((1:nterminalnodestoadd)+nvalues),'size',options.sizeterminalnodes);
+        set(hobj.Nodes((1:nterminalnodestoadd)+nvalues),'Size',options.sizeterminalnodes);
     end
 end
 
@@ -231,11 +251,30 @@ if nargout
     hchildren = get(haxcopy,'Children');
     istext = strcmp(get(hchildren,'Type'),'text');
     set(hchildren(istext),'interpreter','Tex','FontSize',options.fontsize)
+    %if ~isempty(options.alignment), set(hchildren(istext),'HorizontalAlignment',options.alignment); end
     istext(istext) = cellfun(@(s) size(s,1)==1,get(hchildren(istext),'String'));
-    istext(istext) = ~cellfun('isempty',regexp(strtrim(get(hchildren(istext),'String')),'\d+#+$'));
-    for i=find(istext)'
-        set(hchildren(i),'String',glabelscopy(str2double(regexp(get(hchildren(i),'String'),'\d+','match'))))
-    end   
+    if any(istext)
+        istext(istext) = ~cellfun('isempty',regexp(strtrim(get(hchildren(istext),'String')),'\d+#+$'));
+        for i=find(istext)'
+            set(hchildren(i),'String',glabelscopy(str2double(regexp(get(hchildren(i),'String'),'\d+','match'))))
+        end
+    end
 end
 
 if nargout>1, hparentobjout = hparentobj; end
+
+% end
+% 
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% %% PRIVATE FUNCTION
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% % STRTRIM2 alternative to STRTRIM (more robust when [] is used instead of '')
+% function y=strtrim2(x)
+%     if isnumeric(x)
+%         y = ''; return
+%     else
+%         y=x;
+%         if ~iscellstr(y), y(cellfun(@(xi) ~ischar(xi),x))={''}; end
+%     end
+%     y = strtrim(y);
+% end
