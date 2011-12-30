@@ -1,4 +1,4 @@
-function [hgraphtmp,hparentobjout] = fmecagraph(fmecadb,values,varargin)
+function [hgraphtmp,hparentobjout,hobjout] = fmecagraph(fmecadb,values,varargin)
 %FMECAGRAPH plots a graph from a FMECAdatabase (as FMECAENGINE does)
 %   SYNTAX: fmecagraph(fmecadb [,values,property1,propvalue1,property2,propvalue2,...])
 %           hg = fmecagraph(...) to retrieve the handle of the axes that contain the graph (not interactive)
@@ -18,6 +18,7 @@ function [hgraphtmp,hparentobjout] = fmecagraph(fmecadb,values,varargin)
 %        layouttype: tree layout 'hierarchical' (default), 'equilibrium', 'radial' (see biograph for details)
 %       layoutscale: layout scale (default=1) (see biograph for details)
 %             scale: 1 (see biograph for details)
+%            resize: scalar or 1x2 vector to force the biograph window to be resized by the factor resize
 %             names: alternate node names for plotting coded as names.(nodes{i})='alternate name'
 %                    used either in orginal (interactive) graph and copied graph
 %      placeholders: as names but to force a precribed design
@@ -35,14 +36,15 @@ function [hgraphtmp,hparentobjout] = fmecagraph(fmecadb,values,varargin)
 %         alignment: HorizontalAlignment
 %         
 %
-%   OPTIONS: [hg,hbiograph] = fmecagraph(...) returns also the original biograph object (interactive)
+%   OPTIONS: [hg,hbiograph] = fmecagraph(...) returns also the original figure containing the biograph object (interactive)
+%            [hg,hbiograph,hobjout] = fmecagraph(...) returns the biograph object itself (to be displayed with view())
 %
 %   TIP: use content = gcfd(hg); and figure, scfd(content,'noaxes','nolengend') to recopy the graph into new axes (e.g. a subplot)
 %
 %
-%   See also: PNGTRUNCATEIM, FMECAENGINE, FMECASINGLE, GCFD, SCFD, KEY2KEYGRAPH, KEY2KEY
+%   See also: PNGTRUNCATEIM, FMECAENGINE, FMECASINGLE, GCFD, SCFD, KEY2KEYGRAPH, KEY2KEY, BUILDMARKOV
 
-% Migration 2.0 - 24/05/11 - INRA\Olivier Vitrac - rev. 28/12/11
+% Migration 2.0 - 24/05/11 - INRA\Olivier Vitrac - rev. 30/12/11
 
 % Revision history
 % 14/12/11 add parent as property, update help to enable the copy of a graph
@@ -52,6 +54,7 @@ function [hgraphtmp,hparentobjout] = fmecagraph(fmecadb,values,varargin)
 % 26/12/11 add layouttype, layoutscale, layouttype, shapenodes, sizenodes
 % 27/12/11 fix empty texts in children
 % 28/12/11 add alignment
+% 30/12/11 add resize, hobjout
 
 % Default
 autoweights = false;
@@ -79,7 +82,8 @@ default = struct(...
     'sizeterminalnodes',[],...
     'rootvalue',0,...
     'fontsize',10,...
-    'alignment','');
+    'alignment','',...
+    'resize',[]);
 minplaceholderlength = 4;
 placeholderidx = sprintf('%%0.%dd',minplaceholderlength-1);
 
@@ -237,10 +241,21 @@ if ~all(w==1)
     end
 end
 
+% figure handle
+hparentobj = get(hobj.hgAxes,'Parent');  set(hparentobj,options.paperproperties)
 
-% output
+% resize (if requested)
+if ~isempty(options.resize)
+   if numel(options.resize)<2, options.resize = options.resize(1)*[1 1]; end
+   posparent = get(hparentobj,'position');
+   newsiz    = options.resize(1:2).*posparent(3:4);
+   newpos    = max(0,posparent(1:2)-(newsiz-posparent(3:4))/2);
+   set(hparentobj,'position',[newpos newsiz])
+   figure(hparentobj), drawnow
+end
+
+% main output
 if nargout
-    hparentobj = get(hobj.hgAxes,'Parent');  set(hparentobj,options.paperproperties)
     hgraphtmp = figure('Units','Points','PaperPosition',get(hparentobj,'PaperPosition'),options.paperproperties);
     copyobj(hobj.hgAxes,hgraphtmp); set(hgraphtmp,'Units','Pixels');    
     % replace placeholders in graph copy
@@ -261,20 +276,6 @@ if nargout
     end
 end
 
+% additional outputs
 if nargout>1, hparentobjout = hparentobj; end
-
-% end
-% 
-% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% %% PRIVATE FUNCTION
-% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% % STRTRIM2 alternative to STRTRIM (more robust when [] is used instead of '')
-% function y=strtrim2(x)
-%     if isnumeric(x)
-%         y = ''; return
-%     else
-%         y=x;
-%         if ~iscellstr(y), y(cellfun(@(xi) ~ischar(xi),x))={''}; end
-%     end
-%     y = strtrim(y);
-% end
+if nargout>2, hobjout = hobj; end

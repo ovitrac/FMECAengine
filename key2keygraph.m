@@ -16,9 +16,11 @@ function hout = key2keygraph(keytree,hax,varargin)
 %
 % ------------------------------------------------------------------
 %   Pair property/value: (default=default_value)
-%   (properties derived from fmecagraph are noted with [*])
+%   Properties derived from fmecagraph are noted with [*]
+%   see fmecagrah for further details
 % ------------------------------------------------------------------
 %         'alignment': HorizontalAlignement (default='center') [*]
+%          'colormap': use this property to change colors      [*]
 %          'fontsize': fontsize (default=10)                   [*]
 %       'layoutscale': layout scale (default=1)                [*]
 %        'layouttype': tree layout (default='hierarchical')    [*]
@@ -29,6 +31,7 @@ function hout = key2keygraph(keytree,hax,varargin)
 %        'shapenodes': (default='box')                         [*]
 %'shapeterminalnodes': (default='box')                         [*]
 %         'sizenodes': (default=[])                            [*]
+%            'resize': (default=[])                            [*]
 % 'sizeterminalnodes': (default=[])                            [*]
 %'terminalexpression': structure setting expressions to display terminal nodes
 %           default.numsingle =  @(x)sprintf('1 value\n(%0.4g)',x)
@@ -38,14 +41,15 @@ function hout = key2keygraph(keytree,hax,varargin)
 %     'textwidth': text width for text wrap                    [*]
 %       'texttol': lookaround before wrapping text             [*]
 
-%   See also: KEY2KEY, FMECAGRAPH
+%   See also: KEY2KEY, FMECAGRAPH, BUILDMARKOV
 
-% Migration 2.0 - 24/12/2011 - INRA\Olivier Vitrac - rev. 29/12/2011
+% Migration 2.0 - 24/12/2011 - INRA\Olivier Vitrac - rev. 30/12/2011
 
 % Revision history
 % 27/12/2011 release candidate
 % 28/12/2011 add shapenodes, sizenodes
 % 29/12/2011 improved help, fix cla
+% 30/12/2011 add resize, colormap, fix figure resize on screen and paper
 
 % Default parameters
 eol = char(10);
@@ -56,6 +60,7 @@ terminalexpression = struct(...
     'stringmore',@(x) sprintf('%d values\n(strings)',length(x)) ...
     );
 default = struct(...
+    'colormap',[],...
     'nocolor',false,...
     'fontsize',10,...
     'textwidth',20,...
@@ -64,6 +69,7 @@ default = struct(...
     'layouttype','hierarchical',... hierarchical
     'layoutscale',1,...
     'placeholders',[],...
+    'resize',1,...
     'scale',1,...
     'shapenodes','box',...
     'shapeterminalnodes','invtrapezium',...
@@ -123,17 +129,35 @@ end
 
 % plot tree
 if options.nocolor, numval = []; end
-[hkey,hbiograph]= fmecagraph(keytree,numval,'names',names,'placeholders',options.placeholders,'terminalnodes',terminalnodes,...
-      'fontsize',options.fontsize,'alignment',options.alignment,...
-      'layouttype',options.layouttype,'layoutscale',options.layoutscale,'scale',options.scale,...
-      'shapenodes',options.shapenodes,'sizenodes',options.sizenodes,'shapeterminalnodes',options.shapeterminalnodes,'sizeterminalnodes',options.sizeterminalnodes);
+[hkey,hbiograph,gbiograph]= fmecagraph(keytree,numval,'names',names,...
+      'placeholders',options.placeholders,...
+      'terminalnodes',terminalnodes,...
+      'fontsize',options.fontsize,'alignment',options.alignment,'colormap',colormap,...
+      'layouttype',options.layouttype,'layoutscale',options.layoutscale,...
+      'scale',options.scale,'resize',options.resize,...
+      'shapenodes',options.shapenodes,'sizenodes',options.sizenodes,...
+      'shapeterminalnodes',options.shapeterminalnodes,'sizeterminalnodes',options.sizeterminalnodes);
+  
+% Store important properties before copying data to a virgin figure/axes
+set(hbiograph,'Units','pixels')
+position = get(hbiograph,'Position');
 delete(hbiograph) % keep only the copy
+paperunits = get(hkey,'PaperUnits');
+paperposition = get(hkey,'PaperPosition');
 
-% Copy again the copy to hax
-gkey = gcfd(hkey); delete(hkey);
+% Clear copy to hax
+gkey = gcfd(hkey);
+delete(hkey);
 figure(hfig), subplot(hax), scfd(gkey,'noaxes','nolegend')
 set(hax,'visible','off','Xlim',gkey.Xlim,'Ylim',gkey.Ylim);
-if newax, set(hax,'Units',gkey.Units,'Position',gkey.Position), end
+
+% Update the position of axes and figure margins
+if newax
+    set(hax,'Units',gkey.Units,'Position',gkey.Position)
+    set(hfig,'PaperUnits',paperunits);
+    paperdefault = get(hfig,'paperposition');
+    set(hfig,'Position',position,'PaperPosition',[paperdefault(1:2)-(paperposition(3:4)-paperdefault(3:4))/2,paperposition(3:4)])
+end
 
 % output
 if nargout, hout = hax; end
