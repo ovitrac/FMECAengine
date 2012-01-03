@@ -14,15 +14,18 @@ function dataout = loadods(infile,varargin)
 %           'headers',1     ... number of header lines
 %           'struct',true   ... to transform the table as a structure with headers
 %      'structarray',false  ... to transform the original structure of arrays into a structure array
+%     'forceboolean',false  ... convert to a boolean any column with uniquely 0 and 1
 %
 % OUTPUTS:
 %   data:       MxN cell array containing data from the spreadsheet
 %               structure as data.header = column data
 %               NB: not that header contains only a-z and A-Z characters
 %
+% TIP: NaN, Inf, -Inf, true, false are read litteraly
+%
 % SEE ALSO: XLSTBLREAD, XLSREAD
 
-% MS 2.1 - 11/02/11 - INRA\Olivier Vitrac - rev. 16/09/11
+% MS 2.1 - 11/02/11 - INRA\Olivier Vitrac - rev. 03/01/12
 % Initial code from (C) 2007 Alex Marten - alex.marten@gmail.com
 
 % Revision history
@@ -37,6 +40,7 @@ function dataout = loadods(infile,varargin)
 %   13/04/11 fix headers on empty sheets
 %   08/05/11 add MaxlengthField
 %   16/09/11 force allsheets = true when the name of the first sheet cannot be determined
+%   03/01/12 add forceboolean
 
 % Set default options
 validchars = '[^a-zA-Z0-9]'; % accepted characters for fields
@@ -48,7 +52,8 @@ options_default = struct(...
        'concat',true  ,... true to concat column content
       'headers',1     ,... number of header lines
       'struct',true   ,...  to transform the table as a structure with headers
- 'structarray',false  .... to transform the original structure of arrays into a structure array
+ 'structarray',false,  .... to transform the original structure of arrays into a structure array
+ 'forceboolean',false ... convert to a boolean any column with uniquely 0 and 1
         );
 options = argcheck(varargin,options_default);
 if options.structarray, options.struct = true; end
@@ -175,6 +180,10 @@ for isheet = 1:numSheets
                                 value = -Inf;
                             case 'nan'
                                 value = NaN;
+                            case 'true'
+                                value = true;
+                            case 'false'
+                                value = false;
                         end
                     else
                         value = options.blank;
@@ -217,6 +226,9 @@ for isheet = 1:numSheets
             for i =1:n
                 if datatype(i) && all(cellfun(@isnumeric,data(:,i)))
                     tmp{i} = cat(1,data{:,i});
+                    if options.forceboolean && all((tmp{i}==0) | (tmp{i}==1))
+                        tmp{i} = logical(tmp{i});
+                    end
                 else
                     tmp{i} = data(:,i);
                 end
