@@ -44,7 +44,7 @@ function [hgraphtmp,hparentobjout,hobjout] = fmecagraph(fmecadb,values,varargin)
 %
 %   See also: PNGTRUNCATEIM, FMECAENGINE, FMECASINGLE, GCFD, SCFD, KEY2KEYGRAPH, KEY2KEY, BUILDMARKOV
 
-% Migration 2.0 - 24/05/11 - INRA\Olivier Vitrac - rev. 30/12/11
+% Migration 2.0 - 24/05/11 - INRA\Olivier Vitrac - rev. 09/01/12
 
 % Revision history
 % 14/12/11 add parent as property, update help to enable the copy of a graph
@@ -55,6 +55,7 @@ function [hgraphtmp,hparentobjout,hobjout] = fmecagraph(fmecadb,values,varargin)
 % 27/12/11 fix empty texts in children
 % 28/12/11 add alignment
 % 30/12/11 add resize, hobjout
+% 09/01/12 set white as ivory for text in inverse color
 
 % Default
 autoweights = false;
@@ -86,6 +87,7 @@ default = struct(...
     'resize',[]);
 minplaceholderlength = 4;
 placeholderidx = sprintf('%%0.%dd',minplaceholderlength-1);
+white = rgb('Ivory'); %[1 1 1];
 
 % arg check
 if nargin<1, error('1 inputs are required'), end
@@ -214,7 +216,7 @@ hobj=view(gobj);
 for i=1:nvalues
     if ~isnan(col(i,:))
         set(hobj.Nodes(i),'color',col(i,:));
-        if sum(col(i,:))/3<.4, set(hobj.Nodes(i),'TextColor',[1 1 1]);
+        if sum(col(i,:))/3<.4, set(hobj.Nodes(i),'TextColor',white);
         else set(hobj.Nodes(i),'textcolor',[0 0 0]);
         end
         if bad(i)
