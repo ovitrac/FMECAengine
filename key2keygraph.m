@@ -40,16 +40,20 @@ function hout = key2keygraph(keytree,hax,varargin)
 %        default.stringmore   =  @(x)sprintf('%d values\n(strings)',length(x))
 %     'textwidth': text width for text wrap                    [*]
 %       'texttol': lookaround before wrapping text             [*]
-
+%
 %   See also: KEY2KEY, FMECAGRAPH, BUILDMARKOV
+%
+%   Example for Mai (for her thesis)
+%   figure,  ha=subplot(3,3,[2 3 5 6]); key2keygraph(detailsD,ha,'fontsize',5,'terminalexpression',struct('nummore',@(x) sprintf('%d values\n\\fontsize{6}(%0.4g\\leq%0.4g\\leq%0.4g',length(x),min(x),median(x),max(x))))
 
-% Migration 2.0 - 24/12/2011 - INRA\Olivier Vitrac - rev. 30/12/2011
+% Migration 2.0 - 24/12/2011 - INRA\Olivier Vitrac - rev. 13/01/2012
 
 % Revision history
 % 27/12/2011 release candidate
 % 28/12/2011 add shapenodes, sizenodes
 % 29/12/2011 improved help, fix cla
 % 30/12/2011 add resize, colormap, fix figure resize on screen and paper
+% 13/01/2012 fix axes, apply also argcheck to terminalexpression
 
 % Default parameters
 eol = char(10);
@@ -85,7 +89,8 @@ if ~isstruct(keytree), error('keytree must be a structure'); end
 if ~all(cellfun(@(f) all(isfield(keytree.(f),{'parent' 'key'})),fieldnames(keytree)))
     error('keytree must be created by key2key (3rd output), see KEY2KEY ')
 end
-options = argcheck(varargin,default);
+options = argcheck(varargin,default,'','nostructexpand');
+options.terminalexpression = argcheck(options.terminalexpression,terminalexpression);
 nodetreelist = fieldnames(keytree)';
 isterminal = cellfun(@(f) keytree.(f).isterminal, nodetreelist);
 
@@ -93,7 +98,7 @@ isterminal = cellfun(@(f) keytree.(f).isterminal, nodetreelist);
 if isempty(hax)
     hfig = gcf; hax = gca; cla, newax = true;
 else
-    if ~ishandle(hax) || strcmp(get(hax,'Type'),'axes'), error('hax must be a valid axes handle'), end
+    if ~ishandle(hax) || ~strcmp(get(hax,'Type'),'axes'), error('hax must be a valid axes handle'), end
     hfig = get(hax,'Parent');
     figure(hfig), subplot(hax)
     newax = false;
