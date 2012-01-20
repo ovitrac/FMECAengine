@@ -26,10 +26,12 @@ function data = load_chemspider(mol,varargin)
 %             url: ChemSpider URL
 %    urlstructure: ChemSpider URL for the structure
 %
+%   NOTE: http://esis.jrc.ec.europa.eu/ provides additional ways to validate the quality of data stored in ChemSpider
+%
 %
 %   SEE ALSO: LOAD_NIST, LOAD_NIST_IR, LOAD_NCBI, LOAD_NCBISTRUCT, LOAD_CHEMINDUSTRY
 
-% MS 2.1 - 21/05/11 - INRA\Olivier Vitrac - rev. 22/08/11
+% MS 2.1 - 21/05/11 - INRA\Olivier Vitrac - rev. 11/01/12
 
 %Revision history
 % 22/05/11 vectorization, minor bugs
@@ -38,6 +40,7 @@ function data = load_chemspider(mol,varargin)
 % 13/07/11 fix requests based on CAS numbers starting with many 0
 % 21/07/11 add QuickMass
 % 22/08/11 update QuickMass according to modifications introduced by ChemSpider in August 2011
+% 11/01/12 update help with ESIS website
 
 % default
 keyword = {'thumbnail' 'structure'};
