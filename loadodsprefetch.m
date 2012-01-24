@@ -8,51 +8,87 @@ function data=loadodsprefetch(filename,varargin)
 %               noprefetch: flag to forcce the prefetch to be updated (default=false);
 
 
-% MS 2.1 - 20/01/12 - INRA\Olivier Vitrac rev.
+% MS 2.1 - 20/01/12 - INRA\Olivier Vitrac rev. 24/01/12
+
+% Revision history
+% 24/01/12 add a comparison based on requested sheetnames
 
 % default
 default = struct(...
     'prefetchprefix','PREFETCH_',...
     'prefetchpath',tempdir,...
-    'noprefetch',false ...
+    'noprefetch',false,...
+    'sheetname',[] ...
     );
 
 % arg check
 if nargin<1, error('one argument is at least required'), end
 [options,loadodsoptions] = argcheck(varargin,default);
+if isempty(options.sheetname), options.sheetname=''; end
+loadodsoptions.sheetname = options.sheetname; %propagate sheetname
 [~,prefetchfile] = fileparts(filename);
 if ~exist(filename,'file'), error('the supplied file ''%s'' does not exist'); end
 prefetchfile = fullfile(options.prefetchpath,[options.prefetchprefix prefetchfile '.mat']);
 prefetchupdate = false;
 
-% load section
+% check that prefetch is up to date or match current needs
+useprefetch = false; % default behavior
 if options.noprefetch
     dispf('LOADODSPREFETCH: noprefetch option is used. The prefetch file is not used')
-    data = loadods(filename,loadodsoptions);
     prefetchupdate = true;
 elseif ~exist(prefetchfile,'file')
     dispf('LOADODSPREFETCH: no prefetchfile detected')
-    data = loadods(filename,loadodsoptions);
     prefetchupdate = true;
 else
     ref = dir(filename);
     pre = dir(prefetchfile);
     load(prefetchfile,'nfo');
     if (ref.datenum<pre.datenum) && (ref.datenum==nfo.datenum) && (ref.bytes==nfo.bytes) %#ok<NODEF> % prefetch up-to-date and same size
-        dispf('LOADODSPREFETCH: use the prefetchfile below')
-        fileinfo(prefetchfile)
-        load(prefetchfile,'data') % load data
+        load(prefetchfile,'sheetname');
+        if ischar(sheetname) %#ok<NODEF>
+            if strcmp(sheetname,'all')
+                tmp=load(prefetchfile,'data');
+                if isstruct(tmp.data), 
+                    sheetname = fieldnames(tmp.data);
+                    if ischar(options.sheetname) && strcmp(options.sheetname,'all'), options.sheetname = sheetname; end
+                else
+                    sheetname = {sheetname};
+                end
+            else
+                sheetname = {sheetname};
+            end
+        end 
+        if ischar(options.sheetname), options.sheetname = {options.sheetname}; end
+        if isempty(setdiff(options.sheetname,sheetname))
+            useprefetch = true;
+        else
+            dispf('LOADODSPREFETCH: prefetchfile is not used as additional worksheets are asked to be loaded.')
+        end
     else
         dispf('LOADODSPREFETCH: prefetchfile is obsolete')
-        data = loadods(filename,loadodsoptions);
         prefetchupdate = true;
     end
 end
 
+% load data
+if useprefetch
+    dispf('LOADODSPREFETCH: use the prefetchfile below')
+    fileinfo(prefetchfile)
+    load(prefetchfile,'data') % load data
+    if length(sheetname)>1 || strcmp(sheetname,'all') 
+        data = rmfield(data,setdiff(sheetname,options.sheetname)); %#ok<NODEF> % remove unwanted worksheets
+    end
+    fdata = fieldnames(data);
+    if length(fdata)==1 && isstruct(data.(fdata{1})), data = data.(fdata{1}); end
+else
+    data = loadods(filename,loadodsoptions);
+end
+
 % update prefetch file if needed
 if prefetchupdate
-    nfo = dir(filename);
-    save(prefetchfile,'data','nfo')
+    nfo = dir(filename); %#ok<NASGU>
+    sheetname = options.sheetname; %#ok<NASGU>
+    save(prefetchfile,'data','nfo','sheetname')
     dispf('LOADODSPREFETCH: the prefetch file below has been updated')
     fileinfo(prefetchfile)
 end

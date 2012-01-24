@@ -25,7 +25,7 @@ function dataout = loadods(infile,varargin)
 %
 % SEE ALSO: XLSTBLREAD, XLSREAD
 
-% MS 2.1 - 11/02/11 - INRA\Olivier Vitrac - rev. 03/01/12
+% MS 2.1 - 11/02/11 - INRA\Olivier Vitrac - rev. 24/01/12
 % Initial code from (C) 2007 Alex Marten - alex.marten@gmail.com
 
 % Revision history
@@ -41,6 +41,7 @@ function dataout = loadods(infile,varargin)
 %   08/05/11 add MaxlengthField
 %   16/09/11 force allsheets = true when the name of the first sheet cannot be determined
 %   03/01/12 add forceboolean
+%   24/01/12 fix header with item(3), based on a correct identification of office:body tag (starting from item 3)
 
 % Set default options
 validchars = '[^a-zA-Z0-9]'; % accepted characters for fields
@@ -88,7 +89,17 @@ end
 nodes = XMLfile.getChildNodes;
 node = nodes.item(0);
 nodes = node.getChildNodes;
-node = nodes.item(3);
+item = 4; foundbody = false;
+while (item>0) && ~foundbody
+    item = item -1;
+    if ~isempty(nodes.item(item))
+        nodetype = nodes.item(item).toString;
+        if strcmpi(nodetype,'[office:body: null]'), foundbody = true; end
+    end
+end
+if ~foundbody, error('unable to find the tag office:body in file ''%s''. Is it a valid ODS file?',infile), end
+if item<3, dispf('WARNING: non-standard ODS file, %d sections are missing but loadods is able to read it',3-item); end
+node = nodes.item(item);
 nodes = node.getChildNodes;
 node = nodes.item(0);
 nodes_sheets = node.getChildNodes;
