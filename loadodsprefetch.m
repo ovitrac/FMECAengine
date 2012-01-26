@@ -8,10 +8,11 @@ function data=loadodsprefetch(filename,varargin)
 %               noprefetch: flag to forcce the prefetch to be updated (default=false);
 
 
-% MS 2.1 - 20/01/12 - INRA\Olivier Vitrac rev. 24/01/12
+% MS 2.1 - 20/01/12 - INRA\Olivier Vitrac rev. 26/01/12
 
 % Revision history
 % 24/01/12 add a comparison based on requested sheetnames
+% 26/01/12 use 'case' with argcheck to keep case in folder and file names.
 
 % default
 default = struct(...
@@ -23,7 +24,7 @@ default = struct(...
 
 % arg check
 if nargin<1, error('one argument is at least required'), end
-[options,loadodsoptions] = argcheck(varargin,default);
+[options,loadodsoptions] = argcheck(varargin,default,'','case');
 if isempty(options.sheetname), options.sheetname=''; end
 loadodsoptions.sheetname = options.sheetname; %propagate sheetname
 [~,prefetchfile] = fileparts(filename);
