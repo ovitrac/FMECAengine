@@ -13,6 +13,7 @@ function data=loadodsprefetch(filename,varargin)
 % Revision history
 % 24/01/12 add a comparison based on requested sheetnames
 % 26/01/12 use 'case' with argcheck to keep case in folder and file names.
+% 26/01/12 fix non-empty loadodsoptions (as a list instead of a structure)
 
 % default
 default = struct(...
@@ -26,7 +27,7 @@ default = struct(...
 if nargin<1, error('one argument is at least required'), end
 [options,loadodsoptions] = argcheck(varargin,default,'','case');
 if isempty(options.sheetname), options.sheetname=''; end
-loadodsoptions.sheetname = options.sheetname; %propagate sheetname
+if ~isempty(options.sheetname), loadodsoptions(end+1:end+2) = {'sheetname';options.sheetname}; end % %propagate sheetname
 [~,prefetchfile] = fileparts(filename);
 if ~exist(filename,'file'), error('the supplied file ''%s'' does not exist'); end
 prefetchfile = fullfile(options.prefetchpath,[options.prefetchprefix prefetchfile '.mat']);
@@ -82,7 +83,8 @@ if useprefetch
     fdata = fieldnames(data);
     if length(fdata)==1 && isstruct(data.(fdata{1})), data = data.(fdata{1}); end
 else
-    data = loadods(filename,loadodsoptions);
+    loadodsoptions = [{filename};loadodsoptions];
+    data = loadods(loadodsoptions{:});
 end
 
 % update prefetch file if needed
