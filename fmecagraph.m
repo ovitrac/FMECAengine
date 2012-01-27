@@ -34,6 +34,8 @@ function [hgraphtmp,hparentobjout,hobjout] = fmecagraph(fmecadb,values,varargin)
 %         rootvalue: root value to be used for calculating weights
 %          fontsize: as text()
 %         alignment: HorizontalAlignment
+%  scipatterweights: tex pattern to be used to display weights with formatsci
+%     patterweights: alternative pattern to be used to display weights with formatsci
 %         
 %
 %   OPTIONS: [hg,hbiograph] = fmecagraph(...) returns also the original figure containing the biograph object (interactive)
@@ -44,7 +46,7 @@ function [hgraphtmp,hparentobjout,hobjout] = fmecagraph(fmecadb,values,varargin)
 %
 %   See also: PNGTRUNCATEIM, FMECAENGINE, FMECASINGLE, GCFD, SCFD, KEY2KEYGRAPH, KEY2KEY, BUILDMARKOV
 
-% Migration 2.0 - 24/05/11 - INRA\Olivier Vitrac - rev. 09/01/12
+% Migration 2.0 - 24/05/11 - INRA\Olivier Vitrac - rev. 27/01/12
 
 % Revision history
 % 14/12/11 add parent as property, update help to enable the copy of a graph
@@ -56,6 +58,7 @@ function [hgraphtmp,hparentobjout,hobjout] = fmecagraph(fmecadb,values,varargin)
 % 28/12/11 add alignment
 % 30/12/11 add resize, hobjout
 % 09/01/12 set white as ivory for text in inverse color
+% 27/01/12 used formatsci to display weight values
 
 % Default
 autoweights = false;
@@ -74,12 +77,14 @@ default = struct(...
     'layoutscale',1,...
     'scale',1,...
     'names',struct([]),...
+    'patternweights','%0.2g',...
     'placeholders',struct([]),...
     'weights',[],...
     'terminalnodes',[],...
     'shapenodes','box',...
-    'sizenodes',[],...
+    'scipatternweights','%0.3g\cdot10^{%d}',...
     'shapeterminalnodes','ellipse',...
+    'sizenodes',[],...
     'sizeterminalnodes',[],...
     'rootvalue',0,...
     'fontsize',10,...
@@ -271,9 +276,17 @@ if nargout
     %if ~isempty(options.alignment), set(hchildren(istext),'HorizontalAlignment',options.alignment); end
     istext(istext) = cellfun(@(s) size(s,1)==1,get(hchildren(istext),'String'));
     if any(istext)
-        istext(istext) = ~cellfun('isempty',regexp(strtrim(get(hchildren(istext),'String')),'\d+#+$'));
+        istextuniquelynum = istext;
+        flagnum = cellfun('isempty',regexp(strtrim(get(hchildren(istext),'String')),'\d+#+$'));
+        istextuniquelynum(istext) = flagnum;
+        istext(istext) = ~flagnum;
+        % placeholders
         for i=find(istext)'
             set(hchildren(i),'String',glabelscopy(str2double(regexp(get(hchildren(i),'String'),'\d+','match'))))
+        end
+        % nodes
+        for i=find(istextuniquelynum)'
+            set(hchildren(i),'String',formatsci(str2double(get(hchildren(i),'String')),'economy','pattern',options.patternweights,'texpattern',options.scipatternweights))
         end
     end
 end
