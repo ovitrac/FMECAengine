@@ -1,15 +1,44 @@
-function pngtruncateim(imfile,flipon,margin)
+function out = pngtruncateim(imfile,flipon,margin,negativeon)
 %PNGTRUNCATEIM  crop and rotate PNG already saved images
-%   Syntax: pngtruncateim(imfile [,flipon,margin])
+%   Syntax: pngtruncateim(imfile [,flipon,margin,negative])
+%       default values: flipon = false
+%                       margin = 100
+%                       negativeon = false
 
-% Migration 2.0 - 24/05/11 - INRA\Olivier Vitrac - rev. 27/05/11
+% Migration 2.0 - 24/05/11 - INRA\Olivier Vitrac - rev. 29/01/12
 
 % Revision history
 % 27/05/11 guess extension
+% 07/11/11 add negative
+% 29/01/12 accept image data
 
-if nargin<2, flipon = false; end
-if nargin<3, margin = 100; end
-im = imread(imfile); siz = size(im);
+% default values
+flipon_default = false;
+margin_default = 100;
+negative_default = false;
+
+% arg check
+if nargin<2, flipon = []; end
+if nargin<3, margin = []; end
+if nargin<4, negative= []; end
+if isempty(flipon), flipon = flipon_default; end
+if isempty(margin), margin = margin_default; end
+if isempty(negative), negativeon = negative_default; end
+
+% main section
+if ischar(imfile)
+    if ~exist(imfile,'file'), error('the file ''%s'' does not exist',imfile), end
+    im = imread(imfile);
+    nofile = false;
+elseif isnumeric(imfile)
+    im = imfile;
+    nofile = true;
+else
+    error('the argument must be a valid image filename or image data')
+end
+
+siz = size(im);
+if negativeon, im = 255-im; end
 imb = min(im,[],3);
 lim = zeros(2,2);
 dimlist = 1:2;
@@ -21,9 +50,16 @@ lim(:,1) = max(lim(:,1)-margin,1);
 lim(:,2) = min(lim(:,2)+margin,siz(1:2)');
 im = im(lim(1,1):lim(1,2),lim(2,1):lim(2,2),:);
 if flipon, im = flipdim(permute(im,[2 1 3]),2); end
-ext = uncell(regexp(imfile,'\.([^\.]+)$','tokens'));
-if isempty(ext)
-    imwrite(im,imfile,'png');
+if negativeon, im = 255-im; end
+
+% save final result
+if nofile
+    out = im;
 else
-    imwrite(im,imfile,ext{1});
+    ext = uncell(regexp(imfile,'\.([^\.]+)$','tokens'));
+    if isempty(ext)
+        imwrite(im,imfile,'png');
+    else
+        imwrite(im,imfile,ext{1});
+    end
 end
