@@ -1,22 +1,26 @@
 function hout = subplots(x,y,xsep,ysep,varargin)
 % SUBPLOTS generates subplots with fixed width and height [whithin the current axis]
-%   syntax: h = subplots(x,y,[xsep],[ysep],[...])
+%   syntax: h = subplots(x,y [,xsep,ysep,'property','value','strict'])
 %    inputs
 %       x:  vector of widths (see example below)
 %       y:  vector of heights (idem)
 %       xsep: scalar or vector of separators along x (if length does not match, a circular permutation is applied)
 %       ysep: scalar or vector of separators along y (if length does not match, a circular permutation is applied)
-%       [...] stands for value pairs properties (see plot or set for details)
-%       Note: x and y are expressed in arbitrary units (normalized herafter) whereas xsep and ysep are expressed in
-%       normalized units
+%       [...] stands for extra value pairs properties (see plot or set for details)
+%       Note 1: x and y are expressed in arbitrary units (normalized herafter) whereas xsep and ysep are expressed in
+%               normalized units
+%       Note 2: For very accurate positioning when multiple subplots are combined, a 'strict' mode normalizing both x
+%              and xsep (idem for y and ysep) can be applied with the keyword 'strict':
+%              h = subplots(...,'strict')
 %       Extra pair properties (non standard in Matlab)
-%           'alive':  remove all undesirable handles: delete(h(~alive))
-%                     The 'alive' values are a logical ny x nx vector or matrix or a vector of indices
-%           'position': handle or 1x4 vector
+%       'alive':  remove all undesirable handles: delete(h(~alive))
+%                 The 'alive' values are a logical ny x nx vector or matrix or a vector of indices
+%       'position': handle or 1x4 vector
 %               empty value, use the current figure with position = [0.1300    0.1100    0.7750    0.8150]
 %               figure handle, use this figure with position = [0.1300    0.1100    0.7750    0.8150]
 %               axes handle, replace these axes by the new combination of subplots
 %               [xbottomleft ybottomleft width height]: position vector in normalized units
+%   
 %    outputs
 %       h: matrix of handles of size length(y) x length(x)
 %       >> to plot in the subplot corresponding to the ith row and jth column
@@ -87,17 +91,19 @@ function hout = subplots(x,y,xsep,ysep,varargin)
 %       set(gcf,'paperorientation','landscape','paperposition',[0.5079    1.5212   28.6615   17.9416])
           
 
-% MS-MATLAB 1.0 - 23/06/04 - INRA\Olivier Vitrac - rev. 26/05/10
+% MS-MATLAB 1.0 - 23/06/04 - INRA\Olivier Vitrac - rev. 28/01/11
 
 % revision history
 % 11/09/07 add keywords: 'alive' and 'position'
 % 26/05/10 set x/y ticklabelmode to 'auto' for single axes (after alive)
+% 28/01/11 major update (rationale): argcheck is used instead of internal controls, add strict 
 
 
 % definitions
 xsep_default = 0.01;
 ysep_default = 0.01;
-
+default = struct('alive',[],'position',[]);
+keywordlist = 'strict';
 
 % arg check
 if nargin<2, error('subplots requires at least 2 arguments'), end
@@ -110,48 +116,40 @@ nx = length(x);
 ny = length(y);
 if nx==0, error('SUBPLOTS: empty x'); end
 if ny==0, error('SUBPLOTS: empty y'); end
-
-effnargin = length(varargin);
+[options,otheroptions] = argcheck(varargin,default,keywordlist);
 alive = true(ny,nx);
 nopos = true;
-if effnargin % extra properties
-    % alive
-    if mod(effnargin,2), error('additional parameters must be given by parameter/value pairs'), end
-    isalive = 2*find(ismember(varargin(1:2:end-1),'alive'));
-    if any(isalive) && isalive<=effnargin && ...
-            ( isnumeric(varargin{isalive(1)}) || islogical(varargin{isalive(1)}) )
-        alivetmp = varargin{isalive(1)};
-        if isnumeric(alivetmp) && all(alivetmp>0) && all(alivetmp<=nx*ny) && all(alivetmp==round(alivetmp))
-            alive(:)=false;
-            alive(alivetmp)=true;
-        else
-            if numel(alive)~=nx*ny, error('the size of parameter ''alive'' does not match the size of subplots %dx%d',ny,nx), end
-            alive = (alivetmp>0);
-        end
-        varargin = varargin([1:isalive(1)-2 isalive(1)+1:end]);
+
+% alive
+if ~isempty(options.alive)
+    alivetmp = options.alive;
+    if isnumeric(alivetmp) && all(alivetmp>0) && all(alivetmp<=nx*ny) && all(alivetmp==round(alivetmp))
+        alive(:)=false;
+        alive(alivetmp)=true;
+    else
+        if numel(alive)~=nx*ny, error('the size of parameter ''alive'' does not match the size of subplots %dx%d',ny,nx), end
+        alive = (alivetmp>0);
     end
-    % position
-    isposition = 2*find(ismember(varargin(1:2:end-1),'position'));
-    if any(isposition)
-        postmp = varargin{isposition(1)};
-        if length(postmp)==4
-            pos = postmp;
-        elseif ishandle(postmp)
-            typ = lower(get(postmp,'type'));
-            if strcmp(typ,'axes')
-                pos = get(postmp,'position'); %delete(postmp)
-            elseif strcmp(typ,'figure')
-                pos = [0.1300    0.1100    0.7750    0.8150];
-            else error('invalid type ''%s'' as position/handle',typ);
-            end
-        elseif isempty(postmp)
+end
+% position
+if ~isempty(options.position)
+    postmp = options.position;
+    if length(postmp)==4
+        pos = postmp;
+    elseif ishandle(postmp)
+        typ = lower(get(postmp,'type'));
+        if strcmp(typ,'axes')
+            pos = get(postmp,'position'); %delete(postmp)
+        elseif strcmp(typ,'figure')
             pos = [0.1300    0.1100    0.7750    0.8150];
-        else
-            error('invalid position values or handle')
+        else error('invalid type ''%s'' as position/handle',typ);
         end
-        varargin = varargin([1:isposition(1)-2 isposition(1)+1:end]);
-        nopos = false;
+    elseif isempty(postmp)
+        pos = [0.1300    0.1100    0.7750    0.8150];
+    else
+        error('invalid position values or handle')
     end
+    nopos = false;
 end
 
 if nopos
@@ -162,34 +160,38 @@ if nopos
 end
 
 % autosizing
-x = x/sum(x); y = y/sum(y);
 nxsep = length(xsep);
 nysep = length(ysep);
-if nx>1
-    xsep = xsep(mod(0:nx-2,nxsep)+1);
+if nx>1, xsep = xsep(mod(0:nx-2,nxsep)+1); else xsep = 0; end
+if ny>1, ysep = ysep(mod(0:ny-2,nysep)+1); else ysep = 0; end
+if ~options.strict % default 
+    x = x/sum(x); y = y/sum(y);
+    x = (x - sum(xsep)*x)*pos(3);
+    y = (y - sum(ysep)*y)*pos(4);
 else
-    xsep = 0;
+    xtot = sum(x)+sum(xsep);
+    ytot = sum(y)+sum(ysep);
+    x = pos(3)*x/xtot;
+    y = pos(4)*y/ytot;
+    xsep = pos(3)*xsep/xtot;
+    ysep = pos(4)*ysep/ytot;
+    
 end
-if ny>1
-    ysep = ysep(mod(0:ny-2,nysep)+1);
-else
-    ysep = 0;
-end
-x = (x - sum(xsep)*x)*pos(3);
-y = (y - sum(ysep)*y)*pos(4);
+
+    
 
 % subplots
 h = zeros(ny,nx);
 yc = pos(2)+pos(4)-y(1);
 for i=1:ny
-    ig = ny-i+1;
+    %ig = ny-i+1;
     xc = pos(1);
     for j=1:nx
         h(i,j) = axes('position',[xc yc x(j) y(i)],'box','on','xlimmode','auto','ylimmode','auto','xgrid','off','ygrid','off');
         if i~=ny, set(h(i,j),'xticklabel',' '), end
         if j>1, set(h(i,j),'yticklabel',' '), end
         if j<nx, xc = xc + x(j) + xsep(j); end
-        if ~isempty(varargin), set(h(i,j),varargin{1:2:end-1},varargin{2:2:end}), end
+        if ~isempty(otheroptions), set(h(i,j),otheroptions{:}), end
     end
     if i<ny, yc = yc - ysep(i) - y(i+1); end
 end

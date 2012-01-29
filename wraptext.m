@@ -1,4 +1,4 @@
-function s=wraptext(s0,width,newline,tol,trim)
+function s=wraptext(s0,width,newline,tol,trim,pattern,pattern_alternative)
 %WRAPTEXT return a wrapped text with arbitrary newline sequence and accepting tolerance
 %   syntax: s=wraptext(s0 [,width,newline,tol,trim])
 %       width: required width (default=32)
@@ -6,18 +6,38 @@ function s=wraptext(s0,width,newline,tol,trim)
 %         tol: +/-tolerance (default=5)
 %        trim: flag (default=true), remove leading and trailing spaces
 
-% Migration 2.0 - 08/05/2011 - INRA\Olivier Vitrac - rev.
+% Migration 2.0 - 08/05/2011 - INRA\Olivier Vitrac - rev. 28/01/10
 
+% Revision history
+% 28/01/12 add pattern, pattern_alternative (for internal purpose)
+%           wraptext('specificvolumenative',10,'*',2,true,'[^aeiouAEIOU]{2,}') yields specific*volumenati*ve
+
+%default
+pattern_default = '[\s-_\<\>\(\)\{\}\[\]\:\,\;\.]';
+pattern_alternative_default = '[aeiouAEIOU]';
+
+% arg check
 if nargin<2, width = 32; end
 if nargin<3, newline = '<br />'; end
 if nargin<4, tol =5; end
 if nargin<5, trim =true; end
+if nargin<6, pattern=''; end
+if nargin<7, pattern_alternative = ''; end
+if isempty(pattern), pattern = pattern_default; end
+if isempty(pattern_alternative), pattern_alternative = pattern_alternative_default; end
 
+% wrap
 if iscell(s0), s = cellfun(@(si) wraptext(si,width,newline,tol,trim), s0,'UniformOutput',false); return, end
 n = length(s0);
 if n<=width, s=s0; return, end
 if trim, s=strtrim(s0); else s=s0; end
-p = regexp(s,'[\s-_\<\>\(\)\{\}\[\]\:\,\;\.]');
+p = regexp(s,pattern);
+if isempty(p) && (length(s0)>width+tol) && ~isempty(pattern_alternative)
+    p = regexp(s,pattern_alternative);
+    shift = 0;
+else
+    shift = +1;
+end
 [dmin,imin] = min(abs(p-width));
 if dmin<=tol, p=p(imin); else p=width; end
-s = [s(1:p) newline wraptext(s(p+1:end),width,newline,tol) ];
+s = [s(1:p+shift-1) newline wraptext(s(p+shift:end),width,newline,tol,pattern,pattern_alternative) ];
