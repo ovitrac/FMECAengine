@@ -35,8 +35,12 @@ function [hgraphtmp,hparentobjout,hobjout] = fmecagraph(fmecadb,values,varargin)
 %          fontsize: as text()
 %         alignment: HorizontalAlignment
 %  scipatterweights: tex pattern to be used to display weights with formatsci
-%     patterweights: alternative pattern to be used to display weights with formatsci
-%         
+%    patternweights: alternative pattern to be used to display weights with formatsci
+%
+%   Advanced keyword properties that deviate from main use
+%          'noplot': keyword to retrieve graph objects without plots
+%      'nobiograph': keyword to force the original biograph object to be deleted
+%         'gobject': already existing graph object (see 'noplot')
 %
 %   OPTIONS: [hg,hbiograph] = fmecagraph(...) returns also the original figure containing the biograph object (interactive)
 %            [hg,hbiograph,hobjout] = fmecagraph(...) returns the biograph object itself (to be displayed with view())
@@ -44,9 +48,48 @@ function [hgraphtmp,hparentobjout,hobjout] = fmecagraph(fmecadb,values,varargin)
 %   TIP: use content = gcfd(hg); and figure, scfd(content,'noaxes','nolengend') to recopy the graph into new axes (e.g. a subplot)
 %
 %
+%   ADVANCED EXAMPLES that illustrate main topologies managed by FMECCAengine
+%             %% example 1: f(B) such that A->B with B inherits parameters from C
+%             % 1) defines steps A, B, C and 'parent' and 'inherit' properties
+%             %    note that setting which node is terminal is mandatory
+%             clear rule1
+%             rule1.A = struct('parent','','inherit','','isterminal',false);
+%             rule1.B = struct('parent','A','inherit','C','isterminal',true);
+%             rule1.C = struct('parent','','inherit','','isterminal',false);
+%             % 2) set text that will be display along connectors (p=parameter vector, C=concentration field)
+%             % text can be display on several lines by putting text in cells (note that extra {} are required to prevent the
+%             % creation of structure array and to prevent a splitting of weigthts (in summary use 3 { for multiple lines).
+%             weights = struct('A',{ {{'\bfC_A\rm' '\bfp_A'}} },'B','','C','\bfp_C'); % for connectors
+%             % 3) add a terminal node CB=f(CA,pA,pB)
+%             terminalnodes = struct('B','\bfC_B\rm=f(\bfC_A\rm,\bfp_A\rm,\bfp_B\rm)');
+%             % 4) build graphs based on parent and inherit and merge them into a single plot
+%             objparent = fmecagraph(rule1,[],'parent','parent','weights',weights,'terminalnodes',terminalnodes,'noplot');
+%             hgraph = fmecagraph(rule1,[],'parent','inherit','gobject',objparent,'terminalnodes',terminalnodes,...
+%                 'layoutscale',0.5,'sizeterminalnodes',[50 8],'nobiograph');
+%
+% 
+%             %% example 2: propagation of pA along A->B->C->D
+%             clear rule1
+%             rule2.A = struct('parent','','inherit','','isterminal',false);
+%             rule2.B = struct('parent','A','inherit','A','isterminal',false);
+%             rule2.C = struct('parent','B','inherit','A','isterminal',false);
+%             rule2.D = struct('parent','C','inherit','A','isterminal',true);
+%             %different weights can be displayed by nesting {}
+%             weights = struct('A',{{ {'\bfC_A\rm' '\bfp_A'} '\bfp_A' '\bfp_A'}},... counts the number of {} (very important)
+%                              'B','\bf_C_B',...
+%                              'C','\bfC_C','D','\bfC_D'); % for connectors
+%             terminalnodes = struct('D','\bfC_D\rm=f(\bfC_C\rm,\bfp_A\rm)');
+%             objparent = fmecagraph(rule2,[],'parent','parent','weights',weights,'terminalnodes',terminalnodes,'noplot');
+%             hgraph = fmecagraph(rule2,[],'parent','inherit','gobject',objparent,'terminalnodes',terminalnodes,...
+%                 'layoutscale',0.5,'sizeterminalnodes',[50 8],'nobiograph');
+%
+%       Nota Bene: to copy any of the new figure into a subplot for publications, use:
+%                  figure,subplot(121),scfd(gcfd(hgraph),'noaxes','nolegend')
+%
+%
 %   See also: PNGTRUNCATEIM, FMECAENGINE, FMECASINGLE, GCFD, SCFD, KEY2KEYGRAPH, KEY2KEY, BUILDMARKOV
 
-% Migration 2.0 - 24/05/11 - INRA\Olivier Vitrac - rev. 27/01/12
+% Migration 2.0 - 24/05/11 - INRA\Olivier Vitrac - rev. 29/01/12
 
 % Revision history
 % 14/12/11 add parent as property, update help to enable the copy of a graph
@@ -59,6 +102,8 @@ function [hgraphtmp,hparentobjout,hobjout] = fmecagraph(fmecadb,values,varargin)
 % 30/12/11 add resize, hobjout
 % 09/01/12 set white as ivory for text in inverse color
 % 27/01/12 used formatsci to display weight values
+% 29/01/12 add noplot, nobiograph, fix istextuniquelynum when no placeholders are used
+% 30/01/12 add gobject and corresponding example
 
 % Default
 autoweights = false;
@@ -89,15 +134,18 @@ default = struct(...
     'rootvalue',0,...
     'fontsize',10,...
     'alignment','',...
-    'resize',[]);
+    'resize',[],...
+    'gobject',struct([]) ...
+    );
 minplaceholderlength = 4;
 placeholderidx = sprintf('%%0.%dd',minplaceholderlength-1);
 white = rgb('Ivory'); %[1 1 1];
+keywordlist = {'noplot' 'nobiograph'};
 
 % arg check
 if nargin<1, error('1 inputs are required'), end
 if nargin<2, values = struct([]); end
-options = argcheck(varargin,default,'','nostructexpand');
+options = argcheck(varargin,default,keywordlist,'nostructexpand');
 if ~isstruct(fmecadb) || numel(fmecadb)>1, error('fmecadb must be created with fmecaengine'), end
 fdb = fieldnames(fmecadb); nfdb = length(fdb);
 if isempty(options.names) && ~isstruct(options.names), options.names = struct([]); end
@@ -109,6 +157,19 @@ if ~isstruct(options.names), error('names must be a structure such as names.step
 if ~isstruct(options.placeholders), error('placeholders must be a structure such as names.step = ''some text to fill space'''), end
 if ~isstruct(options.terminalnodes), error('names must be a structure such as terminalnodes.step = ''some text'''), end
 if ~isstruct(options.weights), error('names must be a structure such as weights.step = value'), end
+if ~isempty(options.gobject) && isfield(options.gobject,'weights') && ~isempty(options.gobject.weights), options.weights = options.gobject.weights; end
+weightsarestring = (~isempty(options.weights) && iscell(struct2cell(options.weights)));
+if weightsarestring
+    weightscopy = options.weights;
+    if ~isempty(options.gobject) && isfield(options.gobject,'weightscopy') && ~isempty(options.gobject.weightscopy)
+        options.weights = options.gobject.weightscopy;
+    else
+        options.weights = cell2struct(num2cell((1:length(fieldnames(options.weights)))*1+.0123456789,1)',fieldnames(options.weights));
+    end
+else
+    weightscopy = struct([]);
+end
+
 
 % extract values to match fdb
 if isempty(values)
@@ -162,12 +223,31 @@ if autoweights
 end
 
 % build graph
-g      = sparse(nvalues+nterminalnodestoadd,nvalues+nterminalnodestoadd); %g = sparse(nvalues,nvalues);
-[gnames,glabels,glabelscopy] = deal(cell(nvalues+nterminalnodestoadd,1));
-gnames(1:nvalues) = fvalues;
-glabels(1:nvalues) = fvalues;
-glabelscopy(1:nvalues) = fvalues;
+if ~isempty(options.gobject) && isfield(options.gobject,'g')
+    g = options.gobject.g;
+else
+    g      = sparse(nvalues+nterminalnodestoadd,nvalues+nterminalnodestoadd); %g = sparse(nvalues,nvalues);
+end
+if ~isempty(options.gobject) && isfield(options.gobject,'gnames')
+    gnames = options.gobject.gnames;
+else
+    gnames   = cell(nvalues+nterminalnodestoadd,1);
+    gnames(1:nvalues) = fvalues;
+end
+if ~isempty(options.gobject) && isfield(options.gobject,'glabels')
+    glabels = options.gobject.glabels;
+else
+    glabels   = cell(nvalues+nterminalnodestoadd,1);
+    glabels(1:nvalues) = fvalues;
+end
+if ~isempty(options.gobject) && isfield(options.gobject,'glabelscopy')
+    glabelscopy = options.gobject.glabelscopy;
+else
+    glabelscopy   = cell(nvalues+nterminalnodestoadd,1);
+    glabelscopy(1:nvalues) = fvalues;
+end
 % obsolete method (value-by-value)
+% [gnames,glabels,glabelscopy] = deal(cell(nvalues+nterminalnodestoadd,1));
 % codes = cell2struct(num2cell((1:nvalues)',2),fvalues);
 % for i=1:nvalues
 %     p = fmecadb.(fvalues{i}).(options.parent);
@@ -201,6 +281,16 @@ if nterminalnodestoadd
         glabels{nvalues+i} = options.terminalnodes.(terminalnodes{i});
         glabelscopy{nvalues+i} = glabels{nvalues+i};
     end
+end
+
+% returns objects only if graphdata is used (added 30/01/12)
+if options.noplot
+    if weightsarestring
+        hgraphtmp = struct('g',g,'gnames',{gnames},'glabels',{glabels},'glabelscopy',{glabelscopy},'weights',weightscopy,'weightscopy',options.weights);
+    else
+        hgraphtmp = struct('g',g,'gnames',{gnames},'glabels',{glabels},'glabelscopy',{glabelscopy});
+    end
+    return
 end
 
 % create graph and apply labels
@@ -279,15 +369,38 @@ if nargout
         istextuniquelynum = istext;
         flagnum = cellfun('isempty',regexp(strtrim(get(hchildren(istext),'String')),'\d+#+$'));
         istextuniquelynum(istext) = flagnum;
+        istextuniquelynum(istextuniquelynum) = arrayfun(@(hchild) ~isnan(str2double(get(hchild,'String'))),hchildren(istextuniquelynum));
         istext(istext) = ~flagnum;
         % placeholders
         for i=find(istext)'
             set(hchildren(i),'String',glabelscopy(str2double(regexp(get(hchildren(i),'String'),'\d+','match'))))
         end
-        % nodes
-        for i=find(istextuniquelynum)'
-            set(hchildren(i),'String',formatsci(str2double(get(hchildren(i),'String')),'economy','pattern',options.patternweights,'texpattern',options.scipatternweights))
+        % arrow connectors
+        if ~weightsarestring
+            for i=find(istextuniquelynum)'
+                set(hchildren(i),'String',formatsci(str2double(get(hchildren(i),'String')),'economy','pattern',options.patternweights,'texpattern',options.scipatternweights))
+            end
+        else
+            connectorstxt = struct2cell(weightscopy);
+            connectorcounts = zeros(length(connectorstxt),1);
+             for i=find(istextuniquelynum)'
+                 iconnector = fix(str2double(get(hchildren(i),'String')));
+                 connectorcounts(iconnector) = connectorcounts(iconnector) + 1;
+                 if iscell(connectorstxt{iconnector})
+                     ntxt = length(connectorstxt{iconnector});
+                     txt = connectorstxt{iconnector}{ntxt-min(connectorcounts(iconnector),ntxt)+1};
+                 else
+                     txt = connectorstxt{iconnector};
+                 end
+                 set(hchildren(i),'String',txt)
+             end
         end
+    end
+    set(hparentobj,'Units','pixels');
+    set(hgraphtmp,'Position',get(hparentobj,'Position'));
+    % delete original biograph object if needed
+    if options.nobiograph
+        delete(hparentobj) % keep only the copy
     end
 end
 
