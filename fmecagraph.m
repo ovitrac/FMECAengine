@@ -89,7 +89,7 @@ function [hgraphtmp,hparentobjout,hobjout] = fmecagraph(fmecadb,values,varargin)
 %
 %   See also: PNGTRUNCATEIM, FMECAENGINE, FMECASINGLE, GCFD, SCFD, KEY2KEYGRAPH, KEY2KEY, BUILDMARKOV
 
-% Migration 2.0 - 24/05/11 - INRA\Olivier Vitrac - rev. 29/01/12
+% Migration 2.0 - 24/05/11 - INRA\Olivier Vitrac - rev. 02/02/12
 
 % Revision history
 % 14/12/11 add parent as property, update help to enable the copy of a graph
@@ -104,6 +104,7 @@ function [hgraphtmp,hparentobjout,hobjout] = fmecagraph(fmecadb,values,varargin)
 % 27/01/12 used formatsci to display weight values
 % 29/01/12 add noplot, nobiograph, fix istextuniquelynum when no placeholders are used
 % 30/01/12 add gobject and corresponding example
+% 02/02/12 fix weightsarestring flag (it works correctly now)
 
 % Default
 autoweights = false;
@@ -158,7 +159,7 @@ if ~isstruct(options.placeholders), error('placeholders must be a structure such
 if ~isstruct(options.terminalnodes), error('names must be a structure such as terminalnodes.step = ''some text'''), end
 if ~isstruct(options.weights), error('names must be a structure such as weights.step = value'), end
 if ~isempty(options.gobject) && isfield(options.gobject,'weights') && ~isempty(options.gobject.weights), options.weights = options.gobject.weights; end
-weightsarestring = (~isempty(options.weights) && iscell(struct2cell(options.weights)));
+weightsarestring = (~isempty(options.weights) && ~any(structfun(@isnumeric,options.weights))); %iscell(struct2cell(options.weights)));
 if weightsarestring
     weightscopy = options.weights;
     if ~isempty(options.gobject) && isfield(options.gobject,'weightscopy') && ~isempty(options.gobject.weightscopy)
