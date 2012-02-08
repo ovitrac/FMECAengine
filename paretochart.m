@@ -1,17 +1,26 @@
-function rankout = paretochart(values,nodenames,valmax,defaultlayout,xlabeltxt)
+function rankout = paretochart(values,nodenames,valmax,defaultlayout,xlabeltxt,varargin)
 % PARETOCHART: generate pareto chart (like in fmecaengine.m)
-% SYNTAX: rankout = paretochart(values,nodesnames,[property1,value1,property2,value2,...])
+% SYNTAX: rankout = paretochart(values,nodesnames,valmax,defaultlayout,xlabeltxt,[property1,value1,property2,value2,...])
 %        values: values to rank
 %     nodenames: names correspond to values (label for axis y)
 %        valmax: maximum value for color scale
 % defaultlayout: true for default layout (main plot)
-%     xlabeltxt: label for axis "x" default "C_F"
+%     xlabeltxt: label for axis "x" default empty
 %      titletxt: alternative text
+%
+%   Pair properties: Any valid axes property is accepted, in addition with
+%       'xtxt': position for text (default = [], automatic)
+%      Note use xscale': 'log' to display a log scale instead of a linear scale
 % 
-% Migration 2.0 - 13/01/12 - INRA\Olivier Vitrac - rev. 
+% Migration 2.0 - 13/01/12 - INRA\Olivier Vitrac - rev. 08/02/12
 
-% Revision history 
+% Revision history
+% 08/02/12 add xtxt,add axes properties
 
+% default
+default = struct('xtxt',[]);
+defaultax = struct('xscale','linear');
+defaultcol = [0 0 0];
 
 % arg check
 if nargin<1, error('1 inputs are required'), end
@@ -19,27 +28,39 @@ if nargin<3, valmax = max(values); end
 if nargin<4, defaultlayout = true; end
 if nargin<5, xlabeltxt = ''; end
 % if nargin<6, titletxt = ''; end
+[options,optionsax] = argcheck(varargin,default);
+optionsax = argcheck(optionsax,defaultax,'','keep');
 ncol = 64;
 
 nodenames = regexprep(nodenames,'_','\\_'); % protect '_'
-[values,rank] = sort(values,'ascend'); locvaluesmax = max(values);
+[values,rank] = sort(values,'ascend'); %locvaluesmax = max(values);
 col = interp1(linspace(0,1,ncol),jet(ncol),values/valmax);
 if any(isnan(col)), col(any(isnan(col),2),:) = 0; end
 hold on
+if isempty(options.xtxt)
+    switch lower(optionsax.xscale)
+        case 'linear', options.xtxt = min(0,0 - 0.01 * (max(values)-min(values)));
+        case 'log',    options.xtxt = 0.9;
+        otherwise, error('unknown xscale property ''%s'', only ''linear'' or ''log'' are accepted',optionsax.xscale)
+    end
+end
 for inode = 1:length(nodenames)
     barh(inode,values(inode),'FaceColor',col(inode,:))
     labeltxt = nodenames(rank(inode));
     if defaultlayout
-        text(0,inode,[labeltxt ' '],'fontsize',10,'HorizontalAlignment','right','VerticalAlignment','middle')
+        text(0,inode,[labeltxt ' '],'fontsize',8,'HorizontalAlignment','right','VerticalAlignment','middle')
         text(values(inode),inode,sprintf(' %0.3g',values(inode)),'fontsize',10,'HorizontalAlignment','left','VerticalAlignment','middle')
     else
-        if sum(col(inode,:))/3<0.4 && values(inode)>.2*locvaluesmax, coltxt = rgb('Ivory'); else coltxt = [0 0 0]; end
-        text(0,inode,labeltxt,'fontsize',7,'HorizontalAlignment','left','VerticalAlignment','middle','color',coltxt,'FontWeight','normal')
+        if values(inode)>options.xtxt, coltxt = defaultcol;
+        elseif sum(col(inode,:))/3<0.4, coltxt = rgb('Ivory');
+        else coltxt = defaultcol;
+        end
+        text(options.xtxt,inode,labeltxt,'fontsize',6,'HorizontalAlignment','right','VerticalAlignment','middle','FontWeight','normal','color',coltxt)
     end
 end
 if defaultlayout, xlabel(xlabeltxt,'fontsize',16), end
 % if isempty(titletxt), title(strrep(sprintf('%s[\\bf%s\\rm]',o.fmecamainfile,o.fmecasheetname),'_','\_'),'fontsize',12)
 % else title(titletxt,'fontsize',10)
 % end
-set(gca,'yticklabel',' '), axis tight
+axis tight, set(gca,'yticklabel',' ',optionsax)
 if nargout, rankout = rank; end
