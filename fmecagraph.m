@@ -16,8 +16,9 @@ function [hgraphtmp,hparentobjout,hobjout] = fmecagraph(fmecadb,values,varargin)
 %    defaultmagnify: box magnification for out of bounds values (default = 1.2)
 %         operation: operation to apply when several values are found (default = @(x) max(x))
 %        layouttype: tree layout 'hierarchical' (default), 'equilibrium', 'radial' (see biograph for details)
-%       layoutscale: layout scale (default=1) (see biograph for details)
-%             scale: 1 (see biograph for details)
+%       layoutscale: layout scale (default=1, use a value<1 to expand, see biograph for details)
+%             scale: scale (default=1, use a value<1 to expand the graph, see biograph for details)
+%       windowscale: resscale the figure via callback (default=1, use a value>1 to expand the graph)
 %            resize: scalar or 1x2 vector to force the biograph window to be resized by the factor resize
 %             names: alternate node names for plotting coded as names.(nodes{i})='alternate name'
 %                    used either in orginal (interactive) graph and copied graph
@@ -89,7 +90,7 @@ function [hgraphtmp,hparentobjout,hobjout] = fmecagraph(fmecadb,values,varargin)
 %
 %   See also: PNGTRUNCATEIM, FMECAENGINE, FMECASINGLE, GCFD, SCFD, KEY2KEYGRAPH, KEY2KEY, BUILDMARKOV
 
-% Migration 2.0 - 24/05/11 - INRA\Olivier Vitrac - rev. 02/02/12
+% Migration 2.0 - 24/05/11 - INRA\Olivier Vitrac - rev. 09/02/12
 
 % Revision history
 % 14/12/11 add parent as property, update help to enable the copy of a graph
@@ -105,6 +106,7 @@ function [hgraphtmp,hparentobjout,hobjout] = fmecagraph(fmecadb,values,varargin)
 % 29/01/12 add noplot, nobiograph, fix istextuniquelynum when no placeholders are used
 % 30/01/12 add gobject and corresponding example
 % 02/02/12 fix weightsarestring flag (it works correctly now)
+% 09/02/12 add windowscale
 
 % Default
 autoweights = false;
@@ -122,6 +124,7 @@ default = struct(...
     'layouttype','hierarchical',...
     'layoutscale',1,...
     'scale',1,...
+    'windowscale',1,...
     'names',struct([]),...
     'patternweights','%0.2g',...
     'placeholders',struct([]),...
@@ -341,6 +344,12 @@ end
 
 % figure handle
 hparentobj = get(hobj.hgAxes,'Parent');  set(hparentobj,options.paperproperties)
+if options.windowscale~=1
+    if length(options.windowscale)==1, options.windowscale = options.windowscale([1 1]); end
+    posscreen = get(0,'ScreenSize');
+    pos = get(hparentobj,'position'); pos = pos(3:4); pos = pos.*options.windowscale; 
+    set(hparentobj,'position',[ round((posscreen(3:4)-pos)/2) pos ])
+end
 
 % resize (if requested)
 if ~isempty(options.resize)
