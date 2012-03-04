@@ -1,16 +1,21 @@
-function print_pdf(resolution,fichier,chemin,options)
+function print_pdf(resolution,fichier,chemin,options,varargin)
 %PRINT_PDF print interactively the current figure as PDF document
-%   print_PDF([resolution,fichier,chemin,options])
+%   print_PDF([resolution,filename,fullpath,options])
 %   print_PDF generates a standard pdf based on figure properties
 %   print_PDF(resolution,fichier,options)
 %   print_PDF(resolution,fichier,chemin,options)
 %
-%   options 'nocheck' forces printing without any dialog
-%
 %   default options = '-loose'
+%   options 'nocheck' forces printing without any dialog
+%   options 'append' is equivalent to nocheck but with an append feature (via a first postscript 2.1 printing)
 %   for 3D without PLOTOBJ, options = '-opengl' is recommened (see PRINT for details)
+%
+% Advance use of 'append' (PDF conversion is performed for on efficiency on the last page)
+%       print_pdf(resolution,fichier,chemin,options,'pagenum',currentpage,'pagestart',1,'pagestop',finalpage)
+%           currentpage = page index to print (when currentpage = pagestart value, the existing postscript file is removed)
+%             finalpage = page to initiate PS-to-PDF printing
 
-% Woodox 1.0 - 13/08/07 - Olivier Vitrac - rev. 22/07/11
+% Woodox 1.0/MS 2.1 - 13/08/07 - Olivier Vitrac - rev. 03/03/12
 
 % revision
 % 25/07/07 add options and fix chemin option
@@ -20,7 +25,8 @@ function print_pdf(resolution,fichier,chemin,options)
 % 12/12/09 add evince &  for unix systems (in replacement of winopen)
 % 20/07/11 fix chemin with 'nocheck'
 % 21/07/11 new fix for 'nocheck'
-% 22/07/11 fix extension with 'nocheck' 
+% 22/07/11 fix extension with 'nocheck'
+% 03/03/12 add append
 
 
 % definitions
@@ -29,12 +35,14 @@ ext_default = '.pdf';
 currentfig = gcf;
 options_default = '-loose';
 pmode = get(currentfig,'paperpositionmode');
+psdefault = struct('pagenum',NaN,'pagestart',1,'pagestop',Inf);
 
 % arg check
 if nargin<1, resolution = []; end
 if nargin<2, fichier = ''; end
 if nargin<3, chemin = ''; end
 if nargin<4, options = ''; end
+psoptions = argcheck(varargin,psdefault);
 if isempty(resolution), resolution = resolution_default; end
 if isempty(fichier), [~,fichier] = fileparts(get(currentfig,'filename')); end
 if isempty(fichier), [~,fichier] = fileparts(get(currentfig,'name')); end
@@ -55,7 +63,38 @@ if ~strcmp(ext,'.pdf'), ext = ext_default; end
 fichier = fullfile(chemin,[name ext]);
 
 % printing with no check
-if strcmpi(options,'nocheck'), print(['-r' int2str(resolution)],'-dpdf','',fichier), return, end
+if strcmpi(options,'nocheck')
+    print(['-r' int2str(resolution)],'-dpdf','',fichier), return
+elseif strcmpi(options,'append')
+    tmppsfile = regexprep(fichier,['\' ext_default '$'],'.ps','ignorecase');
+    okps2pdf = true;
+    if ~isnan(psoptions.pagenum) && (psoptions.pagenum>=psoptions.pagestart)
+        if isinf(psoptions.pagestop) || isnan(psoptions.pagestop)
+             psmsg = sprintf('page %d (first page=page %d)',psoptions.pagenum,psoptions.pagestart);
+        else psmsg = sprintf('page %d/%d (first page=page %d)',psoptions.pagenum,psoptions.pagestop,psoptions.pagestart);
+             okps2pdf = psoptions.pagenum>=psoptions.pagestop;
+        end
+    else     psmsg = '(specify ''pagenum'', ''pagestart'', ''pagestop'' for optimization)';
+    end
+    if exist(tmppsfile,'file') && ~isnan(psoptions.pagenum) && (psoptions.pagenum<=psoptions.pagestart), delete(tmppsfile), end
+    % PS print
+    dispf('PRINTPDF %s with options=''append'': Postscript level 2 printing...',psmsg)
+    print('-append',['-r' int2str(resolution)],'-dpsc2','',tmppsfile)
+    % PS to PDF conversion (if required)
+    if okps2pdf
+        dispf('PRINTPDF %s with options=''append'': PS->PDF...',psmsg)
+        if exist(fichier,'file'), delete(fichier), end
+        ps2pdf('psfile', tmppsfile, 'pdffile', fichier, 'gspapersize', 'a4');
+        if ~isnan(psoptions.pagestop) && ~isinf(psoptions.pagestop)  && (psoptions.pagenum>=psoptions.pagestop)
+            delete(tmppsfile)
+            fileinfo(fichier)
+        end
+    else
+        dispf('PRINTPDF %s with options=''append'': conversion PS->PDF postponed...',psmsg)
+        dispf('\t ps2pdf(''psfile'',''%s'',''pdffile'',''%s'',''gspapersize'',''a4'')\n',tmppsfile,fichier);
+    end
+    return
+end
 
 % printing with controls
 printon = true;

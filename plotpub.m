@@ -190,7 +190,7 @@ function [hout,propout] = plotpub(x,y,varargin)
 % To display a legend
 % legendpub(h2,{'leg1',{'leg1_line1' 'leg1_line2' 'leg1_line3' 'leg1_line4' 'line5'}},[],[],'interpreter','none')
 
-% MS 2.1 - 09/08/07 - Olivier Vitrac - rev. 08/03/10
+% MS 2.1 - 09/08/07 - Olivier Vitrac - rev. 08/03/11
 
 % history
 % 09/08/07 Release candidate
