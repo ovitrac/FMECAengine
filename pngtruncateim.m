@@ -5,25 +5,26 @@ function out = pngtruncateim(imfile,flipon,margin,negativeon)
 %                       margin = 100
 %                       negativeon = false
 
-% Migration 2.0 - 24/05/11 - INRA\Olivier Vitrac - rev. 29/01/12
+% Migration 2.0 - 24/05/11 - INRA\Olivier Vitrac - rev. 29/03/12
 
 % Revision history
 % 27/05/11 guess extension
 % 07/11/11 add negative
 % 29/01/12 accept image data
+% 29/03/12 fix negativeon
 
 % default values
 flipon_default = false;
 margin_default = 100;
-negative_default = false;
+negativeon_default = false;
 
 % arg check
 if nargin<2, flipon = []; end
 if nargin<3, margin = []; end
-if nargin<4, negative= []; end
+if nargin<4, negativeon= []; end
 if isempty(flipon), flipon = flipon_default; end
 if isempty(margin), margin = margin_default; end
-if isempty(negative), negativeon = negative_default; end
+if isempty(negativeon), negativeon = negativeon_default; end
 
 % main section
 if ischar(imfile)

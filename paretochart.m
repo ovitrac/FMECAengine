@@ -10,31 +10,39 @@ function rankout = paretochart(values,nodenames,valmax,defaultlayout,xlabeltxt,v
 %
 %   Pair properties: Any valid axes property is accepted, in addition with
 %       'xtxt': position for text (default = [], automatic)
+%   'colormap': full colormap (default = jet(64))
 %      Note use xscale': 'log' to display a log scale instead of a linear scale
 % 
-% Migration 2.0 - 13/01/12 - INRA\Olivier Vitrac - rev. 08/02/12
+% Migration 2.0 - 13/01/12 - INRA\Olivier Vitrac - rev. 29/03/12
 
 % Revision history
 % 08/02/12 add xtxt,add axes properties
+% 29/03/12 add colormap as property, accept [] as valax and defaultlayout
 
 % default
-default = struct('xtxt',[]);
+default = struct('xtxt',[],'colormap',jet(64));
 defaultax = struct('xscale','linear');
 defaultcol = [0 0 0];
 
 % arg check
 if nargin<1, error('1 inputs are required'), end
-if nargin<3, valmax = max(values); end
-if nargin<4, defaultlayout = true; end
+if nargin<3, valmax = []; end
+if nargin<4, defaultlayout = []; end
 if nargin<5, xlabeltxt = ''; end
+if isempty(valmax), valmax = max(values); end
+if isempty(defaultlayout), defaultlayout = true; end
+
 % if nargin<6, titletxt = ''; end
 [options,optionsax] = argcheck(varargin,default);
 optionsax = argcheck(optionsax,defaultax,'','keep');
-ncol = 64;
+
+% colors
+ncol = size(options.colormap,1);
+if size(options.colormap,2)~=3 || ncol<5, error('colormap must be a nx3 array with n>5'); end
 
 nodenames = regexprep(nodenames,'_','\\_'); % protect '_'
 [values,rank] = sort(values,'ascend'); %locvaluesmax = max(values);
-col = interp1(linspace(0,1,ncol),jet(ncol),values/valmax);
+col = interp1(linspace(0,1,ncol),options.colormap,values/valmax);
 if any(isnan(col)), col(any(isnan(col),2),:) = 0; end
 hold on
 if isempty(options.xtxt)

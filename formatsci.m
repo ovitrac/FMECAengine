@@ -16,12 +16,13 @@ function txt=formatsci(num,varargin)
 %               '5\cdot10^{-16}'    '1.2\cdot10^{1}'    '10^{0}'    '10^{3}'    '10^{5}'    '-4.5\cdot10^{1}'    '-8.9\cdot10^{4}'    '10^{2}'
 
 
-% MS 2.1 - 25/10/11 - INRA\Olivier Vitrac - rev. 27/01/12
+% MS 2.1 - 25/10/11 - INRA\Olivier Vitrac - rev. 29/01/12
 
 
 % revision history
 % 09/01/12 fix 0, add negative numbers
 % 27/01/12 add pattern and economy
+% 29/03/12 remove 10^0 fro results
 
 % default values
 param_default = struct(...
@@ -52,8 +53,10 @@ for i=1:n
         txt{i} = '0';
     elseif abs(rem(i)-1)<sqrt(eps)/1e3;
         txt{i} = sprintf(texwhenremeq1{1},p10(i));
-    else
+    elseif abs(p10(i))~=0
         txt{i} = sprintf(param.texpattern,rem(i),p10(i));
+    else
+        txt{i} = sprintf(param.pattern,rem(i));
     end
     if param.economy
         tmp  = sprintf(param.pattern,num(i));
