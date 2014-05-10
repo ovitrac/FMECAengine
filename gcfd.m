@@ -5,13 +5,14 @@ function data = gcfd(figurehandle)
 %
 %   See also: scfd
 
-% INRA\Olivier Vitrac 28/10/02 - rev. 28/12/11
+% INRA\Olivier Vitrac 28/10/02 - rev. 03/05/14
 
 % REVISION HISTORY
 % 29/10/02 release candidate
 % 09/11/09 add text
 % 14/12/11 add figurehandle, add patch objects, help update
 % 28/12/11 add Position, Units, fix texts on several lines
+% 03/05/14 add handles to fields
 
 % Default properties
 propAXESlist  = {'sXlabel','sYlabel','nXscale','nYscale','nXlim','nYlim','nPosition','nUnits'};
@@ -50,11 +51,16 @@ for hi = flipud(hc(indisaxes))'
     else
         i = i+1; dispf('AXES [%d]',i)
         hp = flipud(get(hi,'children'));
+        data = setfield(data,{i},'handles','axes','main',hi);
         % Axes properties
         for p = propAXESlist
             if any(get(hi,p{1}(2:end)))
-                if p{1}(1)=='s', data = setfield(data,{i},p{1}(2:end),get(get(hi,p{1}(2:end)),'string'));
-                elseif p{1}(1)=='n', data = setfield(data,{i},p{1}(2:end),get(hi,p{1}(2:end)));
+                if p{1}(1)=='s'
+                    haxprop = get(hi,p{1}(2:end));
+                    data = setfield(data,{i},p{1}(2:end),get(haxprop,'string'));
+                    data = setfield(data,{i},'handles','axes',p{1}(2:end),haxprop);
+                elseif p{1}(1)=='n'
+                    data = setfield(data,{i},p{1}(2:end),get(hi,p{1}(2:end)));
                 end
             else
                 data = setfield(data,{i},p{1}(2:end),[]);
@@ -75,6 +81,7 @@ for hi = flipud(hc(indisaxes))'
                 j = 0;
                 for hl=hp(indisobject)'
                     j= j+1;
+                    data = setfield(data,{i},'handles',typeOBJECT{1},{j},hl);
                     for p = propOBJECTlist
                         value = get(hl,p{1});
                          if ~isempty(value)

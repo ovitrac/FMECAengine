@@ -43,17 +43,46 @@
 %
 %     [4] "X11 color names" http://en.wikipedia.org/wiki/X11_color_names
 %
-% Revision INRA\Olivier Vitrac - 20/03/10
+% Revision INRA\Olivier Vitrac - 20/03/10 - rev. 14/10/2013
+
+% revision history
+%   13/10/2013 accepts 'none' and Matlab codes 'b' 'r' 'g'...
+%   14/10/2013 add shortcuts for group colors
 
 
 function rgbout = rgb(s)
   if ~nargin, s='chart'; end
+  if ischar(s) 
+      [rgbval,rgbout] = getcolors();
+      if strcmpi(s,'colors'), return
+      elseif strcmpi(s,'printcolors'), rgbval = reshape(hex2dec(rgbval), [], 3)/255;
+                                       rgbout = rgbout(mean(rgbval,2)<0.8); return
+      elseif strcmpi(s,'whitecolors'), rgbout = rgbout(1:17);    return
+      elseif strcmpi(s,'greycolors'),  rgbout = rgbout(18:27);   return
+      elseif strcmpi(s,'redcolors'),   rgbout = rgbout(28:36);   return
+      elseif strcmpi(s,'pinkcolors'),  rgbout = rgbout(37:42);   return
+      elseif strcmpi(s,'orangecolors'),rgbout = rgbout(43:47);   return
+      elseif strcmpi(s,'yellowcolors'),rgbout = rgbout(48:58);   return
+      elseif strcmpi(s,'browncolors'), rgbout = rgbout(59:75);   return
+      elseif strcmpi(s,'greencolors'), rgbout = rgbout(76:98);   return
+      elseif strcmpi(s,'bluecolors'),  rgbout = rgbout(99:122);  return
+      elseif strcmpi(s,'purplecolors'),rgbout = rgbout(123:141); return
+      elseif strcmpi(s,'graycolors'),  rgbout = rgbout(142:148); return
+      elseif strcmpi(s,'randomcolors')
+          rgbval = reshape(hex2dec(rgbval), [], 3)/255;
+          ind = randperm(length(rgbout))';
+          rgbout = rgbout(ind( mean(rgbval(ind),2)<0.8)); return
+      end
+  end
   if iscellstr(s)
       ns = numel(s);
       rgbout = zeros(ns,3);
       for i=1:ns, rgbout(i,:)=rgb(s{i}); end
       return
   end
+  if strcmpi(s,'none'), rgbout = s; return, end
+  s = regexprep(s,{'^b$' '^g$' '^r$' '^c$' '^m$' '^y$' '^k$' '^w$'},...
+      {'Blue' 'Green' 'Red' 'Cyan' 'Magenta' 'Yellow' 'Black' 'White'});
   persistent num name
   if isempty(num) % First time rgb is called
     [num,name] = getcolors();
@@ -124,7 +153,7 @@ end
 
 function [hex,name] = getcolors()
   css = {
-    %White colors
+    %White colors - 1:17
     'FF','FF','FF', 'White'
     'FF','FA','FA', 'Snow'
     'F0','FF','F0', 'Honeydew'
@@ -142,7 +171,7 @@ function [hex,name] = getcolors()
     'FA','F0','E6', 'Linen'
     'FF','F0','F5', 'LavenderBlush'
     'FF','E4','E1', 'MistyRose'
-    %Grey colors'
+    %Grey colors' - 18:27
     '80','80','80', 'Gray'
     'DC','DC','DC', 'Gainsboro'
     'D3','D3','D3', 'LightGray'
@@ -153,7 +182,7 @@ function [hex,name] = getcolors()
     '70','80','90', 'SlateGray'
     '2F','4F','4F', 'DarkSlateGray'
     '00','00','00', 'Black'
-    %Red colors
+    %Red colors - 28:36
     'FF','00','00', 'Red'
     'FF','A0','7A', 'LightSalmon'
     'FA','80','72', 'Salmon'
@@ -163,20 +192,20 @@ function [hex,name] = getcolors()
     'DC','14','3C', 'Crimson'
     'B2','22','22', 'FireBrick'
     '8B','00','00', 'DarkRed'
-    %Pink colors
+    %Pink colors - 37:42
     'FF','C0','CB', 'Pink'
     'FF','B6','C1', 'LightPink'
     'FF','69','B4', 'HotPink'
     'FF','14','93', 'DeepPink'
     'DB','70','93', 'PaleVioletRed'
     'C7','15','85', 'MediumVioletRed'
-    %Orange colors
+    %Orange colors - 43:47
     'FF','A5','00', 'Orange'
     'FF','8C','00', 'DarkOrange'
     'FF','7F','50', 'Coral'
     'FF','63','47', 'Tomato'
     'FF','45','00', 'OrangeRed'
-    %Yellow colors
+    %Yellow colors - 48:58
     'FF','FF','00', 'Yellow'
     'FF','FF','E0', 'LightYellow'
     'FF','FA','CD', 'LemonChiffon'
@@ -188,7 +217,7 @@ function [hex,name] = getcolors()
     'F0','E6','8C', 'Khaki'
     'BD','B7','6B', 'DarkKhaki'
     'FF','D7','00', 'Gold'
-    %Brown colors
+    %Brown colors - 59:75
     'A5','2A','2A', 'Brown'
     'FF','F8','DC', 'Cornsilk'
     'FF','EB','CD', 'BlanchedAlmond'
@@ -206,7 +235,7 @@ function [hex,name] = getcolors()
     '8B','45','13', 'SaddleBrown'
     'A0','52','2D', 'Sienna'
     '80','00','00', 'Maroon'
-    %Green colors
+    %Green colors - 76:98
     '00','80','00', 'Green'
     '98','FB','98', 'PaleGreen'
     '90','EE','90', 'LightGreen'
@@ -230,7 +259,7 @@ function [hex,name] = getcolors()
     '80','80','00', 'Olive'
     '55','6B','2F', 'DarkOliveGreen'
     '00','80','80', 'Teal'
-    %Blue colors
+    %Blue colors - 99:122
     '00','00','FF', 'Blue'
     'AD','D8','E6', 'LightBlue'
     'B0','E0','E6', 'PowderBlue'
@@ -255,7 +284,7 @@ function [hex,name] = getcolors()
     '00','00','8B', 'DarkBlue'
     '00','00','80', 'Navy'
     '19','19','70', 'MidnightBlue'
-    %Purple colors
+    %Purple colors - 123:141
     '80','00','80', 'Purple'
     'E6','E6','FA', 'Lavender'
     'D8','BF','D8', 'Thistle'
@@ -275,7 +304,7 @@ function [hex,name] = getcolors()
     '48','3D','8B', 'DarkSlateBlue'
     '7B','68','EE', 'MediumSlateBlue'
     '4B','00','82', 'Indigo'
-    %Gray repeated with spelling grey
+    %Gray repeated with spelling grey - 142:148
     '80','80','80', 'Grey'
     'D3','D3','D3', 'LightGrey'
     'A9','A9','A9', 'DarkGrey'

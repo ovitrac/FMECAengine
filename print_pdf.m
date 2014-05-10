@@ -7,13 +7,18 @@ function print_pdf(resolution,fichier,chemin,options,varargin)
 %
 %   default options = '-loose'
 %   options 'nocheck' forces printing without any dialog
-%   options 'append' is equivalent to nocheck but with an append feature (via a first postscript 2.1 printing)
+%   options 'append' is equivalent to nocheck but with an append feature (via a first PostScript 2.1 printing)
 %   for 3D without PLOTOBJ, options = '-opengl' is recommened (see PRINT for details)
 %
-% Advance use of 'append' (PDF conversion is performed for on efficiency on the last page)
+% Advance use of 'append' (PDF conversion from PostScript is performed for efficiency only when the last page is printed)
 %       print_pdf(resolution,fichier,chemin,options,'pagenum',currentpage,'pagestart',1,'pagestop',finalpage)
 %           currentpage = page index to print (when currentpage = pagestart value, the existing postscript file is removed)
 %             finalpage = page to initiate PS-to-PDF printing
+%   Example of use (print all figures in a single PDF)
+%       listoffigs = sort(findobj('type','figure'))'; numfig = length(listoffigs);
+%       for i=listoffigs
+%           figure(i), print_pdf(600,'myPDFfile.pdf',pwd,'append','pagenum',i,'pagestart',1,'pagestop',numfig)
+%       end
 
 % Woodox 1.0/MS 2.1 - 13/08/07 - Olivier Vitrac - rev. 03/03/12
 
@@ -27,6 +32,7 @@ function print_pdf(resolution,fichier,chemin,options,varargin)
 % 21/07/11 new fix for 'nocheck'
 % 22/07/11 fix extension with 'nocheck'
 % 03/03/12 add append
+% 12/03/12 help improvements, add example using append
 
 
 % definitions

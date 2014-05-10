@@ -1,4 +1,4 @@
-function [rout,strout] = fileinfo(filename,ppath,dispon)
+function [rout,strout] = fileinfo(filename,ppath,dispon,stringonly)
 %FILEINFO returns a structure that contains the main information of a given file
 %  Syntax: info = fileinfo(filename,[path])
 %  Option: [info,str] = fileinfo(filename,[path])
@@ -7,16 +7,18 @@ function [rout,strout] = fileinfo(filename,ppath,dispon)
 %   info = structure
 %   str = formated string
 
-% MS-MATLAB 1.0 - 20/04/04 - INRA\Olivier Vitrac - rev. 12/01/11
+% MS-MATLAB 1.0 - 20/04/04 - INRA\Olivier Vitrac - rev. 30/12/12
 
 % revision history
 % 19/08/04: display if no ouput, added str
 % 11/09/07 fix filename as cell array
 % 12/01/11 fix versn in FILEPARTS for Matlab later than 7.11 (not supported any more)
+% 30/12/12 cosmetic modifications
 
 % arg check
 if nargin<2, ppath = []; end
 if nargin<3, dispon = []; end
+if nargin<4, stringonly = false; end
 if ~nargout || isempty(dispon), dispon = true; end
 oldmatlab = verLessThan('matlab','7.11');
 
@@ -42,11 +44,11 @@ else
         end
     end
     if ~exist(pathstr,'dir')
-        error(sprintf('the directory ''%s'' does not exist',pathstr))
+        error('the directory ''%s'' does not exist',pathstr)
     end
     fullfilename = fullfile(pathstr,[name ext versn]);
     if ~exist(fullfilename,'file')
-        error(sprintf('the file ''%s'' does not exist in ''%s''',[name ext versn],pathstr))
+        error('the file ''%s'' does not exist in ''%s''',[name ext versn],pathstr)
     end
 
     % info
@@ -71,6 +73,7 @@ else
 end
 
 % output
+if stringonly, rout = str; return, end
 if nargout>0, rout = r; end
 if nargout>1, strout = str; end
 if dispon, disp(str), end

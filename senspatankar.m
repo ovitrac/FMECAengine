@@ -68,13 +68,14 @@ function res = senspatankar(F,ploton,dispon)
 %
 %   See also: senspatankar_wrapper, setoffpatankar, senspatankarT, senspatankarC, senspatankarnonlin (beta)
 
-% MS-MATLAB-WEB 1.0 - 28/09/07 - Olivier Vitrac - rev 15/02/11
+% MS-MATLAB-WEB 1.0 - 28/09/07 - Olivier Vitrac - rev 26/04/13
 
 % Revision history
 % 01/10/07 improve speed
 % 16/03/09 add restart
 % 17/11/10 improve documentation
 % 15/02/11 fix Out of Memory for large Fo values (Fo>10)
+% 26/04/13 fix warning using method='cubic', set it to 'pchip'
 
 % definitions
 global timeout
@@ -93,7 +94,7 @@ Fdefault	= 	struct(...
 					); % if iref is missing, it is indentified
 Fdefault.t	= [0:.00001:.005 .01:.01:.1 .11:.1:5]; %0:.00001:.005; %[0:.00001:.005 .01:.01:.1 .11:.1:5]';
 if Fdefault.Bi<10, Fdefault.t = Fdefault.t/(Fdefault.Bi/10); end
-method		= 'cubic'; %'cubic';
+method		= 'pchip'; %'cubic'; %'cubic';
 ploton_default = false;
 dispon_default = false;
 nmesh_default  = 200; % number of nodes for a layer of normalized thickness 1

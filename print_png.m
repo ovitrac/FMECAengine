@@ -1,24 +1,54 @@
-function print_png(resolution,fichier,chemin,options)
-%PRINT_JPG  print active window as a PNG image
-%   print_jpg(resolution,fichier[,chemin,options])
-%   print_jpg(resolution,fichier,options)
-%       options doit �tre pr�c�d� de '-' (ex. '-opengl')
+function print_png(resolution,filename,filepath,options,flipon,margin,negativeon,horizontalon)
+%PRINT_PNG  print active window as a PNG image
+%   print_png(resolution,filename[,filepath,options])
+%   print_png(resolution,filename,options)
+%   print_png(resolution,filename,options [,flipon,margin,negativeon])
+%       options must be followed by '-' (ex. '-opengl')
+%       imfile,flipon,margin,negativeon are parameters of pngtruncateim
 
-% Woodox 1.0 - 28/01/01 - Olivier Vitrac - 13/08/07
+% INRA\MS 2.0 - 28/01/01 - Olivier Vitrac - 10/05/14
 
 % revision
-% 25/07/07 add options and fix chemin option
-% 13/08/07 fix path ambiguity when both fichier and chemin contain a path
+% 25/07/07 add options and fix filepath option
+% 13/08/07 fix path ambiguity when both filename and filepath contain a path
+% 09/09/12 add pngtruncateim
+% 10/05/14 force flipon when paperorientation is set to landscape
 
-if nargin<3, chemin = ''; end
+% Default
+flipon_default = false;
+margin_default = 0;
+negativeon_default = false;
+horizontalon_default = false;
+
+% arg check
+if nargin<2, error('Two arguments are required'); end
+if nargin<3, filepath = ''; end
 if nargin<4, options = ''; end
-if any(chemin), 
-    if chemin(1)=='-', options = chemin; chemin = ''; end
-    [pathstr,name,ext] = fileparts(fichier);
+cropon = (nargin>=5);
+if nargin<5, flipon = []; end
+if nargin<6, margin = []; end
+if nargin<7, negativeon= []; end
+if nargin<8, horizontalon = []; end
+if isempty(flipon), flipon = flipon_default; end
+if ~flipon && strcmpi(get(gcf,'PaperOrientation'),'landscape'), flipon = true; end
+if isempty(margin), margin = margin_default; end
+if isempty(negativeon), negativeon = negativeon_default; end
+if isempty(horizontalon), horizontalon = horizontalon_default; end
+
+% do the print
+if any(filepath), 
+    if filepath(1)=='-', options = filepath; filepath = ''; end
+    [~,name,ext] = fileparts(filename);
 else
-    [chemin,name,ext] = fileparts(fichier);
+    [filepath,name,ext] = fileparts(filename);
 end
-if isempty(chemin), chemin = cd; end
-if ~exist(chemin,'dir'), error('the path ''%s'' does not exist',chemin), end
-fichier = [name ext];
-print (['-r' int2str(resolution)],'-dpng',options, fullfile(chemin,fichier))
+if isempty(ext), ext = '.png'; end
+if isempty(filepath), filepath = cd; end
+if ~exist(filepath,'dir'), error('the path ''%s'' does not exist',filepath), end
+filename = [name ext];
+print (['-r' int2str(resolution)],'-dpng',options, fullfile(filepath,filename))
+if cropon
+    pngtruncateim(fullfile(filepath,filename),flipon,margin,negativeon,horizontalon) % varargin{:})
+else
+    dispf('to truncate the generated PNG image, use the following code:\npngtruncateim(''%s'',0,0,0)',fullfile(filepath,filename))
+end

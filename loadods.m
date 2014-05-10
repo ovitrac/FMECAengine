@@ -25,7 +25,7 @@ function dataout = loadods(infile,varargin)
 %
 % SEE ALSO: XLSTBLREAD, XLSREAD
 
-% MS 2.1 - 11/02/11 - INRA\Olivier Vitrac - rev. 24/01/12
+% MS 2.1 - 11/02/11 - INRA\Olivier Vitrac - rev. 17/01/14
 % Initial code from (C) 2007 Alex Marten - alex.marten@gmail.com
 
 % Revision history
@@ -42,6 +42,7 @@ function dataout = loadods(infile,varargin)
 %   16/09/11 force allsheets = true when the name of the first sheet cannot be determined
 %   03/01/12 add forceboolean
 %   24/01/12 fix header with item(3), based on a correct identification of office:body tag (starting from item 3)
+%   17/01/14 fix test bounds when empty cells are mixed with NaN, etc.
 
 % Set default options
 validchars = '[^a-zA-Z0-9]'; % accepted characters for fields
@@ -219,7 +220,10 @@ for isheet = 1:numSheets
         
         % Fix the output
         % determine bounds
-        ok = reshape(cellfun(@(x) ischar(x) || (~isnan(x) && ~isempty(x)),data),size(data));
+        % Before 17/01/2014
+        % ok = reshape(cellfun(@(x) ischar(x) || (~isnan(x) && ~isempty(x)),data),size(data));
+        % After 17/01/2014
+        ok = reshape(cellfun(@(x) ischar(x) || (~all(isnan(x)) && ~isempty(x)),data),size(data));
         data = data(1:max(sum(ok,1)),1:max(sum(ok,2)));
         if options.transpose, data = data'; end
         if options.headers && ~isempty(data)

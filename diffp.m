@@ -26,7 +26,7 @@ function [dydxout,dydxicout] = diffp(x,y,ordre,h,n,D,xD,alpha,ilist,fusion,wy,pr
 %	dydxic	= intervalles de confiance
 
 	
-% Thermique 1.1 - 13/06/01 - Olivier Vitrac - rev. 24/07/2010
+% Thermique 1.1 - 13/06/01 - Olivier Vitrac - rev. 15/10/2013
 
 % Revision history
 % 28/06/03 weighting and symmetry
@@ -36,6 +36,7 @@ function [dydxout,dydxicout] = diffp(x,y,ordre,h,n,D,xD,alpha,ilist,fusion,wy,pr
 % 23/11/2006 fix bug with several inputs (columns)
 % 02/06/2010 fix multiple Y
 % 24/07/2010 optimized code for 2009x rules (2010 rules not implemented to keep some backward-compatibility)
+% 15/10/2013 implements variable h
 
 % exemple : évaluation de la dérivée 1ère de sin(t) entre 0 et 10pi bruitée (à 14f)
 % t = 0:0.1:10*pi;
@@ -113,6 +114,7 @@ if nargin<3, hsym = nhdefaut * max(diff(x));
 elseif isempty(h), hsym = nhdefaut * max(diff(x));
 else hsym = h;
 end
+if numel(hsym)>1, hsym=max(hsym(:)); end
 leftBC  = 2:find((x-x(1))<hsym, 1, 'last' );      mLBC = length(leftBC);
 rightBC = find((x(end)-x)<hsym, 1, 'first'):my-1; mRBC = length(rightBC);
 ioriginal = mLBC+(1:length(x));
@@ -155,6 +157,28 @@ if length(n)>1,			error('n must be a scalar'),								end
 						wy		= sparse(wy/sum(wy));
 						compute_IC	= nargout>1;
 if n<0 || n~=fix(n), error('n must be a positive integer'),							end
+
+% variable h (15/10/2013)
+if  length(h)>1
+    nh = numel(h);
+    if nargout>1, error('only the first output can be returned with vectorized h values'), end
+    dydxout = struct( 'diffp',{repmat({[]},size(h))},...
+                      'hmin',[],'diffphmin',[],...
+                      'hmax',[],'diffphmax',[]);
+    for i=1:nh
+        try
+            dydxout.diffp{i} = diffp(x,y,ordre,h(i),n,D,xD,alpha,ilist,fusion,wy,proba);
+        catch
+            dispf('DIFFP:: ERROR for h(%d)=%0.4g',i,h(i))
+        end
+    end
+    [~,ind] = sort(h,'ascend');
+    imin = find(~cellfun(@isempty,dydxout.diffp(ind)),1,'first');
+    imax = find(~cellfun(@isempty,dydxout.diffp(ind)),1,'last');
+    dydxout.diffphmin = dydxout.diffp{ind(imin)}; dydxout.hmin = h(imin);
+    dydxout.diffphmax = dydxout.diffp{ind(imax)}; dydxout.hmax = h(imax);
+    return
+end
 
 % Normalisation des contraintes	
 if ~iscell(D), D = {D}; end

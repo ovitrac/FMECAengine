@@ -43,15 +43,16 @@ function [haxes_out,hlines_out,ht_out] = refslope(haxorigin,haxdestination,slope
 %       set(ho(1),'xscale','linear','yscale','log'), set(ho(2),'xscale','log','yscale','linear')
 %       [hax,hlines] = refslope(ho,[2 4],.5:.5:2)
 %
-%   See also: PLOTPUB
+%   See also: PLOTPUB LEGENDPUB
 
-% MS 2.0 - 29/08/07 - Olivier Vitrac - rev. 26/03/11
+% MS 2.0 - 29/08/07 - Olivier Vitrac - rev.  07/03/12
 
 % Revision
 % 30/08/07: add position (create axes when required), box, vars, defaultposition
 % 23/09/07: increase the linewidth of axes by 0.2
 % 19/05/09: add ht_out
 % 26/03/11: add semilog
+% 07/03/12 force unit scaling for axes
 
 %
 haxdestination_default = 4; % default position
@@ -65,7 +66,7 @@ vars_default = {'x' 'y'};
 defaultposition_default = [.2 .2 .2 .2];
 
 % arg check
-if nargchk(0,9,nargin), error('syntax: hr=refslope(haxorigin,[haxdestination/position,slope,lineoptions,textoptions,box,vars,defaultposition])'), end %#ok<NCHK>
+if nargin>9, error('syntax: hr=refslope(haxorigin,[haxdestination/position,slope,lineoptions,textoptions,box,vars,defaultposition])'), end %#ok<NCHK>
 if nargin<1, haxorigin = gca; end
 if any(~ishandle(haxorigin)), error(' some inial axes are invalid'), end
 nax = length(haxorigin);
@@ -125,6 +126,7 @@ for iax = 1:nax
         end
     end
     % plot
+    set(haxdestination(iax),'xlim',[0 1],'ylim',[0 1]) % force unit scaling for axes (added 7/3/12)
     xscale = get(haxorigin(iax),'xscale');
     yscale = get(haxorigin(iax),'yscale');
     % Old behavior
@@ -176,7 +178,8 @@ for iax = 1:nax
         plotpub(sym.center(direction(iax),1)+[0 sym.coeff(direction(iax),1)],[0 0]+sym.center(direction(iax),2),lineoptionsaxes)
         plotpub([0 0]+sym.center(direction(iax),1),sym.center(direction(iax),2)+[0 sym.coeff(direction(iax),2)],lineoptionsaxes)
     end
-    set(haxdestination(iax),'visible','off')
+    subplot(haxdestination(iax)), axis tight, ax = axis;
+    set(haxdestination(iax),'visible','off','xlim',sort(sign(ax(1:2))),'ylim',sort(sign(ax(3:4)))) % force unit scaling for axes (added 7/3/12)
 %     hr(:,iax) = tmp
 end
 

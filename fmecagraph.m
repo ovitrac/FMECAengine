@@ -26,7 +26,7 @@ function [hgraphtmp,hparentobjout,hobjout] = fmecagraph(fmecadb,values,varargin)
 %     terminalnodes: terminal values plotted as terminal nodes codes as terminalnodes.(nodes{i})='some text'
 %           weights: value connecting between nodes{i} and nodes{i+1} (default=1) coded as weights.(nodes{i})=value
 %                    'auto' forces weights to be calculated as: values.(nodes{i})-values.(nodes{i-1})
-%        shapenodes: shape for non-terminal bodes (see shapeterminalnodes for details)
+%        shapenodes: shape for non-terminal nodes (see shapeterminalnodes for details)
 %         sizenodes: two-element numeric vector in dpi (default = [])
 %shapeterminalnodes: shape for terminal nodes (default = 'ellipse')
 %                    available shapes: 'box', 'ellipse', 'circle', 'rectangle', 'diamond', 'trapezium', 'invtrapezium',

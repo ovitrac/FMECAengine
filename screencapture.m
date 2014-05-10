@@ -5,8 +5,7 @@ function out=screencapture(varargin)
 %           position: [x y width height] (default = screen size)
 %             figure: figure handle (default='')
 %           filename: full filename (default = /tmp/screencapture.png)
-%                bar: height of the bar title (default = 22)
-%      cameratoolbar: height of the cameratoolbar (default = 27)
+%              pause: pause time to resfrsh the figure before capture (default=.1)
 %       Keyword
 %           'truncate' to apply pngtruncateim to the capture
 %
@@ -14,15 +13,17 @@ function out=screencapture(varargin)
 %       tmp = getframe; imwrite(tmp.cdata,'myfile','png')
 
 
-% Migration 2.1 - 05/02/12 - INRA\Olivier Vitrac - rev.
+% Migration 2.1 - 05/02/12 - INRA\Olivier Vitrac - rev. 16/03/13
+
+% Revision history
+% 16/03/13 fix screen rules for Java, add pause as workaround in Matlab delay
 
 % default
 default = struct(...
     'position',get(0,'ScreenSize'),...
     'figure',[],...
     'filename',fullfile(tempdir,'screencapture.png'),...
-    'bar',22,...
-    'cameratoolbar',27 ...
+    'pause',.1 ...
     );
 keywords = 'truncate';
 
@@ -35,12 +36,15 @@ if ~isempty(options.figure)
     toolbar = get(options.figure,'toolbar');
     cameratoolbarvis = cameratoolbar('GetVisible');
     set(options.figure,'menu','none','toolbar','none')
-    if cameratoolbarvis, cameratoolbar('Hide'), options.bar = options.bar+options.cameratoolbar; end
+    if cameratoolbarvis, cameratoolbar('Hide'); end
     set(options.figure,'Units','pixels')
-    figure(options.figure), drawnow
+    screenresolution = get(0,'ScreenSize');
+    figure(options.figure), pause(options.pause),drawnow
     options.position = get(options.figure,'position');
-    options.position(2) = options.position(2) + options.bar;
-    options.position(4) = options.position(4) - options.bar;
+    options.position(1) = options.position(1);
+    options.position(2) = screenresolution(4) - (options.position(2)+options.position(4)-1) +1;
+    options.position(2) = options.position(2); % + options.bar;
+    options.position(4) = options.position(4); % - options.bar;
 end
 [~,~,ext] = fileparts(options.filename);
 if isempty(ext), options.filename = [options.filename '.png']; end
@@ -52,7 +56,7 @@ area = java.awt.Rectangle(options.position(1)-1,options.position(2)-1,options.po
 robot = java.awt.Robot;
 image = robot.createScreenCapture(area);
 filehandle = java.io.File(options.filename);
-javax.imageio.ImageIO.write(image,'png',filehandle)
+javax.imageio.ImageIO.write(image,'png',filehandle);
 if options.truncate, pngtruncateim(options.filename,0,0); end
 out = options.filename;
 

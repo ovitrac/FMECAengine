@@ -5,13 +5,14 @@ function res = senspatankarC(F,ploton,dispon)
 %   IT IS THE RESPONSABILITY OF THE USER TO PROVIDE THE APPROPRIATE DIMENSIONLESS NUMBERS
 %   a wrapper used for the online version is available in ../www/home/diffusion_1DFVn.m
 
-% MS-MATLAB-WEB 1.0 - 25/09/09 - Olivier Vitrac - rev. 26/10/11
+% MS-MATLAB-WEB 1.0 - 25/09/09 - Olivier Vitrac - rev. 05/05/14
 
 % Revision history
 % 01/10/07 improve speed
 % 16/03/09 add restart
 % 29/04/11 add F.restart.CF
 % 26/10/11 replace xmesh/xmesh(end) xmesh/F.lrefc(end) in the interpolation (thanks to Nicolas)
+% 08/05/14 method = 'pchip'  for compatibility with Matlab 2014
 
 % definitions
 global timeout
@@ -33,7 +34,7 @@ Fdefault	= 	struct(...
 %                 'kR0'       ,   0,...
 Fdefault.t	= [0:.00001:.005 .01:.01:.1 .11:.1:5]; %0:.00001:.005; %[0:.00001:.005 .01:.01:.1 .11:.1:5]';
 if Fdefault.Bi<10, Fdefault.t = Fdefault.t/(Fdefault.Bi/10); end
-method		= 'cubic'; %'cubic';
+method		= 'pchip'; %'cubic';
 ploton_default = false;
 dispon_default = false;
 nmesh_default  = 200; % number of nodes for a layer of normalized thickness 1
@@ -169,11 +170,11 @@ end
 he(1:F.nmesh-1) = hw(2:F.nmesh); %flux continuity
 he(end) = 0; % impervious BC
 % control (for debug)
-clf, hold on
-plot(xmesh,zeros(size(xmesh)),'ro')
-plot(xmesh+de,zeros(size(xmesh)),'^')
-plot(xmesh-dw,zeros(size(xmesh)),'v')
-line(repmat(F.lrefc,2,1),repmat(ylim',1,F.m),'color','k')
+% clf, hold on
+% plot(xmesh,zeros(size(xmesh)),'ro')
+% plot(xmesh+de,zeros(size(xmesh)),'^')
+% plot(xmesh-dw,zeros(size(xmesh)),'v')
+% line(repmat(F.lrefc,2,1),repmat(ylim',1,F.m),'color','k')
 
 % Assembling
 A = zeros(F.nmesh+1,F.nmesh+1);

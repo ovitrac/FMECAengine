@@ -1,11 +1,12 @@
-function D=Dpiringer(polymer,M,T)
+function [D,alpha]=Dpiringer(polymer,M,T)
 % Dpiringer returns the Piringer's overestimate of diffusion coefficients
 %   syntax: D=Dpiringer(polymer,M,T)
+%           alpha = Dpiringer(...) returns also the alpha values
 %       polymer = 'LDPE'    'LLDPE'    'HDPE'    'PP'    'PPrubber'    'PS'    'HIPS'    'PET'    'PBT'    'PEN'    'PA'    'PVC'
 %       M = molecular mass
-%       T = temperature in ï¿½C (default = 40ï¿½C)
+%       T = temperature in °C (default = 40°C)
 
-% Migration 2.0 - 07/05/2011 - INRA\Olivier Vitrac - rev. 22/08/11
+% Migration 2.0 - 07/05/2011 - INRA\Olivier Vitrac - rev. 27/02/13
 
 % Revision history
 % 25/07/11 add recursion
@@ -13,6 +14,7 @@ function D=Dpiringer(polymer,M,T)
 % 30/08/11 change names for cardbox
 % 02/09/11 modification of some App and tau: PS, SBS, PET, PA, OPP, PVCplasticized (according to Migresives email dated 30/08/11)
 % 12/01/12 replace 'PVCplasticized_30pc' by 'pPVC',...
+% 27/02/13 add adlpha
 
 % definitions
 data = struct(...
@@ -69,3 +71,9 @@ if ~ischar(polymer), error('polymer must a string or cell array of strings'), en
 TK      = T+273.25;
 Ap      = data.(polymer).App - data.(polymer).tau./TK;
 D       = exp(Ap-0.135*M.^(2/3)+0.003*M-10454./TK); % m2.s-1
+
+
+% additional ouput
+if nargout>1
+    alpha =  M.*(-3.0./1.0e3)+M.^(2.0./3.0).*(1.351e3./1.5e4);
+end

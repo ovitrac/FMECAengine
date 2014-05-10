@@ -6,8 +6,8 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 %   To override default values, define user variables in the workspace
 %   
 %   USAGE AS A FUNCTION (recommended)
-%     Syntax: fmecaenfine('variable1','value1','variable2','value2','variable3','value3',...)
-%             fmecaenfine(definition,...) whith definition a structure with fields definition.variable1 = 'value1'
+%     Syntax: fmecaengine('variable1','value1','variable2','value2','variable3','value3',...)
+%             fmecaengine(definition,...) whith definition a structure with fields definition.variable1 = 'value1'
 %       
 %   LIST OF USER VARIABLES
 %               local  root directory of all files and folders (default = pwd)
@@ -152,14 +152,27 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 %   Note 9: FMECAengine decides to restart simulations ONLY when its detects that the results of a simulation can be modified
 %           according to the input parameters supplied to SENSPATANKAR, SENSPATANKARC, SETOFFPATANKAR... Dependent steps
 %           are forced to update to keep the consistency of results.
+%  Note 10: FMECAengine can be called without any ODS file and can generate for you the equivalent of a 'sim' spreadsheet
+%           General syntax is: fmecaengine('fmecamainfile',{'nlayers',nlayers,'nsteps',nsteps,'keyword','property1',value1,'property2',value2,...})
+%           where nlayers is the number of layers and nsteps the number of steps (they will be called 'STEP01','STEP02',etc.)
+%           list od available keywords is 'make' or 'constructor')
+%               > make = fmecaengine('fmecamainfile',{...,'make',...}) is set to be used as fmecaengine(make) and contains all parameters
+%               > template = fmecaengine('fmecamainfile',{...,'constructor',...}) generates a 'sim' template to be used as
+%                                                                                 fmecaengine('fmecamainfile',template,..)
+%               > withot keywords, the simulation continues (note that templates contain only NaN values)
+%           property/value are used to assign spectic value in the template (note that values can be also assigned using template(istep).property=value
+%           example: a = fmecaengine('fmecamainfile',{'nlayers',3,'nsteps',2,'constructor','l1m',1e-3})
+%           example with shorthands: a = fmecaengine('fmecamainfile',{'nlayers',2,'nsteps',2,'constructor','l',{[1e-3 1e-4] [1e-3 1e-4]}})
+%           List of shorthands:    l: 'l%dm'; D: 'D%dm2s'; KFP: 'KFP%dkgm3kgm3'; CP: 'CP%d0kgm3'
+%           
 %
-% SEE ALSO: FMECASINGLE FMECAROOT BUILDMARKOV KEY2KEY LOADFMECAENGINEDB FMECAGRAPH
+% SEE ALSO: FMECASINGLE FMECAROOT BUILDMARKOV KEY2KEY LOADFMECAENGINEDB FMECAGRAPH, FMECAMERGE
 %
 % DEPENDENCY INFORMATION TO IMPLEMENT THIS SCRIPT/FUNCTION IN OTHER PROJECTS
 % > Dependencies to other functions (written by INRA\Olivier Vitrac)
 % See also: ARGCHECK(*), BUILDMARKOV(*), CELLCMP(*), DISPB, DISPF, DPIRINGER(*), FILEINFO, FIND_MULTIPLE(*), FORMATFIG, FORMATAX,
 %           KEY2KEY(*), LOCALNAME, LOADODS(*), LOADFMECENGINEDB (*), MATCHINGCLOSINGSYMBOL, MATCMP(*), NEARESTPOINT(*), PRINT_PDF, PRINT_PNG, RGB, SENSPATANKAR(*),
-%           SENSPATANKARC(*), SETOFFPATANKAR(*), STRUCTCMP(*), SUBPLOTS, WRAPTEXT
+%           SENSPATANKARC(*), SETOFFPATANKAR(*), STRUCTCMP(*), SUBPLOTS, SUBSTRUCTARRAY(*), WRAPTEXT
 % (*) indispensable functions (shared between toolboxes Migration and MS)
 % > Commercial tooboxes required: Bioinformatics Toolbox (only for Graph plotting)
 % 
@@ -192,11 +205,18 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 %             'outputpath','tmp4' ...
 %             );
 %
+% UNDOCUMENTED EXAMPLES
+%   see simulation_template.m
+%
+%
+% Maintenance command (before any major update)
+%
+%
 % CONTACT
 % Any question to this script/function must be addressed to: olivier.vitrac@agroparistech.fr
 % The script/function was designed to run on the cluster of JRU 1145 Food Process Engineering (admin: Olivier Vitrac)
 %
-% Migration 2.1 (Fmecaengine v0.4995) - 10/04/2011 - INRA\Olivier Vitrac - Audrey Goujon - rev. 19/12/2011
+% Migration 2.1 (Fmecaengine v0.5013) - 10/04/2011 - INRA\Olivier Vitrac - Audrey Goujon - rev. 10/05/2014
 
 % Revision history
 % 06/04/2011 release candidate
@@ -252,14 +272,24 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 % 01/12/2011 fix default sample value when prctile (from the Statistics Toolbox) is not available (version 0.499)
 % 03/12/2011 fix error message, add today (version 0.4991) - this version has been tested on a Virtual Machine running R2011b without any toolbox
 % 19/12/2011 in graphs, replace 1e-99 by a true 0 (same tip as in fmecagraph)
-
+% 13/12/2011 help fixes (version 0.49951)
+% 05/05/2014 add 'interp1' / compatible last Matlab versions (FMECAengine version 0.49952)
+% 05/05/2014 accept mixed number of layers, print_png crops figures now
+% 06/05/2014 add sim constructor to be used without OpenOffice (FMECAengine version 0.49955)
+% 08/05/2014 add ODSpassthrough() with shorthands, automatic spanning (FMECAengine version 0.50)
+% 05/05/2014 add mergeoutput, check html extensions (FMECAengine version 0.501)
+% 09/05/2014 reverse change of 05/05/2014 isequaln is replaced by matcmp (not available in old Matlab codes) (FMECAengine version 0.5011)
+% 09/05/2014 fix .ods extension when automatic inputs is used (FMECAengine version 0.5012)
+% 10/05/2014 remove supplied fields with automatic inputs (FMECAengine version 0.5013)
 
 %% Fmecaengine version
-versn = 0.4995; % official release
+versn = 0.5013; % official release
 mlmver = ver('matlab');
 extension = struct('Foscale','Fo%d%d','Kscale','K%d%d','ALT','%sc%d'); % naming extensions (associated to scaling)
 prop2scale = struct('Foscale','regular_D','Kscale','regular_K'); % name of columns
 ncol = 64; % number of reference colors for colormaps (note that used colors are linearly interpolated among ncol colors)
+defaultautofmecamainfile = struct('nlayers',3,'nsteps',1); kwautofmecamainfile = {'make' 'constructor'}; % for default creation
+autostepname = 'STEP%02d';
 
 %% Check for a valid installation of the toolbox bioinfo
 % if missing, graphs are not plotted
@@ -272,8 +302,11 @@ default = struct('local','','inputpath','','outputpath','','fmecamainfile','','f
                  'nmesh',200,...
                  'nmeshmin',10,...
                  'headers',2,... number of header lines
+                 'interp1','pchip',... interpolation method (added 05/05/2014)
                  'nograph',false,... if true, unable graphs
                  'noprint',false,... if true, unable prints
+                 'mergeoutput',false,... force the output to be merhed (added 08/05/2014)
+                 'cls',false,... force clean screen
                  'database',struct([]),... database to be used with keys
                  'databaseheaders',1,... number of header lines for database
                  'regular_l','^l\d+m$',... regular expression to check l
@@ -376,6 +409,13 @@ if ischar(o.fmecamainfile)
 else
     dispf('\n reuse data from a previous instance of fmecaengine')
 end
+
+%%% ======================  automatic fmecamainfile / 06/05/14
+if iscell(o.fmecamainfile) % new syntax 
+    if ODSpassthrough(), return, end
+end    
+%%% ======================  
+
 if ischar(o.fmecamainfile)
     if ~exist(fullfile(o.local,o.inputpath,o.fmecamainfile),'file'), error('the FMECA file definition ''%s'' does not exist in ''%s''',o.fmecamainfile,fullfile(o.local,o.inputpath)), end
     [~,nfodata] = fileinfo(fullfile(o.local,o.inputpath,o.fmecamainfile),'',false);
@@ -387,6 +427,7 @@ elseif isstruct(o.fmecamainfile)
         [data(cellfun('isempty',{data.(o.print_inherit)})).(o.print_inherit)] = deal(NaN); % replace '' by NaN values (default behavior from original ods files)
     end
     o.fmecamainfile = o.inputpath; % even if a structure is used, a filaname with an extension .ods is required
+    [~,~,extods]=fileparts(o.fmecamainfile); if isempty(extods), o.fmecamainfile=sprintf('%s.ods',o.fmecamainfile); end % added 09/05/2014
     o.inputpath = '--> script: ';
     nfodata = sprintf('%s:%s',regexprep(char(regexp(evalc('whos(''data'')'),'data.*','match')),{'\s{2,}' '(\d*) struct'},{' ','struct array ($1 bytes)'}));
 else
@@ -727,8 +768,8 @@ for iseries = 1:nseries  % Main loop on each series of independent simulations (
                 else % simulation with a previously calculated profile
                     screen = dispb(screen,'[%d/%d (%d/%d)]\t%s\t %s (SENSPATANKARC)...\nreusing ''%s'' located in ''%s''',count,countmax,isim,nsim,currentid,msg,previousid,previousfile);
                     s(map(isim,iseries)).restart = struct('x',previousres.r.x,... the initial solution is interpolatedd at the previous requested contact time
-                        'C',interp1(sqrt(previousres.r.tC*previousres.r.timebase),previousres.r.Cx,sqrt(data(map(isim-1,iseries)).(o.print_t)),'cubic'),...
-                        'CF',interp1(previousres.r.t*previousres.r.timebase,previousres.r.CF,data(map(isim-1,iseries)).(o.print_t),'cubic'));
+                        'C',interp1(sqrt(previousres.r.tC*previousres.r.timebase),previousres.r.Cx,sqrt(data(map(isim-1,iseries)).(o.print_t)),o.interp1),...
+                        'CF',interp1(previousres.r.t*previousres.r.timebase,previousres.r.CF,data(map(isim-1,iseries)).(o.print_t),o.interp1));
                     r = senspatankarC(senspatankar_wrapper(s(map(isim,iseries))));
                 end
                 screen = dispb(screen,'[%d/%d (%d/%d)]\t%s\t... completed in %0.4g s',count,countmax,isim,nsim,currentid,etime(clock,t0));
@@ -749,7 +790,7 @@ for iseries = 1:nseries  % Main loop on each series of independent simulations (
                 fmecadb(1).(currentid).path = simseries{iseries}(1:isim);
                 fmecadb(1).(currentid).isterminal = (isim==nsim); % true if terminal node
                 fmecadb(1).(currentid).t = data(map(isim,iseries)).(o.print_t); % requested time
-                fmecadb(1).(currentid).CF = interp1(r.t*r.timebase,r.CF,data(map(isim,iseries)).(o.print_t),'cubic'); % CF value
+                fmecadb(1).(currentid).CF = interp1(r.t*r.timebase,r.CF,data(map(isim,iseries)).(o.print_t),o.interp1); % CF value
                 fmecadb(1).(currentid).SML = data(map(isim,iseries)).(o.print_SML);
                 % variation in CF value between 2 consecutive steps
                 if isempty(previousid)
@@ -759,9 +800,9 @@ for iseries = 1:nseries  % Main loop on each series of independent simulations (
                     if abs(fmecadb(1).(previousid).CF-r.CF(1))>eps, error('inconsistent result between ''%s'' and its ancestor ''%s''',currentid,previousid); end
                 end
                 % concentrations in each layer (added 24/10/11)
-                CP = interp1(r.tC*r.timebase,r.Cx,data(map(isim,iseries)).(o.print_t),'cubic'); % interpolated profile for desired time
+                CP = interp1(r.tC*r.timebase,r.Cx,data(map(isim,iseries)).(o.print_t),o.interp1); % interpolated profile for desired time
                 lcum = [0 r.F.lrefc];
-                for jlayer = 1:nCfield
+                for jlayer = 1:length(lcum)-1 %1:nCfield  % before 05/05/2014
                     layerind = find((r.x>=lcum(jlayer)) & (r.x<lcum(jlayer+1)));
                     fmecadb(1).(currentid).(sprintf('CP%d',jlayer)) = trapz(r.x(layerind),CP(layerind)) / ( r.x(layerind(end))-r.x(layerind(1)) );
                 end % end (added 24/10/11)
@@ -780,13 +821,13 @@ for iseries = 1:nseries  % Main loop on each series of independent simulations (
             % to be modified by end-user to fit needs (current aim is to provide an overall control on simulated conditions)
             % Note that all simulated quantities are stored into a single file and can be reused for any post-treatment
             requestedtime = data(map(isim,iseries)).(o.print_t);
-            Cfatrequestedtime = interp1(r.t*r.timebase,r.CF,requestedtime,'cubic');
+            Cfatrequestedtime = interp1(r.t*r.timebase,r.CF,requestedtime,o.interp1);
             figure(hfig); clf
             formatfig(hfig,'figname',currentid,'paperposition',[1.8225    3.9453   17.3391   21.7868]);
             hs = subplots(1,[.6 1],0,.1);
             subplot(hs(1))
             if isfield(r.F,'lengthscale'), lengthscale = r.F.lengthscale; else lengthscale = 1; end
-            plot(r.x*lengthscale,interp1(r.tC*r.timebase,r.Cx,requestedtime,'cubic')','-','linewidth',2,'color',rgb('LightCoral'))
+            plot(r.x*lengthscale,interp1(r.tC*r.timebase,r.Cx,requestedtime,o.interp1)','-','linewidth',2,'color',rgb('LightCoral'))
             if lengthscale==1, lunit = '-'; else lunit = 'm'; end
             xlabel(sprintf('x (%s)',lunit),'fontsize',14)
             ylabel('C(x) (kg\cdotm^{-3})','fontsize',14)            
@@ -803,7 +844,7 @@ for iseries = 1:nseries  % Main loop on each series of independent simulations (
             formatax(hs(2),'fontsize',14,'xlim',[0 2*requestedtime/days])
             if ~o.noprint
                 print_pdf(600,get(gcf,'filename'),fullfile(o.local,o.outputpath),'nocheck')
-                print_png(200,get(gcf,'filename'),fullfile(o.local,o.outputpath))
+                print_png(200,get(gcf,'filename'),fullfile(o.local,o.outputpath),'',0,0,0)
             end
             
         end % if launchsimulation
@@ -885,6 +926,11 @@ dispf('\n\t>> Direct links to follow <a href="%s" title="input HTML">the input H
     indocurl,outdocurl)
 
 %% additional outputs
+if o.mergeoutput, fmecadb = fmecamerge(fullfile(o.local,o.outputpath,o.fmecadbfile)); end
+if o.cls, disp('Clear all figures');
+    delete(findobj(allchild(0),'-regexp','Name','^Biograph'))
+    delete(hgraph(ishandle(hgraph)));
+end
 if nargout>1, dataout = data; end
 if nargout>2, options = o; end
 
@@ -1113,8 +1159,7 @@ if nargout>2, options = o; end
                 if ~o.noprint
                     screen = dispb(screen,'\tprinting the dependence graph...');
                     figure(hgraph(1)); print_pdf(300,graphfilePDF,fullfile(o.local,o.outputpath),'nocheck')
-                    figure(hgraph(1)); print_png(200,graphfilePNG,fullfile(o.local,o.outputpath)); close(hgraph(1))
-                    truncateim(fullfile(o.local,o.outputpath,graphfilePNG))
+                    figure(hgraph(1)); print_png(200,graphfilePNG,fullfile(o.local,o.outputpath),'',0,0,0); close(hgraph(1))%truncateim(fullfile(o.local,o.outputpath,graphfilePNG))
                 end
                 graphlinks{3} = sprintf( ...
                     ['%s<a href="%s" title="open depedence graph as an image" target="dependence">dependence graph</a>&nbsp;',... PNG dependence
@@ -1128,8 +1173,7 @@ if nargout>2, options = o; end
                     if ~o.noprint
                         screen = dispb(screen,'\tprinting the inheritance graph...');
                         figure(hgraph(2)); print_pdf(300,graphfile2PDF,fullfile(o.local,o.outputpath),'nocheck')
-                        figure(hgraph(2)); print_png(200,graphfile2PNG,fullfile(o.local,o.outputpath)); close(hgraph(2))
-                        truncateim(fullfile(o.local,o.outputpath,graphfile2PNG))
+                        figure(hgraph(2)); print_png(200,graphfile2PNG,fullfile(o.local,o.outputpath),'',0,0,0); close(hgraph(2)); %truncateim(fullfile(o.local,o.outputpath,graphfile2PNG))
                     end
                     graphlinks{2} = sprintf( ...
                         ['%s<a href="%s" title="open inheritance graph as an image" target="inheritance">inheritance graph</a> ',... PNG inheritance
@@ -1142,8 +1186,7 @@ if nargout>2, options = o; end
                     if ~o.noprint
                         screen = dispb(screen,'\tprinting the mass transfer graph...');
                         figure(hgraph(3)); print_pdf(300,graphfile3PDF,fullfile(o.local,o.outputpath),'nocheck')
-                        figure(hgraph(3)); print_png(200,graphfile3PNG,fullfile(o.local,o.outputpath)); close(hgraph(3))
-                        truncateim(fullfile(o.local,o.outputpath,graphfile3PNG))
+                        figure(hgraph(3)); print_png(200,graphfile3PNG,fullfile(o.local,o.outputpath),'',0,0,0); close(hgraph(3)); %truncateim(fullfile(o.local,o.outputpath,graphfile3PNG))
                     end
                     graphlinks{end+1} = sprintf( ...
                         ['%s<a href="%s" title="open result graph as an image" target="result">result graph</a>&nbsp;',... PNG dependence
@@ -1156,8 +1199,7 @@ if nargout>2, options = o; end
                     if ~o.noprint
                         screen = dispb(screen,'\t printing the Pareto chart (concentrations)...');
                         figure(hgraph(4)); print_pdf(300,graphfile4PDF,fullfile(o.local,o.outputpath),'nocheck')
-                        figure(hgraph(4)); print_png(200,graphfile4PNG,fullfile(o.local,o.outputpath));
-                        truncateim(fullfile(o.local,o.outputpath,graphfile4PNG),false)
+                        figure(hgraph(4)); print_png(200,graphfile4PNG,fullfile(o.local,o.outputpath),'',0,0,0); %truncateim(fullfile(o.local,o.outputpath,graphfile4PNG),false)
                     end
                     graphlinks{end+1}  = sprintf( ...
                         ['%s<a href="%s" title="open the concentration Pareto chart as an image" target="pareto">Pareto chart</a>&nbsp;',... PNG chart
@@ -1170,8 +1212,7 @@ if nargout>2, options = o; end
                     if ~o.noprint
                         screen = dispb(screen,'\tprinting the concentration kinetics plots...');
                         figure(hgraph(5)); print_pdf(300,graphfile5PDF,fullfile(o.local,o.outputpath),'nocheck')
-                        figure(hgraph(5)); print_png(200,graphfile5PNG,fullfile(o.local,o.outputpath));
-                        truncateim(fullfile(o.local,o.outputpath,graphfile5PNG),false)
+                        figure(hgraph(5)); print_png(200,graphfile5PNG,fullfile(o.local,o.outputpath),'',0,0,0); %truncateim(fullfile(o.local,o.outputpath,graphfile5PNG),false)
                     end
                     graphlinks{end+1}  = sprintf( ...
                         ['%s<a href="%s" title="open kinetics as an image" target="kinetics">Kinetics</a>&nbsp;',... PNG chart
@@ -1184,8 +1225,7 @@ if nargout>2, options = o; end
                     if ~o.noprint
                         screen = dispb(screen,'\t printing the Pareto chart (severity)...');
                         figure(hgraph(6)); print_pdf(300,graphfile6PDF,fullfile(o.local,o.outputpath),'nocheck')
-                        figure(hgraph(6)); print_png(200,graphfile6PNG,fullfile(o.local,o.outputpath));
-                        truncateim(fullfile(o.local,o.outputpath,graphfile6PNG),false)
+                        figure(hgraph(6)); print_png(200,graphfile6PNG,fullfile(o.local,o.outputpath),'',0,0,0); %truncateim(fullfile(o.local,o.outputpath,graphfile6PNG),false)
                     end
                     graphlinks{end+1}  = sprintf( ...
                         ['%s<a href="%s" title="open the severity Pareto chart as an image" target="pareto">Severity chart</a>&nbsp;',... PNG chart
@@ -1199,6 +1239,7 @@ if nargout>2, options = o; end
         end
         % generate the HTML code
         htmlfile = regexprep(o.fmecamainfile,'\.ods$',sprintf('%s.html',htmlopt.filenamemodifyer));
+        %[~,~,exthtml]=fileparts(htmlfile); if isempty(exthtml), htmlfile=sprintf('%s.html',htmlfile); end % added 08/05/14 (removed 09/05/14)
         % header including CSS
         %       CSS body modified from: http://www.code-sucks.com/css%20layouts/fixed-width-css-layouts/
         %       CSS table modified from: http://icant.co.uk/csstablegallery/tables/99.php
@@ -1316,12 +1357,12 @@ if nargout>2, options = o; end
             if any(data(i).(o.print_parent))
                 iparent = ismember(idusercode,data(i).(o.print_parent));
                 tmp2 = struct2cell(data(iparent));
-                isinherit(isnum) = isinherit(isnum) | ([tmp{isnum}]==[tmp2{isnum}])';
+                isinherit(isnum) = isinherit(isnum) | cellfun(@(a,b) matcmp(a,b),tmp(isnum),tmp2(isnum)); %fixed on 08/05/2014 (for vectors)([tmp{isnum}]==[tmp2{isnum}])';
             end
             if isfield(data,'inherit') && any(data(i).inherit)
                 iparent = ismember(idusercode,data(i).inherit);
                 tmp2 = struct2cell(data(iparent));
-                isinherit(isnum) = isinherit(isnum) | ([tmp{isnum}]==[tmp2{isnum}])';
+                isinherit(isnum) = isinherit(isnum) | cellfun(@(a,b) matcmp(a,b),tmp(isnum),tmp2(isnum)); %fixed on 08/05/2014  ([tmp{isnum}]==[tmp2{isnum}])';
             end
             tmp = tmp(isvalid)'; [tmp{cellfun(@(x)any(isnan(x)),tmp)}] = deal('');
             % fix maximum width of columns (added 08/05/11)
@@ -1485,7 +1526,7 @@ if nargout>2, options = o; end
                 screen = dispb(screen,'\t[path=%d/%d][step=%d/%d]\t loading ''%s'' results...',ipath,npaths,istep,nsteps,paths{ipath}{istep});
                 previousres = load(fullfile(o.local,o.outputpath,paths{ipath}{istep}));
                 tsqrtfit = linspace(sqrt(previousres.r.t(1)),sqrt(fmecadb.(paths{ipath}{istep}).t),ntimes)';
-                y{ipath}(:,istep) = interp1(sqrt(previousres.r.t*previousres.r.timebase),previousres.r.CF,tsqrtfit,'cubic');
+                y{ipath}(:,istep) = interp1(sqrt(previousres.r.t*previousres.r.timebase),previousres.r.CF,tsqrtfit,o.interp1);
                 x{ipath}(:,istep) = tsqrtfit.^2+tstartkin;
                 tstartkin = x{ipath}(end,istep);
             end
@@ -1496,6 +1537,67 @@ if nargout>2, options = o; end
     end
 
 
+    %%%% --------------------------------------------------------------------------------------
+    %%%% ODSpassthrough() based on NOTE10, create 'sim' spreadsheet with any ODS file
+    %%%% Currently shorthands are coded with letters before '%'
+    %%%  Coded by INRA\Olivier Vitrac - 08/05/14
+    %%%  ==> this code is insufficiently tested for production (in particular automatic spanning and shorthands)
+    %%%% --------------------------------------------------------------------------------------
+    function userbreak = ODSpassthrough()
+        autofmeca = argcheck(o.fmecamainfile,defaultautofmecamainfile);           % user property/value
+        autofmecakw = argcheck(o.fmecamainfile,[],kwautofmecamainfile);            % user keywords
+        autofields = uncell(regexp(fieldnames(o),'^print.*','match'),[],[],true); % customizable fields
+        autofieldsid = substructarray(o,autofields);                              % customized values
+        autofields_with_shorthand = autofields(~cellfun(@isempty,regexp(autofieldsid,'\%d','start')));
+        autofields = cell2struct(autofieldsid,autofields,1);                      % assembled as a structure
+        autofieldsid_with_shorthand = substructarray(autofields,autofields_with_shorthand);
+        shorthandlist = uncell(regexp(autofieldsid_with_shorthand,'^(.*)\%','tokens'));
+        shorhand = cell2struct(autofieldsid_with_shorthand,shorthandlist,1);
+        for fauto=fieldnames(autofields)'
+            switch autofields.(fauto{1})
+                case {o.print_parent o.print_inherit}, defaultauto = '';
+                case o.print_id,                       defaultauto = autostepname;
+                otherwise,                             defaultauto = NaN;
+            end
+            if ismember(fauto{1},autofields_with_shorthand) % field to be spanned according to the number of layers
+                for iauto=1:autofmeca.nlayers, autofmeca.(sprintf(autofields.(fauto{1}),iauto)) = defaultauto; end
+            else autofmeca.(autofields.(fauto{1})) = defaultauto;
+            end
+        end % next field
+        o.inputpath = o.outputpath;
+        autofmeca.nfo = sprintf('<small>%s:%s</small>',datestr(now),localname);
+        autofmeca = repmat(argcheck(o.fmecamainfile,autofmeca,kwautofmecamainfile,'keep','case'),autofmeca.nsteps,1); % distribute all user values (keep
+        % populate values
+        for fauto=fieldnames(autofmeca)'
+            nauto = length(autofmeca(1).(fauto{1}));
+            isfcell    = iscell(autofmeca(1).(fauto{1}));
+            isfchar    = ischar(autofmeca(1).(fauto{1}));
+            if nauto
+                for jauto = 1:autofmeca(1).nsteps
+                    % span each step
+                    if isfcell, autofmeca(jauto).(fauto{1}) = autofmeca(jauto).(fauto{1}){min(jauto,nauto)};
+                    elseif ~isfchar; autofmeca(jauto).(fauto{1}) = autofmeca(jauto).(fauto{1})(min(jauto,nauto));
+                    end
+                    % span each shorthand (if any)
+                    if ismember(fauto,shorthandlist)
+                        for iauto=1:autofmeca(1).nlayers
+                            autofmeca(jauto).(sprintf(shorhand.(fauto{1}),iauto)) = autofmeca(jauto).(fauto{1})(min(iauto,length(autofmeca(jauto).(fauto{1}))));
+                        end
+                    end
+                end % next span
+            end
+        end
+        o.fmecamainfile = rmfield(autofmeca,[kwautofmecamainfile';shorthandlist]); %autofmeca;
+        for jauto=1:autofmeca(1).nsteps
+            if strcmp(o.fmecamainfile(jauto).(o.print_id),autostepname)
+                o.fmecamainfile(jauto).(o.print_id) = sprintf(o.fmecamainfile(jauto).(o.print_id),jauto);
+            end
+        end
+        userbreak = false;
+        if autofmecakw.make, fmecadb = o; userbreak=true; end
+        if autofmecakw.constructor, fmecadb = o.fmecamainfile; userbreak=true; end
+    end
+
 end % function fmecaengine
 
 
@@ -1505,24 +1607,25 @@ end % function fmecaengine
 
 %%%% --------------------------------------------------------------------------------------
 %%%% truncateim(imfile) crop and rotate PNG already saved images
+%%%% (obsolete function, not used anymore)
 %%%% --------------------------------------------------------------------------------------
-function truncateim(imfile,flipon)
-    if nargin<2, flipon = true; end 
-    margin = 100;
-    im = imread(imfile); siz = size(im);
-    imb = min(im,[],3);
-    lim = zeros(2,2);
-    dimlist = 1:2;
-    for dim = dimlist
-        lim(dim,1) = find(min(imb,[],dimlist(mod(dim,2)+1))<255,1,'first');
-        lim(dim,2) = find(min(imb,[],dimlist(mod(dim,2)+1))<255,1,'last');
-    end
-    lim(:,1) = max(lim(:,1)-margin,1);
-    lim(:,2) = min(lim(:,2)+margin,siz(1:2)');
-    im = im(lim(1,1):lim(1,2),lim(2,1):lim(2,2),:);
-    if flipon, im = flipdim(permute(im,[2 1 3]),2); end
-    imwrite(im,imfile,'png');
-end
+% function truncateim(imfile,flipon)
+%     if nargin<2, flipon = true; end 
+%     margin = 100;
+%     im = imread(imfile); siz = size(im);
+%     imb = min(im,[],3);
+%     lim = zeros(2,2);
+%     dimlist = 1:2;
+%     for dim = dimlist
+%         lim(dim,1) = find(min(imb,[],dimlist(mod(dim,2)+1))<255,1,'first');
+%         lim(dim,2) = find(min(imb,[],dimlist(mod(dim,2)+1))<255,1,'last');
+%     end
+%     lim(:,1) = max(lim(:,1)-margin,1);
+%     lim(:,2) = min(lim(:,2)+margin,siz(1:2)');
+%     im = im(lim(1,1):lim(1,2),lim(2,1):lim(2,2),:);
+%     if flipon, im = flipdim(permute(im,[2 1 3]),2); end
+%     imwrite(im,imfile,'png');
+% end
 
 %%%% --------------------------------------------------------------------------------------
 %%%% vec2str(x) print a vector as string
