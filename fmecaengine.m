@@ -210,7 +210,7 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 %
 %
 % Maintenance command (before any major update)
-%
+%   cd 'C:\Data\Olivier\INRA\Codes\migration\opensource\FMECAengine'; find . -type f -iname '*.m' -o  -iname '*.asv' -o -iname '*.m~' | zip -rTgp -9 "${PWD##*/}_backup_`hostname`_`date +"%Y_%m_%d__%H-%M"`.zip" -@
 %
 % CONTACT
 % Any question to this script/function must be addressed to: olivier.vitrac@agroparistech.fr
