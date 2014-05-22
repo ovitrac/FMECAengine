@@ -38,7 +38,7 @@ function [colormap]=cbrewer(ctype, cname, ncol, interp_method)
 % email: tannoudji@hotmail.com
 % Date: 06.12.2011
 %
-% repacked for MS 2.1 - INRA\Olivier Vitrac - 29/01/12
+% repacked for MS 2.1 - INRA\Olivier Vitrac - 29/01/12 - rev. 13/05/2014
 
 if ~nargin, plot_brewer_cmap(); return, end
 
@@ -47,11 +47,11 @@ load('colorbrewer.mat')
 % initialise the colormap is there are any problems
 colormap=[];
 if (~exist('interp_method', 'var'))
-    interp_method='cubic';
+    interp_method='pchip'; %'cubic';
 end
 
 % If no arguments
-if (~exist('ctype', 'var') | ~exist('cname', 'var') | ~exist('ncol', 'var'))
+if (~exist('ctype', 'var') || ~exist('cname', 'var') || ~exist('ncol', 'var'))
     disp(' ')
     disp('INPUT:')
     disp('  - ctype: type of color table *seq* (sequential), *div* (divergent), *qual* (qualitative)')

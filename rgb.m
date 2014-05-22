@@ -43,11 +43,12 @@
 %
 %     [4] "X11 color names" http://en.wikipedia.org/wiki/X11_color_names
 %
-% Revision INRA\Olivier Vitrac - 20/03/10 - rev. 14/10/2013
+% Revision INRA\Olivier Vitrac - 20/03/10 - rev. 22/05/2014
 
 % revision history
 %   13/10/2013 accepts 'none' and Matlab codes 'b' 'r' 'g'...
 %   14/10/2013 add shortcuts for group colors
+%   22/05/2014 strtrim color names 'r ' noes not generate anymore an error
 
 
 function rgbout = rgb(s)
@@ -81,8 +82,8 @@ function rgbout = rgb(s)
       return
   end
   if strcmpi(s,'none'), rgbout = s; return, end
-  s = regexprep(s,{'^b$' '^g$' '^r$' '^c$' '^m$' '^y$' '^k$' '^w$'},...
-      {'Blue' 'Green' 'Red' 'Cyan' 'Magenta' 'Yellow' 'Black' 'White'});
+  s = strtrim(regexprep(s,{'^b$' '^g$' '^r$' '^c$' '^m$' '^y$' '^k$' '^w$'},...
+      {'Blue' 'Green' 'Red' 'Cyan' 'Magenta' 'Yellow' 'Black' 'White'}));
   persistent num name
   if isempty(num) % First time rgb is called
     [num,name] = getcolors();

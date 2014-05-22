@@ -15,10 +15,11 @@ function [listex,iout,jout]=expandtextaslist(list,splitstr)
 %
 %   See also: FMECAENGINE KEY2KEY ISMEMBERLIST
 
-% Migration 2.0 (Fmecaengine v0.42) - 16/07/2011 - INRA\Olivier Vitrac rev. 17/07/11
+% Migration 2.0 (Fmecaengine v0.50) - 16/07/2011 - INRA\Olivier Vitrac rev. 22/05/2014
 
 % Revision history
-% 17/07/11 add | as separator, remove trailing separator and spaces
+% 17/07/2011 add | as separator, remove trailing separator and spaces
+% 22/05/2014 force strtrim, returns correctly '' and []
 
 
 % default
@@ -28,6 +29,7 @@ splitstr_default = '\s*[;\|]+\s*';
 if nargin<1, error('one argument is required'); end
 if nargin<2, splitstr=[]; end
 if isempty(splitstr), splitstr = splitstr_default; end
+if isempty(list), listex = list; return, end
 if ischar(list), list = {list}; end
 if ~iscellstr(list), error('list must be a cell array or a string'), end
 m = numel(list);
@@ -42,7 +44,7 @@ jdx = cell(m,1);
 pos = 1;
 for k=1:m
     u = pos+(0:nc(k)-1);
-    listex(u) = c{k};
+    listex(u) = strtrim(c{k}); % added strtrim 22/05/2014
     idx(u) = k;
     jdx{k} = (1:nc(k))';
     pos = pos + nc(k);
