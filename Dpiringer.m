@@ -6,7 +6,7 @@ function [D,alpha]=Dpiringer(polymer,M,T)
 %       M = molecular mass
 %       T = temperature in °C (default = 40°C)
 
-% Migration 2.0 - 07/05/2011 - INRA\Olivier Vitrac - rev. 27/02/13
+% Migration 2.0 - 07/05/2011 - INRA\Olivier Vitrac - rev. 05/04/15
 
 % Revision history
 % 25/07/11 add recursion
@@ -14,7 +14,8 @@ function [D,alpha]=Dpiringer(polymer,M,T)
 % 30/08/11 change names for cardbox
 % 02/09/11 modification of some App and tau: PS, SBS, PET, PA, OPP, PVCplasticized (according to Migresives email dated 30/08/11)
 % 12/01/12 replace 'PVCplasticized_30pc' by 'pPVC',...
-% 27/02/13 add adlpha
+% 27/02/13 add alpha
+% 05/04/15 returns the list of polymers
 
 % definitions
 data = struct(...
@@ -49,6 +50,7 @@ data = struct(...
     );
 
 % arg check
+if nargin<1 && nargout, D = fieldnames(data); return, end
 if nargin<1, error('one argument is at least required'); end
 if nargin<2, M = 100; end
 if nargin<3, T = 40; end

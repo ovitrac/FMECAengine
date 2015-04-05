@@ -1,11 +1,12 @@
 function out = pngtruncateim(imfile,flipon,margin,negativeon,horizontalon)
 %PNGTRUNCATEIM  crop and rotate PNG already saved images
-%   Syntax: pngtruncateim(imfile [,flipon,margin,negative])
-%       default values: flipon = false
+%   Syntax: pngtruncateim(imfile [,flip,margin,negative,horizontal])
+%       default values: flip = false
 %                       margin = 100
-%                       negativeon = false
+%                       negative = false
+%                       horizontal = false
 
-% Migration 2.0 - 24/05/11 - INRA\Olivier Vitrac - rev. 29/03/12
+% Migration 2.0 - 24/05/11 - INRA\Olivier Vitrac - rev. 16/03/15
 
 % Revision history
 % 27/05/11 guess extension
@@ -13,6 +14,7 @@ function out = pngtruncateim(imfile,flipon,margin,negativeon,horizontalon)
 % 29/01/12 accept image data
 % 29/03/12 fix negativeon
 % 02/10/12 add horizontalon
+% 16/03/15 iterate when imfile is a cell array
 
 % default values
 flipon_default = false;
@@ -38,6 +40,9 @@ if ischar(imfile)
 elseif isnumeric(imfile)
     im = imfile;
     nofile = true;
+elseif iscellstr(imfile)
+    out = cellfun(@(f) pngtruncateim(f,flipon,margin,negativeon,horizontalon),imfile);
+    return
 else
     error('the argument must be a valid image filename or image data')
 end
@@ -68,4 +73,5 @@ else
     else
         imwrite(im,imfile,ext{1});
     end
+    if nargout, out = true; end
 end

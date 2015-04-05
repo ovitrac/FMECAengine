@@ -1,15 +1,20 @@
-function s = makeprezi(I,varargin)
+function [s,out] = makeprezi(I,varargin)
 % MAKEPREZI makes an animation from a high resolution image using continuous zooms and rotations
 %   Syntax:  s = makeprezi(I [,property,value,keyword]);
+%            [s,out] = makeprezi(....);
 %        I: very high resolution RGB image
+%      out: structure giving positions at prescribed times
 %       pair/property value
 %                t: 1xnt times with values between 0 (begining) and 1 (final) (default=linspace(0,1,20))
 %               xy: 2xnp trajectory or anonymous function giving a 2x1 a vector
-%             zoom: 1xnk kinetics or anonymous function giving a scalar
-%            angle: 1xna kinetics or anonymous function giving a scalar
+%             zoom: 1xnk kinetics or anonymous function giving a scalar (default =  @(t) 2)
+%            angle: 1xna kinetics or anonymous function giving a scalar (default = @(t) 0)
+%            width: image width (default=1024)
+%           height: image height (default=768)
 %     outputfolder: output folder (default = 'MAKEPREZI_dd-mmm-yy_HH-MM')
 %      filepattern: file pattern (default = 'frame%03d')
 %       Use the keyword 'print' to generate all images as files
+%       Use the keyword 'inputs' to generate inputs
 %
 %   Example
 %         local = 'C:\Data\Olivier\INRA\Etudiants & visiteurs\Mai Nguyen\sandbox';
@@ -24,18 +29,27 @@ function s = makeprezi(I,varargin)
 %         s = makeprezi(I,'t',linspace(0,1,25),'xy',xy,'zoom',z)  
 %         movie(s,1,5) % movie(frames,NumberOfRepetitions,FrameRate)
 
-% INRA\MS 2.1 - 21/05/2014 - Olivier Vitrac - rev.
+% INRA\MS 2.1 - 21/05/2014 - Olivier Vitrac - rev. 03/06/2014
+
+% Revision history
+% 23/05/2014 returns out
+% 23/05/2014 add height and width
+% 24/05/2014 fix round xy
+% 02/06/2014 prefetch s object to prevent memory fragmentation
+% 03/06/2014 add filename to out
 
 % Default
 default = struct(...
     't',linspace(0,1,20)',...
     'xy', [],...
-    'zoom',[],...
+    'zoom',@(t) 2,...
     'angle',@(t) 1,...
     'outputfolder',sprintf('MAKEPREZI_%s',datestr(now,'dd-mmm-yy_HH-MM')),...
-    'filepattern','frame%03d' ...
+    'filepattern','frame%03d',...
+    'height',768,...
+    'width',1024 ...
 );
-keyword = 'print';
+keyword = {'print' 'inputs'};
 
 % arg check
 o = argcheck(varargin,default,keyword);
@@ -47,17 +61,40 @@ if isnumeric(o.xy) && size(o.xy,1)==2
     t = cumsum([0, sqrt([1 1]*(df.*df))]);
     t = t/t(end);
     cv = csapi(t,o.xy);
+    o.xy0 = o.xy;
     o.xy = @(t) fnval(cv,t);
+    o.txy = t;
+    o.cvxy = cv;
+else
+    o.xy0 = [];
+    o.txy = [];
+    o.cvxy = [];
 end
-if isnumeric(o.zoom)  && size(o.zoom,1)==2
-    dispf('MAKEPREZI: generates a zoom kinetics from %d points', size(o.zoom,2))
-    z = o.zoom;
-    o.zoom = @(t) interp1(z(1,:),z(2,:),t,'pchip');
+if ~isempty(o.zoom) && isnumeric(o.zoom)
+    if length(o.zoom)==1 && ~isempty(o.txy), o.zoom = [o.txy;o.txy*0+o.zoom]; end
+    if size(o.zoom,1)==2
+        dispf('MAKEPREZI: generates a zoom kinetics from %d points', size(o.zoom,2))
+        z = o.zoom;
+        o.zoom = @(t) interp1(z(1,:),z(2,:),t,'pchip');
+        o.tzoom = z(1,:);
+        o.zoom0 = z(2,:);
+    else
+        o.tzoom = [];
+        o.zoom0 = [];
+    end
 end
-if isnumeric(o.angle)  && size(o.angle,1)==2
-    dispf('MAKEPREZI: generates a angle kinetics from %d points', size(o.angle,2))
-    a = o.angle;
-    o.angle = @(t) interp1(a(1,:),a(2,:),t,'pchip');
+if ~isempty(o.angle) && isnumeric(o.angle)
+    if length(o.angle)==1 && ~isempty(o.txy), o.angle = [o.txy;o.txy*0+o.angle]; end
+    if size(o.angle,1)==2
+        dispf('MAKEPREZI: generates a angle kinetics from %d points', size(o.angle,2))
+        a = o.angle;
+        o.angle = @(t) interp1(a(1,:),a(2,:),t,'pchip');
+        o.tangle = a(1,:);
+        o.angle0 = a(2,:);
+    else
+        o.tangle = [];
+        o.angle0 = [];
+    end
 end
 if ~isa(o.xy,'function_handle'), error('the value of ''xy'' must be a function handle'), end
 if ~isa(o.zoom,'function_handle'), error('the value of ''zoom'' must be a function handle'), end
@@ -67,23 +104,33 @@ if numel(o.zoom(0))~=1 && numel(o.zoom(1))~=1, error('''zoom'' must be an anomyo
 if numel(o.angle(0))~=1 && numel(o.angle(1))~=1, error('''angle'' must be an anomyous value returning a scalar for a scalar t value'), end
 
 % do animation
-if o.print
-    if o.exist(o.outputfolder,'dir'), error('the outputfolder already exist: ''%s''', o.outputfolder), end
-    mkdir(o.outputfolder)
-    dispf('MAKEPREZI: the current outpufolder is\nt\t%s',o.outputfolder)
-    fileinfo(o.outputfolder)
-end
-nt = length(o.t);
-s = repmat(struct('cdata',[],'colormap',[]),nt,1);
-screen = '';
-for i=1:nt
-    t = o.t(i);     % time
-    xy = o.xy(t);   % position
-    z = o.zoom(t);  % zoom
-    a = o.angle(t); % angle
-    screen = dispb(screen,'MAKEPREZI: frame %d/%d with zoom=%0.4g and rotation=%0.3g',i,nt,z,a);
-    s(i).cdata = sampleimage(I,'x',xy(1),'y',xy(2),'zoom',z,'angle',a);
+if ~o.inputs
     if o.print
-        imwrite(s(i).cdata,fullfile(o.outputfolder,[sprintf(o.filepattern,i) '.png']))
+        if exist(o.outputfolder,'dir'), error('the outputfolder already exist: ''%s''', o.outputfolder), end
+        mkdir(o.outputfolder)
+        dispf('MAKEPREZI: the current outpufolder is\nt\t%s',o.outputfolder)
+%         fileinfo(o.outputfolder)
     end
+    nt = length(o.t);
+    s = repmat(struct('cdata',zeros(o.height,o.width,3,'uint8'),'colormap',[]),nt,1);
+    pos = repmat(struct('t',[],'xy',[],'zoom',[],'angle',[],'filename',''),nt,1);
+    screen = '';
+    for i=1:nt
+        t = o.t(i);     % time
+        xy = round(o.xy(t)); % position
+        z = o.zoom(t);  % zoom
+        a = o.angle(t); % angle
+        screen = dispb(screen,'MAKEPREZI: frame %d/%d with zoom=%0.4g and rotation=%0.3g',i,nt,z,a);
+        s(i).cdata = sampleimage(I,'x',xy(1),'y',xy(2),'zoom',z,'angle',a,'height',o.height,'width',o.width);
+        pos(i) = struct('t',t,'xy',xy,'zoom',z,'angle',a,'filename','');
+        if o.print
+            filename = fullfile(o.outputfolder,[sprintf(o.filepattern,i) '.png']);
+            imwrite(s(i).cdata,filename)
+            pos(i).filename = filename;
+        end
+    end
+    % output
+    if nargout>1, out = o; out.positions = pos; end
+else
+   s = o;
 end

@@ -164,9 +164,12 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 %           example: a = fmecaengine('fmecamainfile',{'nlayers',3,'nsteps',2,'constructor','l1m',1e-3})
 %           example with shorthands: a = fmecaengine('fmecamainfile',{'nlayers',2,'nsteps',2,'constructor','l',{[1e-3 1e-4] [1e-3 1e-4]}})
 %           List of shorthands:    l: 'l%dm'; D: 'D%dm2s'; KFP: 'KFP%dkgm3kgm3'; CP: 'CP%d0kgm3'
+%  Note 11: all intermediate results are also exported as CSV files for external use (English delimiter apply, see print_csv to change these settings)
+%           they are located at the place as corresponding PDF and PNG files
 %           
 %
 % SEE ALSO: FMECASINGLE FMECAROOT BUILDMARKOV KEY2KEY LOADFMECAENGINEDB FMECAGRAPH, FMECAMERGE
+% SEE ALSO: FMECAunit, FMECAvp, FMECADpiringer, FMECADfuller, FMECAkair, FMECAgpolymer, FMECAKairP, FMECAdensity
 %
 % DEPENDENCY INFORMATION TO IMPLEMENT THIS SCRIPT/FUNCTION IN OTHER PROJECTS
 % > Dependencies to other functions (written by INRA\Olivier Vitrac)
@@ -216,7 +219,7 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 % Any question to this script/function must be addressed to: olivier.vitrac@agroparistech.fr
 % The script/function was designed to run on the cluster of JRU 1145 Food Process Engineering (admin: Olivier Vitrac)
 %
-% Migration 2.1 (Fmecaengine v0.5013) - 10/04/2011 - INRA\Olivier Vitrac - Audrey Goujon - rev. 10/05/2014
+% Migration 2.1 (Fmecaengine v0.51) - 10/04/2011 - INRA\Olivier Vitrac - Audrey Goujon - rev. 05/04/2014
 
 % Revision history
 % 06/04/2011 release candidate
@@ -281,9 +284,10 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 % 09/05/2014 reverse change of 05/05/2014 isequaln is replaced by matcmp (not available in old Matlab codes) (FMECAengine version 0.5011)
 % 09/05/2014 fix .ods extension when automatic inputs is used (FMECAengine version 0.5012)
 % 10/05/2014 remove supplied fields with automatic inputs (FMECAengine version 0.5013)
+% 05/04/2015 print profiles and kinetics as CSV files (using print_csv) (FMECAengine version 0.51)
 
 %% Fmecaengine version
-versn = 0.5013; % official release
+versn = 0.51; % official release
 mlmver = ver('matlab');
 extension = struct('Foscale','Fo%d%d','Kscale','K%d%d','ALT','%sc%d'); % naming extensions (associated to scaling)
 prop2scale = struct('Foscale','regular_D','Kscale','regular_K'); % name of columns
@@ -843,8 +847,11 @@ for iseries = 1:nseries  % Main loop on each series of independent simulations (
             formatax(hs(1),'fontsize',14)
             formatax(hs(2),'fontsize',14,'xlim',[0 2*requestedtime/days])
             if ~o.noprint
-                print_pdf(600,get(gcf,'filename'),fullfile(o.local,o.outputpath),'nocheck')
-                print_png(200,get(gcf,'filename'),fullfile(o.local,o.outputpath),'',0,0,0)
+                dispf('\n >>>> do not move the mouse, the current figure is being printed <<<<')
+                dispf('\tPDF generation'), print_pdf(600,get(gcf,'filename'),fullfile(o.local,o.outputpath),'nocheck')
+                dispf('\tPNG generation'), print_png(200,get(gcf,'filename'),fullfile(o.local,o.outputpath),'',0,0,0)
+                dispf('\tCSV generation'), print_csv(get(gcf,'filename'),fullfile(o.local,o.outputpath))
+                dispf('printing/exportation done.')
             end
             
         end % if launchsimulation
@@ -1213,6 +1220,7 @@ if nargout>2, options = o; end
                         screen = dispb(screen,'\tprinting the concentration kinetics plots...');
                         figure(hgraph(5)); print_pdf(300,graphfile5PDF,fullfile(o.local,o.outputpath),'nocheck')
                         figure(hgraph(5)); print_png(200,graphfile5PNG,fullfile(o.local,o.outputpath),'',0,0,0); %truncateim(fullfile(o.local,o.outputpath,graphfile5PNG),false)
+                        figure(hgraph(5)); print_csv(graphfile5PNG,fullfile(o.local,o.outputpath)) %  note that the initial extension is removed with print_csv, which appends automatically '.csv')
                     end
                     graphlinks{end+1}  = sprintf( ...
                         ['%s<a href="%s" title="open kinetics as an image" target="kinetics">Kinetics</a>&nbsp;',... PNG chart

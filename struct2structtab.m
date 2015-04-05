@@ -1,13 +1,17 @@
 function t=struct2structtab(s)
 %STRUCT2STRUCTTAB cast a structure into a structure array
 %      t = struct2structtab(s)
+%
+%   See also STRUCTTAB2STRUCT, SUBSTRUCTARRAY
 
-% MS 2.1 - 20/01/12 - INRA\Olivier Vitrac rev. 15/10/2013
+
+% MS 2.1 - 20/01/12 - INRA\Olivier Vitrac rev.  05/06/2014
 
 % Revision history
 % 20/03/2013 fix mixed column-wise and row-wise arrays and cell arrays
 % 14/10/2013 fix logical fields
 % 15/10/2013 fix empty fields
+% 05/06/2014 add see also
 
 % argcheck
 if nargin<1 || nargin>1, error('one argument is required'), end

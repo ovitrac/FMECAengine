@@ -30,29 +30,50 @@ function hsout = printtable(tr,th,styletr,styleth,stylesheet,varargin)
 %           resolution: resolution of figure to be saved (default=300)
 %
 % OUTPUTS
-% Example
-% for i = 1:3, tr{i,1} = 'a'; tr{i,2}= '1';  tr{i,3}= 'm'; end
-% printtable(tr,[],'paperposition',[0.4000    0.1774   20.5391   29.0000])
-% figure, hs = subplots(1,[1 1],0,0); subplot(hs(2)),printtable(tr,[],'parent',hs(2))
-% MS v 2 - 07/10/2013 - INRA\Olivier Vitrac, LNE\Mai Nguyen - rev.23/10/13 
+%                    h: array of handles
+%
+% Examples
+%{
+    % full figure
+    for i = 1:3, tr{i,1} = 'a'; tr{i,2}= '1';  tr{i,3}= 'm'; end
+    printtable(tr,[],[],[],[],'paperposition',[0.4000    0.1774   20.5391   29.0000])
+    % embedded figure
+    figure, hs = subplots(1,[1 1],0,0); subplot(hs(2)),printtable(tr,[],[],[],[],'parent',hs(2))
+%}
+
+% MS v. 2.1 - 07/10/2013 - INRA\Olivier Vitrac, LNE\Mai Nguyen - rev. 13/03/15 
+
+
+% Revision history
 % 22/10/13 : add print in eps format
 % 23/10/13 : add hsout
+% 13/03/15 : fix empty inputs and update accordingly help
+
 % default
 default = struct('parent',[],'nrowmaxperpage',20,'horizontalalignmentth','center','verticalalignmentth','middle','horizontalalignmenttd','center',...
                  'verticalalignmenttd','middle','figname','page','linewidth',1,'fontweightth','bold','fontweighttd','normal','fontsizeth',10,'fontsizetd',8,...
                  'paperposition',[],'tablesubplotx',[],'tablesubploty',[],'imgsubplotx',[.2 .8 .1],'imgsubploty',[.05 .9 .05],'imgalive',5,'printon',false,'figurefolder',cd,'resolution',300);
+styletr_default = 'td';
+styleth_default = 'th';
 
 % argcheck
 o = argcheck(varargin,default,'nostructexpand');
+stylesheet_default = struct(... use HTML nomenclature
+                                   'th',struct('x',.5,'y',.5,'HorizontalAlignment',o.horizontalalignmentth,'VerticalAlignment',o.verticalalignmentth,'FontWeight',o.fontweightth,'FontSize',o.fontsizeth),...
+                                   'td',struct('x',.5,'y',.5,'HorizontalAlignment',o.horizontalalignmenttd,'VerticalAlignment',o.verticalalignmenttd,'FontWeight',o.fontweighttd,'FontSize',o.fontsizetd));
+
 if nargin < 1, error('1 argument (table content) is required'), end
 if nargin < 2, th = []; end
 if ~isempty(th), if length(th)~=size(tr,2),error('Please check size of headers and contents, number of columns must be the same'), end, end
-if nargin < 3, styletr = 'td'; end
-if nargin < 4, styleth = 'th'; end
-if nargin < 5, stylesheet = struct(... use HTML nomenclature
-                                   'th',struct('x',.5,'y',.5,'HorizontalAlignment',o.horizontalalignmentth,'VerticalAlignment',o.verticalalignmentth,'FontWeight',o.fontweightth,'FontSize',o.fontsizeth),...
-                                   'td',struct('x',.5,'y',.5,'HorizontalAlignment',o.horizontalalignmenttd,'VerticalAlignment',o.verticalalignmenttd,'FontWeight',o.fontweighttd,'FontSize',o.fontsizetd));
-end
+
+if nargin < 3, styletr = []; end
+if nargin < 4, styleth = []; end
+if nargin < 5, stylesheet = []; end
+
+if isempty(styletr), styletr = styletr_default; end
+if isempty(styleth), styleth = styleth_default; end
+if isempty(stylesheet), stylesheet = stylesheet_default; end
+
 
 if ~iscell(styletr), styletr = {styletr}; end    
 if ~iscell(styleth), styleth = {styleth}; end
@@ -90,7 +111,7 @@ while currentrow<nrows
         for icol = 1:ncolumn
             if currentrow<=size(tr,1)
                  if iscellstr(tr{currentrow,icol}) || ischar(tr{currentrow,icol}), subplot(hs(irow+nheaders,icol)), fillcell(tr{currentrow,icol},stylesheet.(styletr{icol}))
-                 elseif isnumeric(tr{currentrow,icol}) && ndims(tr{currentrow,icol}) > 2, him = subplots(o.imgsubplotx,o.imgsubploty,0,0,'position',hs(irow+nheaders,icol),'alive',o.imgalive,'strict'); % image, insert a small axes inside to incorporate margin
+                 elseif isnumeric(tr{currentrow,icol}) && ~ismatrix(tr{currentrow,icol}), him = subplots(o.imgsubplotx,o.imgsubploty,0,0,'position',hs(irow+nheaders,icol),'alive',o.imgalive,'strict'); % image, insert a small axes inside to incorporate margin
                         subplot(him),imshow(tr{currentrow,icol})
                  elseif isnumeric(tr{currentrow,icol}), subplot(hs(irow+nheaders,icol)), fillcell(tr(currentrow,icol),stylesheet.(styletr{icol}))                
                  end                

@@ -7,12 +7,16 @@ function data = load_chemspider(mol,varargin)
 %      recognized properties/values
 %         destination: destination folder (default=tempdir)
 %           thumbnail: flag (default=true), thumbnail image of the chemcial structure
-%           structure: flag (default=true), 640x480 PNG image of the chemcial structure (see imsize)
+%           structure: flag (default=true), 640x480 PNG image of the chemical structure (see imsize)
 %              follow: flag (default=false), true to force to follow all references found
-%                csid: flag (default=false), true if mol contain CSID (to be used internally)
+%                csid: flag (default=false), true if mol contains a valid CSID (to be used internally)
+%             nocache: flag (default=false), true = do not use the cache
+%        refreshcache: flag (default=false), true = force the cache to be refreshed
+%        reshashcache: flag (default=false), true = resfresh the hash corresponding to cached files (similar to clear functions)
 %              imsize: 2x1 array coding for the image size of 2D structures (default = [640 480])
 %            autocrop: flag (default=false)
 %         orientation: 'horiz' or 'horizontal', 'vert' or vertical', 'none' (default)
+%         cachefolder: fullfile(rootdir(which(mfilename)),'cache.ChemSpider')
 %   OUTPUTS:
 %       data: nx1 structure array with fields
 %            CSID: number, Chemispider identifier
@@ -24,6 +28,7 @@ function data = load_chemspider(mol,varargin)
 %      Properties: structure with named fields (Averagemass,...VapourPressure) and containing a structure
 %                  with fields: value (numeric), unit and name
 %  UserProperties: structure array
+%             EPI: structure coding for the different sections of EPI calculations
 %       Thumbnail: filename of the PNG thumbnail
 %       structure: filename of the PNG stucture image
 %             url: ChemSpider URL
@@ -37,7 +42,7 @@ function data = load_chemspider(mol,varargin)
 %
 %   SEE ALSO: LOAD_NIST, LOAD_NIST_IR, LOAD_NCBI, LOAD_NCBISTRUCT, LOAD_CHEMINDUSTRY
 
-% MS 2.1 - 21/05/11 - INRA\Olivier Vitrac - rev. 06/10/13
+% MS 2.1 - 21/05/11 - INRA\Olivier Vitrac - rev. 04/04/15
 
 %Revision history
 % 22/05/11 vectorization, minor bugs
@@ -51,11 +56,27 @@ function data = load_chemspider(mol,varargin)
 % 19/09/13 add autocrop
 % 05/10/13 works again to retrieve properties, extract links
 % 06/10/13 add orientation
+% 18/12/14 fix empty values (rare cases)
+% 04/04/15 add EPI section data, add cache capabilities (major update)
+
+persistent CACHEDfiles CACHEglobal
 
 % default
+root = rootdir(which(mfilename));
 keyword = {'thumbnail' 'structure'};
-default = struct('thumbnail',true,'structure',true,'destination',tempdir,'csid',false,'follow',false,...
-    'imsize',[640 480],'autocrop',false,'orientation','none');
+default = struct('thumbnail',true,...
+                 'structure',true,...
+                 'destination','',...
+                 'cachefolder',fullfile(root,'cache.ChemSpider'),...
+                 'csid',false,...
+                 'follow',false,...
+                 'nocache',false,...
+                 'refreshcache',false,...
+                 'reshashcache',false,...
+                 'imsize',[640 480],...
+                 'autocrop',false,...
+                 'orientation','none');
+makehash = @(id) lower([{id.CSID};id.CAS;{id.SMILES};{id.InChI};{id.InChIKey};id.names]);
 
 % Configuration
 token = '30c079d0-cedb-42a7-be40-6e8f9f2c0d75'; % Olivier Vitrac account
@@ -70,13 +91,31 @@ num = '^\s*([+-]?\s*\d+\.?\d*[eEdD]?[+-]?\d*)'; % number
 %arg check
 if nargin<1, error('one argument is required'); end
 options = argcheck(varargin,default,keyword,'property');
+cachefolder = options.cachefolder;
+pngcachefolder = fullfile(cachefolder,'thumbs');
+if isempty(options.destination), options.destination = pngcachefolder; end
+if ~exist(cachefolder,'dir'), mkdir(cachefolder), end
+if ~exist(pngcachefolder,'dir'), mkdir(pngcachefolder), end
 if ~exist(options.destination,'dir'), error('Destination folder ''%s'' does not exist',options.destination), end
-if ~exist(fullfile(find_path_toolbox('MS'),'@Search'),'file')
+if ~exist(fullfile(root,'@Search'),'file')
     dispf('WARNING:\tCHEMSPIDER Search service is being installed, please wait...')
-    currentpath = pwd; cd(find_path_toolbox('MS')) %#ok<*MCCD>
+    currentpath = pwd; cd(root) %#ok<*MCCD>
     createClassFromWsdl('http://www.chemspider.com/Search.asmx?WSDL')
     cd(currentpath)
     dispf('\t CHEMSPIDER Search service has been installed.\n\tFollow this: <a href="http://www.chemspider.com/Search.asmx">link</a> for details')
+end
+
+%cache index
+if isempty(CACHEDfiles) ||  isempty(CACHEglobal) || options.reshashcache
+    dispf('CHEMISPIDER: cache rehash')
+    CACHEDfiles = explore('*.mat',cachefolder,0,'abbreviate'); nchachedfiles = length(CACHEDfiles);
+    tmphash = cell(nchachedfiles,2);
+    for i=1:nchachedfiles
+        load(fullfile(CACHEDfiles(i).path,CACHEDfiles(i).file),'-mat','id')
+        tmphash{i,1} = makehash(id); %#ok<NODEF>
+        tmphash{i,2} = zeros(length(tmphash{i,1}),1,'uint16')+i;
+    end
+    CACHEglobal = struct('hash',{cat(1,tmphash{:,1})},'idx',{cat(1,tmphash{:,2})});
 end
 
 % recursion
@@ -89,6 +128,21 @@ if iscell(mol)
         if isempty(data), data = tmp; else data(end+1:end+length(tmp))=tmp; end
     end
     return
+end
+
+%% Use Cache if enabled
+lowermol = lower(mol);
+if ~options.nocache && ismember(lowermol,CACHEglobal.hash)
+    imol = CACHEglobal.idx(find(ismember(CACHEglobal.hash,lowermol),1,'first'));
+    cachedfile = fullfile(CACHEDfiles(imol).path,CACHEDfiles(imol).file);
+    if exist(cachedfile,'file')
+        load(cachedfile,'data')
+        dispf('CHEMSPIDER reuses cached data for ''%s'' (date=%s)',mol,CACHEDfiles(imol).date)
+        return
+    else
+        dispf('WARNING: the cache of chemspider has been modified outside load_chemspider()')
+        dispf('\tset use load_chemspider(....,''reshashcache'',true) or clear function to reshash the cache')
+    end
 end
 
 %% Simple Search
@@ -150,7 +204,7 @@ end
 %% Extract details
 url = sprintf(engine,csid);
 screen = dispb(screen,'LOAD_CHEMSPIDER\t connects to the main URL %s',url);
-details = urlread(url); % nex engine returns a link "<h2>Object moved to here.</h2>"
+details = urlread(url); % next engine returns a link "<h2>Object moved to here.</h2>"
 
 % links in page (parsing)
 % current parser recognize: chemspider, wikipedia, pdb, google, ncbi, msds, jrc links...
@@ -270,7 +324,11 @@ if ~isempty(prop)
     valnum  = cellfun(@(x) str2double(x),uncell(valnum),'UniformOutput',false);
     valunit = cellfun(@(x,k) strtrim(x(k+1:end)),value,stop,'UniformOutput',false);
     fprop = regexprep(prop,{'ACD/' '#' '\(' '\s|\)|\.'},{'' 'Num' 'AT' ''}); [~,iprop] = unique(fprop);
-    prop = cell2struct(cellfun(@(v,u,n) struct('value',v,'unit',u,'name',n),valnum(iprop),valunit(iprop),prop(iprop),'UniformOutput',false),fprop(iprop),1);
+    if ~isempty(valnum)
+        prop = cell2struct(cellfun(@(v,u,n) struct('value',v,'unit',u,'name',n),valnum(iprop),valunit(iprop),prop(iprop),'UniformOutput',false),fprop(iprop),1);
+    else
+        dispf('\tWARNING: %d ChemSpider properties found but no values are attached',length(prop))
+    end
 else
     prop = '';
 end
@@ -291,12 +349,67 @@ else
     propuser = struct('name',{},'value',{});
 end
 
+%% EPI section data (added 04/04/15)
+EPIclean = @(s) regexprep(strtrim(regexprep(s,{'\(.*?\)','\[.*?\]','/','-',','},{'','','_','_','_'})),'\s','');
+EPIproppattern = {... generic parser (update it if new needs)
+    '^(?<prop>[\w\s]*)\s\((?<unit>.*)\)\s*[:=]\s*(?<num>[-+]?[0-9]*\.?[0-9]+([eEdD][-+]?[0-9]+)?)\s*\((?<nfo>.*?)\)'
+    '^(?<prop>[\w\s]*)\s\((?<nfo>.*)\)\s*[:=]\s*(?<num>[-+]?[0-9]*\.?[0-9]+([eEdD][-+]?[0-9]+)?)\s*(?<unit>.*)'
+    '^(?<prop>[\w\s]*)\s*[:=]\s*(?<num>[-+]?[0-9]*\.?[0-9]+([eEdD][-+]?[0-9]+)?)\s*(?<unit>.*)'
+    '^(?<prop>[\w\s]*)\s*\[(?<nfo>.*)\]\s*[:=]\s*(?<num>[-+]?[0-9]*\.?[0-9]+([eEdD][-+]?[0-9]+)?)\s*(?<unit>.*)'
+    }; nEPIproppattern = length(EPIproppattern);
+tmp = uncell(regexp(details,'Predicted data is generated using the US Environmental Protection Agency’s EPISuite.*?<pre.*?>(.*?)</pre>','tokens'));
+if isempty(tmp)
+    EPIsections = struct([]);
+    dispf('WARNING: no EPI data')
+else
+    EPIrawdata = strtrim(tmp{1});
+    EPItmp = regexp(EPIrawdata,'\n\n','split')';
+    nsections = length(EPItmp);
+    [EPItileofsection,EPIsectionname] = deal(cell(nsections,1));
+    for i=1:nsections
+        EPItmp{i} = strtrim(regexp(EPItmp{i},'\n','split'));
+        EPItileofsection{i} = strtrim(regexprep(EPItmp{i}{1},':$',''));
+        EPIsectionname{i} = EPIclean(EPItileofsection{i});
+    end
+    EPIsections = cell2struct(repmat({struct('title','','raw','')},nsections,1),EPIsectionname);
+    for i=1:nsections
+        EPIsections.(EPIsectionname{i}) = struct('title',EPItileofsection{i},'raw',{EPItmp{i}(2:end)'});
+        % read section
+        for j=2:length(EPItmp{i})
+            tmp = ''; iEPIproppattern = 0;
+            while isempty(tmp) &&  iEPIproppattern<nEPIproppattern
+                iEPIproppattern = iEPIproppattern+1;
+                tmp = regexp(EPItmp{i}{j},EPIproppattern{iEPIproppattern},'names');
+            end
+            if ~isempty(tmp)
+                if ~isfield(tmp,'nfo'), tmp.nfo='none'; end
+                EPIsections.(EPIsectionname{i}).(EPIclean(tmp.prop)) = ...
+                    struct('value',str2double(tmp.num),'unit',tmp.unit,'method',tmp.nfo);
+            end
+        end
+    end
+end
 %% Assembling
 data = catstruct(nfo,struct('Name',iupac,'CAS',{cas'},'Synonyms',{syn'},'QuickMass',quickmass,'Properties',prop,'UserProperties',propuser,...
-    'Thumbnail',thumbnailfile,'structure',structurefile,'url',url,'urlstructure',urlstructure,'links',parsedlinks));
+    'EPI',EPIsections,'Thumbnail',thumbnailfile,'structure',structurefile,'url',url,'urlstructure',urlstructure,'links',parsedlinks));
 if isfield(data,'CAS') && length(data.CAS)==1, data.CAS = data.CAS{1}; end
 if isfield(data,'Synonyms') && length(data.Synonyms)==1, data.Synonyms = data.Synonyms{1}; end
 data.CSID = str2double(data.CSID);
 if ~isfield(data,'structure'), data.structure = structurefile; end
 if ~isfield(data,'url'), data.url = url; end
 if ~isfield(data,'urlstructure'), data.urlstructure = urlstructure; end
+
+%% cache update if required
+cachedfilename = sprintf('%d.mat',data.CSID);
+cachedfile = fullfile(cachefolder,cachedfilename);
+if options.refreshcache || ~exist(cachedfile,'file')
+    if ~iscell(data.CAS), idCAS = {data.CAS}; else idCAS = data.CAS; end
+    id = struct('CSID',sprintf('%d',data.CSID),'CAS',{idCAS(:)},'SMILES',data.SMILES,'InChI',data.InChI,'InChIKey',data.InChIKey,...
+        'names',{strtrim(regexprep(data.Synonyms(:),{'<a.*?>.*?</a>','\[.*?\]'},{'' ''}))});
+    save(cachedfile,'id','data')
+    tmphash = makehash(id);
+    if isempty(CACHEglobal.idx), imol = 1; else imol = CACHEglobal.idx(end)+1; end
+    CACHEDfiles(end+1) = explore(cachedfilename,cachefolder,0,'abbreviate');
+    CACHEglobal = struct('hash',{[CACHEglobal.hash;tmphash]},'idx',[CACHEglobal.idx;zeros(length(tmphash),1,'uint16')+imol]);
+    dispf('LOAD_CHEMISPIDER: updated cache'), fileinfo(cachedfile)
+end

@@ -62,13 +62,14 @@ function [X0,foundindexout,nfound]=bykeywords(X,f,varargin)
 %
 %   See also: XLSTBLREAD, LOADODS, LOADODSPREFETCH, STRUCT2STRUCTTAB, STRUCTTAB2STRUCT, SUBSTRUCTARRAY
 
-% MS 2.0 - 20/01/2008 - INRA\Olivier Vitrac - rev. 10/01/2014
+% MS 2.0 - 20/01/2008 - INRA\Olivier Vitrac - rev. 07/03/2015
 
 % Revision history
 % 29/01/2008 add finindex, new rules for missing KEYVALUES
 % 09/10/2013 implements numeric values as valid values
 % 10/10/2013 generate an error when columns have dissimilar lengths
 % 10/01/2014 add logical type, implementation of formula
+% 07/03/2015 fix 1D index based anonymous function (boolean output are converted to numeric index and not kept as logical index)
 
 % Definitions
 reshapeon =false;
@@ -132,6 +133,7 @@ for j=1:nkeyvalues % for all vector of keyvalues
     if isa(keyvalues{1}{j},'function_handle') % function
         dispf('\tBYKEYWORDS::eval:%s',func3str(keyvalues{1}{j},Xfields{f(1)}))
         ik = keyvalues{1}{j}(X{f(1)}); %find(ismember(X{f(1)},keyvalues{1}(j)))
+        if islogical(ik), ik = find(ik); end % added 7/3/15
     else
         ik = find(ismember(X{f(1)},keyvalues{1}{j})); %find(ismember(X{f(1)},keyvalues{1}(j)))
     end
