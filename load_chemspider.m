@@ -42,7 +42,7 @@ function data = load_chemspider(mol,varargin)
 %
 %   SEE ALSO: LOAD_NIST, LOAD_NIST_IR, LOAD_NCBI, LOAD_NCBISTRUCT, LOAD_CHEMINDUSTRY
 
-% MS 2.1 - 21/05/11 - INRA\Olivier Vitrac - rev. 04/04/15
+% MS 2.1 - 21/05/11 - INRA\Olivier Vitrac - rev. 7/04/15
 
 %Revision history
 % 22/05/11 vectorization, minor bugs
@@ -58,6 +58,7 @@ function data = load_chemspider(mol,varargin)
 % 06/10/13 add orientation
 % 18/12/14 fix empty values (rare cases)
 % 04/04/15 add EPI section data, add cache capabilities (major update)
+% 07/04/15 fix with no cached files
 
 persistent CACHEDfiles CACHEglobal
 
@@ -132,7 +133,7 @@ end
 
 %% Use Cache if enabled
 lowermol = lower(mol);
-if ~options.nocache && ismember(lowermol,CACHEglobal.hash)
+if ~options.nocache && ~isempty(CACHEglobal.hash) && ismember(lowermol,CACHEglobal.hash)
     imol = CACHEglobal.idx(find(ismember(CACHEglobal.hash,lowermol),1,'first'));
     cachedfile = fullfile(CACHEDfiles(imol).path,CACHEDfiles(imol).file);
     if exist(cachedfile,'file')
@@ -409,7 +410,11 @@ if options.refreshcache || ~exist(cachedfile,'file')
     save(cachedfile,'id','data')
     tmphash = makehash(id);
     if isempty(CACHEglobal.idx), imol = 1; else imol = CACHEglobal.idx(end)+1; end
-    CACHEDfiles(end+1) = explore(cachedfilename,cachefolder,0,'abbreviate');
+    if isempty(CACHEDfiles)
+        CACHEDfiles = explore(cachedfilename,cachefolder,0,'abbreviate');
+    else
+        CACHEDfiles(end+1) = explore(cachedfilename,cachefolder,0,'abbreviate');
+    end
     CACHEglobal = struct('hash',{[CACHEglobal.hash;tmphash]},'idx',[CACHEglobal.idx;zeros(length(tmphash),1,'uint16')+imol]);
     dispf('LOAD_CHEMISPIDER: updated cache'), fileinfo(cachedfile)
 end
