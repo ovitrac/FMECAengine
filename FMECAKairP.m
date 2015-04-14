@@ -1,4 +1,4 @@
-function Pvsat = FMECAKairP(solute,temp,chi)
+function K = FMECAKairP(solute,temp,chi)
 %FMECAAIRP calculates the theoretical air/polymer partition coefficient for FMECAengine() calculations
 %   Syntax: K = FMECAKairP(solute,temp [,chi])
 %           solute = string coding for a valid CAS number, chemical name, CSID, etc.
@@ -16,9 +16,11 @@ function Pvsat = FMECAKairP(solute,temp,chi)
 %   See also: FMECAunit, FMECADpiringer, FMECADfuller, FMECAkair, FMECAgpolymer, load_chemspider, fmecaengine
 
 
-% INRA\FMECAengine v 0.6 - 04/04/2015 - Olivier Vitrac - rev. 
+% INRA\FMECAengine v 0.6 - 04/04/2015 - Olivier Vitrac - rev. 14/04/2015
+
 
 % Revision history
+% 14/04/2015 fix proper output
 
 
 % Default
