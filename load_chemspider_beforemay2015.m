@@ -42,7 +42,7 @@ function data = load_chemspider(mol,varargin)
 %
 %   SEE ALSO: LOAD_NIST, LOAD_NIST_IR, LOAD_NCBI, LOAD_NCBISTRUCT, LOAD_CHEMINDUSTRY
 
-% MS 2.1 - 21/05/11 - INRA\Olivier Vitrac - rev. 02/06/15
+% MS 2.1 - 21/05/11 - INRA\Olivier Vitrac - rev. 7/04/15
 
 %Revision history
 % 22/05/11 vectorization, minor bugs
@@ -59,8 +59,6 @@ function data = load_chemspider(mol,varargin)
 % 18/12/14 fix empty values (rare cases)
 % 04/04/15 add EPI section data, add cache capabilities (major update)
 % 07/04/15 fix with no cached files
-% 27/05/15 TRANSIENT VERSION: first implementation of new chemspider rules
-% 02/06/15 IMPROVED VERSION with almost full recovery of all ancient features, quickproperties 
 
 persistent CACHEDfiles CACHEglobal
 
@@ -87,8 +85,8 @@ token = '30c079d0-cedb-42a7-be40-6e8f9f2c0d75'; % Olivier Vitrac account
 rooturl = 'http://www.chemspider.com';
 engine = sprintf('%s/RecordView.aspx?id=%%s',rooturl);
 imgengine = sprintf('%s/ImagesHandler.ashx?id=%%s&w=%%d&h=%%d',rooturl);
-tag2remove = {'</?span.*?>' '<wbr\s*/?>' '</?nobr>' '</?p>' '</?button.*?>' '</?wbr>' '</?strong>' '</?sup>' '</?sub>' '\r|\n' '\s+' '\&\#(\d+)\;'};
-tagreplacement = {'','','','','','','','','','',' ','${char(str2double($1))}'};
+tag2remove = {'<wbr\s*/?>' '</?nobr>' '</?p>' '</?span.*?>' '</?wbr>' '</?strong>' '</?sup>' '</?sub>' '\r|\n' '\s+' '\&\#(\d+)\;'};
+tagreplacement = {'','','','','','','','','',' ','${char(str2double($1))}'};
 num = '^\s*([+-]?\s*\d+\.?\d*[eEdD]?[+-]?\d*)'; % number
 
 %arg check
@@ -290,41 +288,19 @@ end
 dispb(screen,'LOAD_CHEMSPIDER\t extraction of ChemSpiderID=%s (''%s'') completed in %0.4g s',csid,mol,etime(clock,tstart));
 
 %% Synonyms and CAS
-% iupac start to be discontinued from april 2015 (include French and German one)
-% iupac = strtrim(regexprep(uncell(regexp(details,'<div id="iupac".*?>(.*?)</div>','tokens')),tag2remove,tagreplacement));
-iupac = strtrim(regexprep(uncell(regexp(details,'<span class="prop_title">Systematic name</span>.*?<p>(.*?)</p>','tokens')),tag2remove,tagreplacement));
-syn = strtrim(regexprep(uncell(regexp(details,'<div class="syn".*?>(.*?)</div>','tokens')),tag2remove,tagreplacement)); % before 27/05/15: <p></p> used instead of <div>
-if isempty(iupac)
-    acd = strtrim(regexprep(syn(~cellfun(@isempty,regexp(syn,'\[ACD/IUPAC Name\]')) & cellfun(@isempty,regexp(syn,'French')) & cellfun(@isempty,regexp(syn,'German'))),tag2remove,tagreplacement));
-    iupac = strtrim(regexprep(acd,{'<.*>' '\[.*\]'},''));
-end
+iupac = strtrim(regexprep(uncell(regexp(details,'<div id="iupac".*?>(.*?)</div>','tokens')),tag2remove,tagreplacement));
+syn = strtrim(regexprep(uncell(regexp(details,'<p class="syn".*?>(.*?)</p>','tokens')),tag2remove,tagreplacement));
 cas = regexp(syn,'([1-9]{1}[0-9]{1,6}-\d{2}-\d)','tokens');
 cas = uncell(cas(~cellfun('isempty',cas)));
 if ~iscellstr(cas), cas = uncell([cas{:}]); end % additional uncell
 cas = unique(cas);
 
 %% Quick Properties (to be modified each time ChemSpider change its HTML code)
-quickstr = regexprep(uncell(regexp(details,'<ul.*?class="struct-props".*?>(.*?)</ul>','tokens')),tag2remove(2:end),tagreplacement(2:end));
-quickstr = [quickstr{:}];
-quickpropengine = @(req)  strtrim(char(regexprep(uncell(regexp(quickstr,...
-        sprintf('<span class="prop_title">%s</span>(.*?)</span>',req),'tokens')),[tag2remove {'\s*Copy\s*' '\s*Copied\s*'}],[tagreplacement,{'' ''}])));
-quickpropenginenolink = @(req) strtrim(regexprep(quickpropengine(req),'</?a.*?>',''));
-quickprop = struct(...
-    'name',quickpropengine('Systematic name'),...
-    'ChemSpiderID',regexprep(quickpropengine('ChemSpider ID'),'[^0-9]',''),...
-    'MolecularFormula',quickpropengine('Molecular Formula'),...
-    'AverageMass',regexprep(quickpropengine('Average mass'),'\s*Da.*$',''),...    
-    'MonoIsotopicMass',regexprep(quickpropengine('Monoisotopic mass'),'\s*Da.*$',''),...
-    'SMILES',quickpropengine('SMILES'),...
-    'InChi',quickpropenginenolink('Std. InChi'),...
-    'InChiKey',quickpropenginenolink('Std. InChIKey') ...
-    );
-% Before May 2015
-% quickformula = regexprep(uncell(regexp(details,'<a.*class="emp-formula".*?>(.*?)</a>','tokens')),tag2remove,tagreplacement);
+quickformula = regexprep(uncell(regexp(details,'<a.*class="emp-formula".*?>(.*?)</a>','tokens')),tag2remove,tagreplacement);
 % Before August 2011 (not working now since at least Aug 22, 2011)
 % quickmass = regexprep(uncell(regexp(details,'<li class="quick-mass">(.*?)</li>','tokens')),tag2remove,tagreplacement);
 % quickmassprop    = regexprep(strtrim(regexprep(uncell(regexp(quickmass,'<th class="prop_title".*?>(.*?)</th>','tokens')),[tag2remove {'</?a.*?>' ':'}],[tagreplacement {'' ''}])),'\s','');
-% quickmassvalue   = cellfun(@(x) str2double(x),strtrim(regexprep(uncell(regexp(quick{mass,'<td class="prop_value.*?">([0-9\.]*)[\sDa]*?</td>','tokens')),tag2remove,tagreplacement)),'UniformOutput',false);
+% quickmassvalue   = cellfun(@(x) str2double(x),strtrim(regexprep(uncell(regexp(quickmass,'<td class="prop_value.*?">([0-9\.]*)[\sDa]*?</td>','tokens')),tag2remove,tagreplacement)),'UniformOutput',false);
 % quickmass = cell2struct([quickformula;quickmassvalue],[{'formula'};quickmassprop],1);
 % After August 2011
 % quickmass = regexprep(uncell(regexp(details,'<li class="_quick-mass">(.*?)</li>','tokens')),tag2remove,tagreplacement);
@@ -332,15 +308,13 @@ quickprop = struct(...
 % quickmassvalue = uncell(regexp(quickmass,':\s*(.*) Da','tokens')); quickmassvalue = str2double(quickmassvalue{1});
 % quickmass = cell2struct([quickformula;quickmassvalue],[{'formula'};quickmassprop],1);
 % After June 14, 2012
-% quicklinks not used anymore
-%quicklinks = regexprep(uncell(regexp(details,'<div class="quick-links">(.*?)</div>','tokens')),tag2remove,tagreplacement);
-averagemass = quickprop.AverageMass;   %uncell(regexp(quicklinks,'Average mass: (.+?) Da','tokens'));
-monomass = quickprop.MonoIsotopicMass; %uncell(regexp(quicklinks,'Monoisotopic mass: (.+?) Da','tokens'));
-quickformula = quickprop.MolecularFormula;
-if isempty(quickformula), quickformula = ''; end
-if isempty(averagemass), averagemass = ''; end
-if isempty(monomass), monomass = ''; end
-quickmass = cell2struct({quickformula;averagemass;monomass},{'formula' 'molecularmass' 'monoisotopicmass'},1);
+quicklinks = regexprep(uncell(regexp(details,'<div class="quick-links">(.*?)</div>','tokens')),tag2remove,tagreplacement);
+averagemass = uncell(regexp(quicklinks,'Average mass: (.+?) Da','tokens'));
+monomass = uncell(regexp(quicklinks,'Monoisotopic mass: (.+?) Da','tokens'));
+if isempty(quickformula), quickformula = {''}; end
+if isempty(averagemass), averagemass = {''}; end
+if isempty(monomass), monomass = {''}; end
+quickmass = cell2struct([quickformula;averagemass;monomass],{'formula' 'molecularmass' 'isotpicmass'},1);
 
 %% Properties
 prop    = strtrim(regexprep(uncell(regexp(details,'<(td|th) class="prop_title".*?>(.*?)</(td|th)>','tokens')),[tag2remove {'</?a.*?>' ':'}],[tagreplacement {'' ''}]));
@@ -361,18 +335,16 @@ else
 end
 
 %% User properties
-propuser = uncell(regexp(details,'<span.*?class="user_data_property_name".*?>([^<>]{1,100}):</span></a></h2>\s*<table style="display:none">(.*?)</table>','tokens'));
-% propuser = uncell(regexp(details,'<div.*?class="user_data_property_header_div".*?>(.*?)</div>','tokens'));
-if ~isempty(propuser) && size(propuser,1)>1
-    propusername = regexprep(propuser(:,1),{'\s' '[\(\)]'},{'',''});
-    propvalue = cellfun(@(x) [x{:}]',uncell(regexp(propuser(:,2),'<td valign="top">(.*?)</td>','tokens')),'UniformOutput',false);
-%     propvalue = strtrim(regexprep(propuser,'<span.*?>.*?</span>',''));
-%     if ~isempty(propvalue)
-%         isnum = find(~cellfun('isempty',regexp(propvalue,[num '\s*$'],'once')));
-%         tmp = cellfun(@(x) str2double(x),propvalue(isnum),'UniformOutput',false);
-%         valid = cellfun(@(x) ~isnan(x),tmp);
-%         propvalue(isnum(valid)) = tmp(valid);
-%     end
+propuser = uncell(regexp(details,'<div.*?class="user_data_property_header_div".*?>(.*?)</div>','tokens'));
+if ~isempty(propuser)
+    propusername = strtrim(regexprep(uncell(regexp(propuser,'<span.*?>(.*)</span>','tokens')),':',''));
+    propvalue = strtrim(regexprep(propuser,'<span.*?>.*?</span>',''));
+    if ~isempty(propvalue)
+        isnum = find(~cellfun('isempty',regexp(propvalue,[num '\s*$'],'once')));
+        tmp = cellfun(@(x) str2double(x),propvalue(isnum),'UniformOutput',false);
+        valid = cellfun(@(x) ~isnan(x),tmp);
+        propvalue(isnum(valid)) = tmp(valid); 
+    end
     propuser = struct('name',propusername,'value',propvalue);
 else
     propuser = struct('name',{},'value',{});
@@ -386,14 +358,12 @@ EPIproppattern = {... generic parser (update it if new needs)
     '^(?<prop>[\w\s]*)\s*[:=]\s*(?<num>[-+]?[0-9]*\.?[0-9]+([eEdD][-+]?[0-9]+)?)\s*(?<unit>.*)'
     '^(?<prop>[\w\s]*)\s*\[(?<nfo>.*)\]\s*[:=]\s*(?<num>[-+]?[0-9]*\.?[0-9]+([eEdD][-+]?[0-9]+)?)\s*(?<unit>.*)'
     }; nEPIproppattern = length(EPIproppattern);
-tmp = uncell(regexp(details,'<div class="tab-content" id="epiTab">(.*?)</div>','tokens'));
-if ~isempty(tmp), tmp = uncell(regexp(tmp{1},'<pre.*?>(.*?)</pre>','tokens')); end
-%tmp = uncell(regexp(details,'Predicted data is generated using the US Environmental Protection Agency’s EPISuite.*?<pre.*?>(.*?)</pre>','tokens'));
+tmp = uncell(regexp(details,'Predicted data is generated using the US Environmental Protection Agency’s EPISuite.*?<pre.*?>(.*?)</pre>','tokens'));
 if isempty(tmp)
     EPIsections = struct([]);
     dispf('WARNING: no EPI data')
 else
-    EPIrawdata = strtrim(regexprep(tmp{1},'<.*?>.*</.*?>',''));
+    EPIrawdata = strtrim(tmp{1});
     EPItmp = regexp(EPIrawdata,'\n\n','split')';
     nsections = length(EPItmp);
     [EPItileofsection,EPIsectionname] = deal(cell(nsections,1));
@@ -421,9 +391,7 @@ else
     end
 end
 %% Assembling
-% quick properties added on June 2, 2015
-if isempty(cas), cas = {'NaN'}; end
-data = catstruct(nfo,struct('Name',iupac,'CAS',{cas'},'Synonyms',{syn'},'QuickMass',quickmass,'quickproperties',quickprop,'Properties',prop,'UserProperties',propuser,...
+data = catstruct(nfo,struct('Name',iupac,'CAS',{cas'},'Synonyms',{syn'},'QuickMass',quickmass,'Properties',prop,'UserProperties',propuser,...
     'EPI',EPIsections,'Thumbnail',thumbnailfile,'structure',structurefile,'url',url,'urlstructure',urlstructure,'links',parsedlinks));
 if isfield(data,'CAS') && length(data.CAS)==1, data.CAS = data.CAS{1}; end
 if isfield(data,'Synonyms') && length(data.Synonyms)==1, data.Synonyms = data.Synonyms{1}; end
@@ -436,7 +404,6 @@ if ~isfield(data,'urlstructure'), data.urlstructure = urlstructure; end
 cachedfilename = sprintf('%d.mat',data.CSID);
 cachedfile = fullfile(cachefolder,cachedfilename);
 if options.refreshcache || ~exist(cachedfile,'file')
-    if ~isfield(data,'CAS'), data.CAS = 'NaN'; end
     if ~iscell(data.CAS), idCAS = {data.CAS}; else idCAS = data.CAS; end
     id = struct('CSID',sprintf('%d',data.CSID),'CAS',{idCAS(:)},'SMILES',data.SMILES,'InChI',data.InChI,'InChIKey',data.InChIKey,...
         'names',{strtrim(regexprep(data.Synonyms(:),{'<a.*?>.*?</a>','\[.*?\]'},{'' ''}))});
