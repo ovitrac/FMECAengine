@@ -26,7 +26,7 @@ function [dydxout,dydxicout] = diffp(x,y,ordre,h,n,D,xD,alpha,ilist,fusion,wy,pr
 %	dydxic	= intervalles de confiance
 
 	
-% Thermique 1.1 - 13/06/01 - Olivier Vitrac - rev. 15/10/2013
+% Thermique 1.1 - 13/06/01 - Olivier Vitrac - rev. 18/5/2015
 
 % Revision history
 % 28/06/03 weighting and symmetry
@@ -37,18 +37,20 @@ function [dydxout,dydxicout] = diffp(x,y,ordre,h,n,D,xD,alpha,ilist,fusion,wy,pr
 % 02/06/2010 fix multiple Y
 % 24/07/2010 optimized code for 2009x rules (2010 rules not implemented to keep some backward-compatibility)
 % 15/10/2013 implements variable h
+% 10/03/2015 force increasing x and reverse order at the end of the calculations
+% 18/05/2015 fix dydxic
 
 % exemple : évaluation de la dérivée 1ère de sin(t) entre 0 et 10pi bruitée (à 14f)
-% t = 0:0.1:10*pi;
-% y = sin(t)+0.05*sin(14*t);
-%
-% sans régularisation
-% dydt = diffp(t,y,1);
-% figure(1), plot(t,y,'k-',t,cos(t),'b-',t,dydt,'r:')
-%
-% avec régularisation : dérivée troisième nulle
-% [dydt,dydti] = diffp(t,y,1,[],[],3);
-% figure(2), plot(t,y,'k-',t,cos(t),'b-',t,dydt,'r-',t,dydt-dydti,'r:',t,dydt+dydti,'r:')
+%{
+    t = 0:0.1:10*pi;
+    y = sin(t)+0.05*sin(14*t);
+    %sans régularisation
+    dydt = diffp(t,y,1);
+    figure(1), plot(t,y,'k-',t,cos(t),'b-',t,dydt,'r:')
+    % avec régularisation : dérivée troisième nulle
+    [dydt,dydti] = diffp(t,y,1,[],[],3);
+    figure(2), plot(t,y,'k-',t,cos(t),'b-',t,dydt,'r-',t,dydt-dydti,'r:',t,dydt+dydti,'r:')
+%}
 %
 % récaptitulatif :
 % en noir : primitive
@@ -103,13 +105,22 @@ it_max          = 100;   % max iteration for expansion
 hexpand         = 1.4;   % expansion factor (max expansion = it_max*hexpand)
 
 % arg check
-h_defaut = nhdefaut * mean(diff(x));
-if nargin<4, h = h_defaut; end
-
-% Symmetric boundary conditions (added 9/06/03)
 x = x(:);
 [my,ny]	= size(y);
 if my==1 && ny>1,y= y'; [my,ny] = size(y);end %#ok<NASGU>
+if length(x)~=my, error('numel(x) and size(y,1) do not match'), end
+
+% Force x sorting (added 10/3/2015)
+[x,ixsort] = sort(x,'ascend');
+y = y(ixsort,:);
+ixsortreverse(ixsort) = 1:my; 
+
+% arg check (Cont'd)
+diffx = diff(x);
+h_defaut = nhdefaut * mean(diffx(diffx>0));
+if nargin<4, h = h_defaut; end
+
+% Symmetric boundary conditions (added 9/06/03)
 if nargin<3, hsym = nhdefaut * max(diff(x));
 elseif isempty(h), hsym = nhdefaut * max(diff(x));
 else hsym = h;
@@ -228,8 +239,8 @@ end
 isol = 0;
 for i = ilist
     isol = isol + 1;
-	% Assemblage des poids W[i]
-	hi = h;
+    % Assemblage des poids W[i]
+    hi = h;
     it = 0;
     mi = 0;
     while (mi<1.5*n) && (it<it_max)
@@ -251,83 +262,83 @@ for i = ilist
     if it==it_max
         error('DIFFP: bad weighting (likely reason: too high discrepancy in sampling rate)')
     end
-	if fusion
-		Wi = spdiags(repmat(wi(indi),ny,1),0,mi*ny,mi*ny);						% matrice creuse diagonale diag(Wi) = wi(indi)
-	else
-		Wi = spdiags(wi(indi),0,mi,mi);											% matrice creuse diagonale diag(Wi) = wi(indi)
-	end
+    if fusion
+        Wi = spdiags(repmat(wi(indi),ny,1),0,mi*ny,mi*ny);						% matrice creuse diagonale diag(Wi) = wi(indi)
+    else
+        Wi = spdiags(wi(indi),0,mi,mi);											% matrice creuse diagonale diag(Wi) = wi(indi)
+    end
     ximid = x(i);
     xiamp = abs(x(indi(end))-x(indi(1)));
     xi   = sparse(x(indi));
-	xired = sparse((xi-ximid)/xiamp);                                           % normalized abscissae
-	yi = sparse(y(indi,:));
-	% Assemblage de K (noyau d'interpolation)
-	% les exposants sont classés dans l'ordre décroissant (conformément au choix retenu dans Matlab)
-	Ki = diffker(xired,n,0);														% 0 = primitive
-	% Assemblage des contraintes sur les dérivées kièmes : L[i]
-	nxD_find = 0;
-	if defineLon
-		xD_find		= cell(nDc,1);
-		nxD_find	= zeros(nDc,1);
-		for ic = 1:nDc
-			if ~nxD																% en l'absence de points spécifiques = en tout point
-				xD_find{ic} = (x(i)-ximid)/xiamp;
-				nxD_find(ic) = 1;
-			else																% pour des points spécifiques
-				xD_find{ic} = (intersect(xD{ic},xi)-ximid)/xiamp;
-				nxD_find(ic) = length(xD_find{ic});
-			end
-		end
-	end
-	Li = sparse([]);
-	di = sparse([]);
-	icDfind = find(nxD_find);
-	icDfind = icDfind(:)';
-	if any(icDfind)
-		for ic = icDfind
-			Li = [ Li ; diffker(xD_find{ic} ,n,D{ic}(:,1)) ]; %#ok<AGROW>
-			di = [ di ; sparse(repmat(D{ic}(:,2),nxD_find(ic),1)) ]; %#ok<AGROW>
-		end
-	end
-	% Assemblage du problème complet
-	if fusion
-		wyKBi		= reshape(repmat(wy,mi,1),mi*ny,1);
-		if nxD_find
-			wyLBi	= reshape(repmat(wy,nxD_find,1),nxD_find*ny,1);
-		else
-			wyLBi	= sparse([]);
-		end
-		wyKAi		= repmat(wyKBi,1,n+1);
-		wyLAi		= repmat(wyLBi,1,n+1);
+    xired = sparse((xi-ximid)/xiamp);                                           % normalized abscissae
+    yi = sparse(y(indi,:));
+    % Assemblage de K (noyau d'interpolation)
+    % les exposants sont classés dans l'ordre décroissant (conformément au choix retenu dans Matlab)
+    Ki = diffker(xired,n,0);														% 0 = primitive
+    % Assemblage des contraintes sur les dérivées kièmes : L[i]
+    nxD_find = 0;
+    if defineLon
+        xD_find		= cell(nDc,1);
+        nxD_find	= zeros(nDc,1);
+        for ic = 1:nDc
+            if ~nxD																% en l'absence de points spécifiques = en tout point
+                xD_find{ic} = (x(i)-ximid)/xiamp;
+                nxD_find(ic) = 1;
+            else																% pour des points spécifiques
+                xD_find{ic} = (intersect(xD{ic},xi)-ximid)/xiamp;
+                nxD_find(ic) = length(xD_find{ic});
+            end
+        end
+    end
+    Li = sparse([]);
+    di = sparse([]);
+    icDfind = find(nxD_find);
+    icDfind = icDfind(:)';
+    if any(icDfind)
+        for ic = icDfind
+            Li = [ Li ; diffker(xD_find{ic} ,n,D{ic}(:,1)) ]; %#ok<AGROW>
+            di = [ di ; sparse(repmat(D{ic}(:,2),nxD_find(ic),1)) ]; %#ok<AGROW>
+        end
+    end
+    % Assemblage du problème complet
+    if fusion
+        wyKBi		= reshape(repmat(wy,mi,1),mi*ny,1);
+        if nxD_find
+            wyLBi	= reshape(repmat(wy,nxD_find,1),nxD_find*ny,1);
+        else
+            wyLBi	= sparse([]);
+        end
+        wyKAi		= repmat(wyKBi,1,n+1);
+        wyLAi		= repmat(wyLBi,1,n+1);
         % before 23/11/06
-		%Ai			= [	(Wi*repmat(Ki,ny,1))		.*wyKAi	;	repmat(alpha*Li,ny,1) .*wyLAi	];
-		%Bi			= [	(Wi*reshape(yi,mi*ny,1))	.*wyKBi	;	repmat(alpha*di,ny,1) .*wyLBi	];
+        %Ai			= [	(Wi*repmat(Ki,ny,1))		.*wyKAi	;	repmat(alpha*Li,ny,1) .*wyLAi	];
+        %Bi			= [	(Wi*reshape(yi,mi*ny,1))	.*wyKBi	;	repmat(alpha*di,ny,1) .*wyLBi	];
         % after 23/11/06
         %Ai			= [	(Wi*repmat(Ki,ny,1))		.*wyKAi	;	repmat(alpha*Li,ny,1) .* repmat(wyLAi,ny,1)	];
-		%Bi			= [	(Wi*reshape(yi,mi*ny,1))	.*wyKBi	;	repmat(alpha*di,ny,1) .* repmat(wyLBi,ny,1)	];
+        %Bi			= [	(Wi*reshape(yi,mi*ny,1))	.*wyKBi	;	repmat(alpha*di,ny,1) .* repmat(wyLBi,ny,1)	];
         % after 02/06/10
         Ai			= [	(Wi*repmat(Ki,ny,1))		.*wyKAi	;	repmat(alpha*Li,ny,1) .* repmat(wyLAi,nL,1)	];
-		Bi			= [	(Wi*reshape(yi,mi*ny,1))	.*wyKBi	;	repmat(alpha*di,ny,1) .* repmat(wyLBi,nL,1)	];
-	else
-		neq			= size(Ki,1) + size(Li,1);
-		Ai			= [ Wi*Ki			; alpha*Li ];
-		Bi			= zeros(neq,ny);
-		for iy = 1:ny
-			Bi(:,iy)	= [ Wi*yi(:,iy) ; alpha*di ];
-		end
-	end
-	% Identification du polynome ou des polynomes (si ny>1 et ~fusion)
-	% Résolution du système linéaire avec pinvs (cf. svds pour + d'info)
-	% ==> les coefficients sont classés columwise
-	pi			= pinvs(Ai)*Bi;
-	% Calcul des dérivées requises en x[i]
-	ki = diffker(0,n,ordre);	% noyau d'interpolation local
-	dydx = ki*pi;
+        Bi			= [	(Wi*reshape(yi,mi*ny,1))	.*wyKBi	;	repmat(alpha*di,ny,1) .* repmat(wyLBi,nL,1)	];
+    else
+        neq			= size(Ki,1) + size(Li,1);
+        Ai			= [ Wi*Ki			; alpha*Li ];
+        Bi			= zeros(neq,ny);
+        for iy = 1:ny
+            Bi(:,iy)	= [ Wi*yi(:,iy) ; alpha*di ];
+        end
+    end
+    % Identification du polynome ou des polynomes (si ny>1 et ~fusion)
+    % Résolution du système linéaire avec pinvs (cf. svds pour + d'info)
+    % ==> les coefficients sont classés columwise
+    pi			= pinvs(Ai)*Bi;
+    % Calcul des dérivées requises en x[i]
+    ki = diffker(0,n,ordre);	% noyau d'interpolation local
+    dydx = ki*pi;
     % before 23/11/06
     %exponent = repmat(ordre(:),1,ny);
     % end before 23/11/06
-	if fusion
-		dydx = reshape(dydx,size(dydx,1)/nordre,nordre);
+    if fusion
+        dydx = reshape(dydx,size(dydx,1)/nordre,nordre);
         % before 23/11/06
         %exponent = reshape(exponent,size(exponent,1)/nordre,nordre);
         % after 23/11/06
@@ -336,39 +347,45 @@ for i = ilist
         % after 23//11/06
         exponent = repmat(ordre(:),1,ny);
         % end after 23//11/06
-		dydx = reshape(dydx,size(dydx,1)/nordre,ny*nordre);
+        dydx = reshape(dydx,size(dydx,1)/nordre,ny*nordre);
         exponent = reshape(exponent,size(exponent,1)/nordre,ny*nordre);
-	end
+    end
     dydx = dydx ./ (xiamp .^ exponent);
     
-	% Intervalle de confiance (algo adapté de polyconf)
-	if compute_IC
-		ki		= diffker(0,n,ordreic);	% noyau d'interpolation local
-		yie		= repmat(Ki*pi,1,ny);	                % valeurs prédites
-		normr	= sqrt((yi(:)-yie(:))'*(yi(:)-yie(:))); % normes des résidus
-		ddl		= max(1,mi*ny-n-1);                 	% ddl
-		[c,R]	= qr(Ai);	                            %#ok<ASGLU> % facteur de Cholesky de la matrice d'interpolation (R'R = Ai'*Ai)
-		E		= (pinvs(R')*ki')';	                    % modification de R (équivalent ki/R)
-		dn      = size(R,1)-size(Wi,1);
-		if dn>0, Wi = [Wi;zeros(dn,mi*ny)]; end %#ok<AGROW>
-		E       = E*Wi;
-		e		= sqrt(1+sum(E.*E,2)'); % replace sqrt(1+sum((E.*E)')');
-		% si tinv disponible
-		dydxic	= (normr/sqrt(ddl))*e*tinv(1-(1-proba)/2,ddl);
-		% sinon
-		%dydxic	= (normr/sqrt(ddl))*e*pnorm_inv(1-(1-proba)/2);
+    % Intervalle de confiance (algo adapté de polyconf)
+    if compute_IC
+        ki		= diffker(0,n,ordreic);	% noyau d'interpolation local
+        yie		= repmat(Ki*pi,1,ny);	                % valeurs prédites
+        normr	= sqrt((yi(:)-yie(:))'*(yi(:)-yie(:))); % normes des résidus
+        ddl		= max(1,mi*ny-n-1);                 	% ddl
+        [c,R]	= qr(Ai);	                            %#ok<ASGLU> % facteur de Cholesky de la matrice d'interpolation (R'R = Ai'*Ai)
+        E		= (pinvs(R')*ki')';	                    % modification de R (équivalent ki/R)
+        dn      = size(R,1)-size(Wi,1);
+        if dn>0, Wi = [Wi;zeros(dn,mi*ny)]; end %#ok<AGROW>
+        E       = E*Wi;
+        e		= sqrt(1+sum(E.*E,2)'); % replace sqrt(1+sum((E.*E)')');
+        % si tinv disponible
+        dydxic	= (normr/sqrt(ddl))*e*tinv(1-(1-proba)/2,ddl);
+        % sinon
+        %dydxic	= (normr/sqrt(ddl))*e*pnorm_inv(1-(1-proba)/2);
         exponent = repmat(ordreic(:),1,ny);
-		if fusion
-			dydxic = reshape(dydxic,size(dydxic,1)/nordreic,nordreic);
+        if fusion
+            dydxic = reshape(dydxic,size(dydxic,1)/nordreic,nordreic);
             exponent = reshape(exponent,size(exponent,1)/nordreic,nordreic);
-		else
-			dydxic = reshape(dydxic,size(dydxic,1)/nordreic,ny*nordreic);
-            exponent = reshape(exponent,size(exponent,1)/nordreic,ny*nordreic);
-		end
+        else
+            dydxic = reshape(dydxic,max(1,size(dydxic,1)/nordreic),ny*nordreic);
+            exponent = reshape(exponent,max(1,size(exponent,1)/nordreic),ny*nordreic);
+        end
         dydxic = dydxic ./ (xiamp .^ exponent);
-	end
-	dydxout(isol,:) = dydx;
-	if compute_IC
-		dydxicout(isol,:) = dydxic;
-	end
-end
+    end
+    dydxout(isol,:) = dydx;
+    
+    if compute_IC
+        dydxicout(isol,:) = dydxic;
+    end
+    
+end % end for
+
+% reverse initial sorting
+dydxout = dydxout(ixsortreverse,:);
+if compute_IC, dydxicout = dydxicout(ixsortreverse,:); end

@@ -6,7 +6,7 @@ function out = pngtruncateim(imfile,flipon,margin,negativeon,horizontalon)
 %                       negative = false
 %                       horizontal = false
 
-% Migration 2.0 - 24/05/11 - INRA\Olivier Vitrac - rev. 16/03/15
+% Migration 2.0 - 24/05/11 - INRA\Olivier Vitrac - rev. 15/10/15
 
 % Revision history
 % 27/05/11 guess extension
@@ -15,6 +15,7 @@ function out = pngtruncateim(imfile,flipon,margin,negativeon,horizontalon)
 % 29/03/12 fix negativeon
 % 02/10/12 add horizontalon
 % 16/03/15 iterate when imfile is a cell array
+% 15/10/15 enable imfile as directory
 
 % default values
 flipon_default = false;
@@ -34,7 +35,14 @@ if isempty(horizontalon), horizontalon = horizontalon_default; end
 
 % main section
 if ischar(imfile)
-    if ~exist(imfile,'file'), error('the file ''%s'' does not exist',imfile), end
+    if exist(imfile,'file')~=2
+        if exist(imfile,'dir')
+            pngtruncateim(explore('*.png',imfile,0,'fullabbreviate'),0,0,0,0)
+            return
+        else
+            error('the file ''%s'' does not exist',imfile)
+        end
+    end
     im = imread(imfile);
     nofile = false;
 elseif isnumeric(imfile)

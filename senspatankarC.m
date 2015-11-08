@@ -5,7 +5,7 @@ function res = senspatankarC(F,ploton,dispon)
 %   IT IS THE RESPONSABILITY OF THE USER TO PROVIDE THE APPROPRIATE DIMENSIONLESS NUMBERS
 %   a wrapper used for the online version is available in ../www/home/diffusion_1DFVn.m
 
-% MS-MATLAB-WEB 1.0 - 25/09/09 - Olivier Vitrac - rev. 05/05/14
+% MS-MATLAB-WEB 1.0 - 25/09/09 - Olivier Vitrac - rev. 24/10/15
 
 % Revision history
 % 01/10/07 improve speed
@@ -13,6 +13,13 @@ function res = senspatankarC(F,ploton,dispon)
 % 29/04/11 add F.restart.CF
 % 26/10/11 replace xmesh/xmesh(end) xmesh/F.lrefc(end) in the interpolation (thanks to Nicolas)
 % 08/05/14 method = 'pchip'  for compatibility with Matlab 2014
+% 19/10/15 add manage id layers, add interpolation layer by layer (to remove a layer at a given step, set any of properties 'D' 'k' or 'l' to 0
+% 20/10/15 fix layerid, capture C0eq
+% 21/10/15 check only D<=0 when using a restart file, set layerid and xlayerid (more robust), xlayerid modified to include NaN at interfaces
+% 21/10/15 implemented rule: negative concentration forces the layer to be removed
+% 22/10/15 restrict k to real layers, and fic C0 CO mixup 
+% 23/10/15 separation of iref and iabsref
+% 24/10/15 full implementation of senspatankar_restart, fix L correction
 
 % definitions
 global timeout
@@ -59,11 +66,13 @@ if ~isfield(F,'options'), F.options = options; end
 if ~nargout, ploton=true; dispon=true; end
 if isempty(ploton), ploton = ploton_default; end
 if isempty(dispon), dispon = dispon_default; end
+isrestarrequired = isfield(F,'restart') && ~isempty(F.restart) && isstruct(F.restart) && isfield(F.restart,'x') && isfield(F.restart,'C');
 
 % physical check
 m = Inf;
 % for prop = {'D' 'k' 'C0' 'kR'}; %line to be deleted (OV: 09/04/11, incomplete pieces of code)
-for prop = {'D' 'k' 'C0' 'l'};
+if isrestarrequired, proptocheck = {'D' 'k' 'l'}; else proptocheck = {'D' 'k' 'C0' 'l'}; end % implemented on 21/10/2015
+for prop = proptocheck
     if strcmp(prop{1},'C0')
         F.(prop{1}) = F.(prop{1})(F.(prop{1})>=0);
     else
@@ -71,8 +80,10 @@ for prop = {'D' 'k' 'C0' 'l'};
     end
     m = min(m,length(F.(prop{1})));
 end
-F.m = m;
-
+% check for negative concentrations (they code for layers to remove)
+ireallayers = find(F.C0(1:m)>=0); % layers are always counted from left to right
+F.m = length(ireallayers);
+% end check (added section on 21/10/2015)
 
 if initon
     res = Fdefault;
@@ -80,6 +91,35 @@ if initon
     return
 end
 
+% renormalization (fields X1->Xn)
+F.k = F.k/F.k0; F.k0 = 1;   % by convention
+a = F.D(ireallayers)./F.k(ireallayers);
+if isfield(F,'iref')
+    iref = ireallayers(F.iref);
+else
+    [crit,iref] = min( a./F.l(ireallayers) );
+    F.iref = iref;
+end
+F.a = a./a(iref);
+iabsref = ireallayers(iref);
+F.lengthscale = F.l(iabsref);   
+F.lref  = F.l(ireallayers)./F.l(iabsref);
+F.lrefc = cumsum(F.lref);
+F.C0    = F.C0(ireallayers);
+if isfield(F,'hasbeenwrapped') && F.hasbeenwrapped
+    timescale = F.l(iabsref)^2/F.D(iabsref);
+    F.t = F.t *  F.timescale/timescale; % rescaling when the reference layer changes
+    if isrestarrequired
+        F.L = F.L *  F.l(iabsref)/F.restart.lengthscale; % rescaling when the reference layer changes
+    end
+end
+F.l     = F.l(ireallayers);
+F.D     = F.D(ireallayers);
+F.k     = F.k(ireallayers);
+F.iabsref = iabsref;
+% F.kR    = F.kR(1:m); %line to be deleted (OV: 09/04/11, incomplete pieces of code)
+
+% Interpolated times
 if strcmpi(F.autotime,'on')
 	ti		= linspace(min(F.t),max(F.t),F.n)';
 else
@@ -87,26 +127,17 @@ else
 end
 MaxStepmax = max(MaxStepmax,ceil(F.t(end)/nstepchoice));
 
-% renormalization (fields X1->Xn)
-F.k = F.k/F.k0; F.k0 = 1;   % by convention
-a = F.D(1:m)./F.k(1:m);
-if isfield(F,'iref')
-    iref = F.iref;
+% ID of layers
+if isrestarrequired
+    layerid = F.restart.layerid(ireallayers);
 else
-    [crit,iref] = min( a./F.l(1:m) );
-    F.iref = iref;
+    layerid = ireallayers;
 end
-F.a = a./a(iref);
-F.lref  = F.l(1:m)./F.l(iref);
-F.lrefc = cumsum(F.lref);
-F.C0    = F.C0(1:m);
-F.l     = F.l(1:m);
-F.D     = F.D(1:m);
-% F.kR    = F.kR(1:m); %line to be deleted (OV: 09/04/11, incomplete pieces of code)
+
 
 % check if restrictions applied %added 24/01/07
 if isfield(F,'ivalid')
-    F.ivalid = F.ivalid(F.ivalid<m);
+    F.ivalid = F.ivalid(ismember(F.ivalid,layerid)); %F.ivalid(F.ivalid<m)% modified OV 21/10/2015
     F.a = F.a(F.ivalid);
     F.lref = F.lref(F.ivalid);
     F.lrefc = F.lrefc(F.ivalid);
@@ -117,10 +148,12 @@ if isfield(F,'ivalid')
     F.kR = F.kR(F.ivalid);
     m = length(F.ivalid);
     F.m = m;
+    layerid = layerid(F.ivalid);
 end
 
 % equilibrium value
 C0eq = sum(F.lref*F.L.*F.C0)/(1+sum((F.k0./F.k .* F.lref*F.L)));
+if C0eq<=0 && isrestarrequired, C0eq = F.restart.C0eq; end
 F.peq = F.k0 * C0eq;
 
 % mesh generation
@@ -132,11 +165,12 @@ X = max(F.nmeshmin,ceil(F.nmesh*X/sum(X)));
 X = round((X/sum(X))*F.nmesh); % update
 F.nmesh = sum(X); % roundoff
 xmesh    = zeros(F.nmesh,1);
-D        = xmesh;
-k        = xmesh;
+D        = xmesh; % diffusion coefficients
+k        = xmesh; % activity coefficients
 de       = xmesh; % distance to the next interface in the east direction
 dw       = xmesh; % distance to the next interface in the west direction
-C0       = xmesh;
+C0       = xmesh; % initial concentration
+xlayerid       = xmesh;
 j = 1; x0 = 0;
 for i=1:F.m
     ind = j+(0:X(i)-1);
@@ -148,13 +182,26 @@ for i=1:F.m
     xmesh(ind) = linspace(x0+dw(ind(1)),F.lrefc(i)-de(ind(end)),X(i));
     x0 = F.lrefc(i);
     j = ind(end)+1;
+    xlayerid(ind) = layerid(i);
 end
 
 % use a previous solution (if any)
 CF0 = 0; % default initial concentration in F
-if isfield(F,'restart') && ~isempty(F.restart) && isstruct(F.restart) && isfield(F.restart,'x') && isfield(F.restart,'C')
+if isrestarrequired
     if ~isfield(F.restart,'method'), F.restart.method = 'linear'; end
-    C0 = interp1(F.restart.x/F.restart.x(end),F.restart.C,xmesh/F.lrefc(end),F.restart.method)/C0eq;
+    % bulk interpolation (before 19/10/2015)
+    %C0 = interp1(F.restart.x/F.restart.x(end),F.restart.C,xmesh/F.lrefc(end),F.restart.method)/C0eq;
+    % LAYER BY LAYER INTERPOLATION (after 19/10/2015)
+    % TIP: F.restart.id (from previous simulation), realid(from current simulation)
+    C0 = zeros(F.nmesh,1);
+    for i=1:F.m
+        iold = find(F.restart.xlayerid==layerid(i)); % <--- we assume that id are well preserved between steps
+        inew = find(xlayerid==layerid(i));           % <--- current layers
+        xold = (F.restart.x(iold)-F.restart.x(iold(1)))/(F.restart.x(iold(end))-F.restart.x(iold(1))); %<-- dimensionless 0=begin 1=end
+        xnew = (xmesh(inew)-xmesh(inew(1))) / (xmesh(inew(end))-xmesh(inew(1))); %<-- dimensionless 0=begin 1=end
+        C0(inew) = interp1(xold,F.restart.C(iold),xnew,F.restart.method)/C0eq;   %<-- interpolation from old values and positions
+    end
+    % end of layer by layer interpolation
     if isfield(F.restart,'CF'), CF0 = F.restart.CF/C0eq; end
 end
 
@@ -237,12 +284,14 @@ xw = xmesh-dw+zero;
 xe = xmesh+de-zero;
 xfull = [xw';xmesh';xe']; xfull = xfull(:);
 kfull = [k';k';k']; kfull = kfull(:);
+xlayerid = [NaN(1,F.nmesh);xlayerid';NaN(1,F.nmesh)]; xlayerid = xlayerid(:);
 
 % outputs
 res.C = interp1(t,trapz(xfull,Cfull,2)*C0eq,ti,method)/xfull(end); % av conc
 res.t = ti; % time base
 res.p = NaN; %interp1(t,repmat(kfull',length(t),1).*Cfull*C0eq,ti,method); % to fast calculations
 res.peq = F.peq;
+res.C0eq = C0eq;
 res.V  = F.lrefc(end); %*F.l(F.iref);
 res.C0 = C0*C0eq;
 res.F  = F;
@@ -253,6 +302,8 @@ res.CF = interp1(t,CF*C0eq,ti,method);
 res.fc = res.CF/F.L;
 res.f  = interp1(t,hw(1) * ( F.k0/k(1) * CF - C(:,1) ) * C0eq,ti,method);
 res.timebase = res.F.l(res.F.iref)^2/(res.F.D(res.F.iref));
+res.layerid = layerid;
+res.xlayerid = xlayerid;
 
 end
 

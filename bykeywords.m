@@ -62,7 +62,7 @@ function [X0,foundindexout,nfound]=bykeywords(X,f,varargin)
 %
 %   See also: XLSTBLREAD, LOADODS, LOADODSPREFETCH, STRUCT2STRUCTTAB, STRUCTTAB2STRUCT, SUBSTRUCTARRAY
 
-% MS 2.0 - 20/01/2008 - INRA\Olivier Vitrac - rev. 07/03/2015
+% MS 2.0 - 20/01/2008 - INRA\Olivier Vitrac - rev. 27/10/2015
 
 % Revision history
 % 29/01/2008 add finindex, new rules for missing KEYVALUES
@@ -70,6 +70,7 @@ function [X0,foundindexout,nfound]=bykeywords(X,f,varargin)
 % 10/10/2013 generate an error when columns have dissimilar lengths
 % 10/01/2014 add logical type, implementation of formula
 % 07/03/2015 fix 1D index based anonymous function (boolean output are converted to numeric index and not kept as logical index)
+% 27/10/2015 add slicing capability along one dimension (example:  bykeywords(db.layout,{'table','sample'},'oven',{'batter' 'batter'}))
 
 % Definitions
 reshapeon =false;
@@ -107,9 +108,13 @@ if any(f>ncol), error('out of range index/indices'), end
 keyvalues = varargin;
 if any(abs(diff(cellfun(@numel,X)))>0), error('all data/columns must have same lengths'), end
 if length(keyvalues)~=ndim, error('the size of key indexing is inconsistent'); end
+% add slicing capability one one dimension (rev. OV 27/10/2015)
+islice = find((cellfun(@numel,keyvalues)>1) & cellfun(@iscell,keyvalues));
+yesexpandslive = (ndim>1 && length(islice)==1);
 isnumerickey = false(ndim);
 for idim = 1:ndim
     if ~iscell(keyvalues{idim}), keyvalues{idim} = keyvalues(idim); end; %keyvalues{idim} = {keyvalues{idim}}
+    if yesexpandslive && idim~=islice, keyvalues{idim} = repmat(keyvalues{idim},size(keyvalues{islice})); end
     if idim>1 && length(keyvalues{idim})~=length(keyvalues{1}), error('the length of keyvalues must be equal'), end
     if ~iscellstr(X{f(idim)})
         if isnumeric(X{f(idim)}) || islogical(isnumeric(X{f(idim)}))

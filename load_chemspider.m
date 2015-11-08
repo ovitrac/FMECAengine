@@ -42,7 +42,7 @@ function data = load_chemspider(mol,varargin)
 %
 %   SEE ALSO: LOAD_NIST, LOAD_NIST_IR, LOAD_NCBI, LOAD_NCBISTRUCT, LOAD_CHEMINDUSTRY
 
-% MS 2.1 - 21/05/11 - INRA\Olivier Vitrac - rev. 02/06/15
+% MS 2.1 - 21/05/11 - INRA\Olivier Vitrac - rev. 23/06/15
 
 %Revision history
 % 22/05/11 vectorization, minor bugs
@@ -60,7 +60,8 @@ function data = load_chemspider(mol,varargin)
 % 04/04/15 add EPI section data, add cache capabilities (major update)
 % 07/04/15 fix with no cached files
 % 27/05/15 TRANSIENT VERSION: first implementation of new chemspider rules
-% 02/06/15 IMPROVED VERSION with almost full recovery of all ancient features, quickproperties 
+% 02/06/15 IMPROVED VERSION with almost full recovery of all ancient features, quickproperties
+% 23/06/15 FIXES for EPI data and USER PROPERTIES
 
 persistent CACHEDfiles CACHEglobal
 
@@ -365,7 +366,10 @@ propuser = uncell(regexp(details,'<span.*?class="user_data_property_name".*?>([^
 % propuser = uncell(regexp(details,'<div.*?class="user_data_property_header_div".*?>(.*?)</div>','tokens'));
 if ~isempty(propuser) && size(propuser,1)>1
     propusername = regexprep(propuser(:,1),{'\s' '[\(\)]'},{'',''});
-    propvalue = cellfun(@(x) [x{:}]',uncell(regexp(propuser(:,2),'<td valign="top">(.*?)</td>','tokens')),'UniformOutput',false);
+    propvalue = uncell(regexp(propuser(:,2),'<td valign="top">(.*?)</td>','tokens'));
+    if ~isempty(propvalue) && iscell(propvalue{1}) % fix 23/06/2015
+        propvalue = cellfun(@(x) [x{:}]',propvalue,'UniformOutput',false);
+    end
 %     propvalue = strtrim(regexprep(propuser,'<span.*?>.*?</span>',''));
 %     if ~isempty(propvalue)
 %         isnum = find(~cellfun('isempty',regexp(propvalue,[num '\s*$'],'once')));
@@ -399,9 +403,18 @@ else
     [EPItileofsection,EPIsectionname] = deal(cell(nsections,1));
     for i=1:nsections
         EPItmp{i} = strtrim(regexp(EPItmp{i},'\n','split'));
+        EPItmp{i} = EPItmp{i}(~cellfun(@isempty,EPItmp{i}));
         EPItileofsection{i} = strtrim(regexprep(EPItmp{i}{1},':$',''));
         EPIsectionname{i} = EPIclean(EPItileofsection{i});
     end
+    % remove duplicated EPI data (fix 23/06/2015)
+    if ~isempty(findduplicates(EPIsectionname))
+        dispf('WARNING: EPI data are duplicated')
+        [EPIsectionname,u] = unique(EPIsectionname);
+        EPItileofsection = EPItileofsection(u);
+        EPItmp = EPItmp(u);
+         nsections = length(EPItmp);
+    end    
     EPIsections = cell2struct(repmat({struct('title','','raw','')},nsections,1),EPIsectionname);
     for i=1:nsections
         EPIsections.(EPIsectionname{i}) = struct('title',EPItileofsection{i},'raw',{EPItmp{i}(2:end)'});

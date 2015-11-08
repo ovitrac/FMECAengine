@@ -166,6 +166,7 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 %           List of shorthands:    l: 'l%dm'; D: 'D%dm2s'; KFP: 'KFP%dkgm3kgm3'; CP: 'CP%d0kgm3'
 %  Note 11: all intermediate results are also exported as CSV files for external use (English delimiter apply, see print_csv to change these settings)
 %           they are located at the place as corresponding PDF and PNG files
+%  Note 12: To remove a layer after step 1 (example: the overpackaging is removed), set a negative concentration
 %           
 %
 % SEE ALSO: FMECASINGLE FMECAROOT BUILDMARKOV KEY2KEY LOADFMECAENGINEDB FMECAGRAPH, FMECAMERGE
@@ -219,7 +220,7 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 % Any question to this script/function must be addressed to: olivier.vitrac@agroparistech.fr
 % The script/function was designed to run on the cluster of JRU 1145 Food Process Engineering (admin: Olivier Vitrac)
 %
-% Migration 2.1 (Fmecaengine v0.51) - 10/04/2011 - INRA\Olivier Vitrac - Audrey Goujon - rev. 05/04/2014
+% Migration 2.1 (Fmecaengine v0.53) - 10/04/2011 - INRA\Olivier Vitrac - Audrey Goujon - Mai Nguyen - rev. 24/10/2015
 
 % Revision history
 % 06/04/2011 release candidate
@@ -285,9 +286,15 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 % 09/05/2014 fix .ods extension when automatic inputs is used (FMECAengine version 0.5012)
 % 10/05/2014 remove supplied fields with automatic inputs (FMECAengine version 0.5013)
 % 05/04/2015 print profiles and kinetics as CSV files (using print_csv) (FMECAengine version 0.51)
+% 19/10/2015 add layerid to restart section (FMECAengine version 0.52)
+% 20/10/2015 fix layerid (previousres was not used) (FMECAengine version 0.521)
+% 20/10/2015 propagates C0eq (FMECAengine version 0.522)
+% 21/10/2015 set layerid and xlayerid (more robust) (FMECAengine version 0.523)
+% 21/10/2015 the following rule is implemented in senspantankarC(): negative concentration, remove the layer (FMECAengine version 0.524)
+% 24/10/2015 full implementation of senspatankar_restart (FMECAengine version 0.53)
 
 %% Fmecaengine version
-versn = 0.51; % official release
+versn = 0.53; % official release
 mlmver = ver('matlab');
 extension = struct('Foscale','Fo%d%d','Kscale','K%d%d','ALT','%sc%d'); % naming extensions (associated to scaling)
 prop2scale = struct('Foscale','regular_D','Kscale','regular_K'); % name of columns
@@ -678,7 +685,7 @@ for iseries = 1:nseries  % Main loop on each series of independent simulations (
             s(map(isim,iseries)).k  = arrayfun(@(i)d.(sprintf(o.print_K,i)),1:nKfield); % partition coefficients
             s(map(isim,iseries)).D  = arrayfun(@(i)d.(sprintf(o.print_D,i)),1:nDfield); % diffusion coefficients
             s(map(isim,iseries)).C0 = arrayfun(@(i)d.(sprintf(o.print_C,i)),1:nCfield);  % initial concentrations
-            nlayers = [ find(~isnan(s(map(isim,iseries)).C0),1,'last')
+            nlayers = [ find(~isnan(s(map(isim,iseries)).C0),1,'last') % negative concentrations are accepted
                 find(~isnan(s(map(isim,iseries)).l) & s(map(isim,iseries)).l>0,1,'last') % only non-NaN and positive values are accepted
                 find(~isnan(s(map(isim,iseries)).D) & s(map(isim,iseries)).D>0,1,'last')
                 find(~isnan(s(map(isim,iseries)).k) & s(map(isim,iseries)).k>0,1,'last') ]; % layers are indexed from 1 to nlayers
@@ -772,8 +779,9 @@ for iseries = 1:nseries  % Main loop on each series of independent simulations (
                 else % simulation with a previously calculated profile
                     screen = dispb(screen,'[%d/%d (%d/%d)]\t%s\t %s (SENSPATANKARC)...\nreusing ''%s'' located in ''%s''',count,countmax,isim,nsim,currentid,msg,previousid,previousfile);
                     s(map(isim,iseries)).restart = struct('x',previousres.r.x,... the initial solution is interpolatedd at the previous requested contact time
-                        'C',interp1(sqrt(previousres.r.tC*previousres.r.timebase),previousres.r.Cx,sqrt(data(map(isim-1,iseries)).(o.print_t)),o.interp1),...
-                        'CF',interp1(previousres.r.t*previousres.r.timebase,previousres.r.CF,data(map(isim-1,iseries)).(o.print_t),o.interp1));
+                       'C',interp1(sqrt(previousres.r.tC*previousres.r.timebase),previousres.r.Cx,sqrt(data(map(isim-1,iseries)).(o.print_t)),o.interp1),...
+                       'CF',interp1(previousres.r.t*previousres.r.timebase,previousres.r.CF,data(map(isim-1,iseries)).(o.print_t),o.interp1),...
+                       'layerid',previousres.r.layerid,'xlayerid',previousres.r.xlayerid,'C0eq',previousres.r.C0eq,'lengthscale',previousres.r.F.lengthscale);
                     r = senspatankarC(senspatankar_wrapper(s(map(isim,iseries))));
                 end
                 screen = dispb(screen,'[%d/%d (%d/%d)]\t%s\t... completed in %0.4g s',count,countmax,isim,nsim,currentid,etime(clock,t0));

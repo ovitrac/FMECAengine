@@ -5,7 +5,7 @@ function data = gcfd(figurehandle)
 %
 %   See also: scfd
 
-% INRA\Olivier Vitrac 28/10/02 - rev. 03/05/14
+% INRA\Olivier Vitrac 28/10/02 - rev. 19/09/15
 
 % REVISION HISTORY
 % 29/10/02 release candidate
@@ -13,6 +13,7 @@ function data = gcfd(figurehandle)
 % 14/12/11 add figurehandle, add patch objects, help update
 % 28/12/11 add Position, Units, fix texts on several lines
 % 03/05/14 add handles to fields
+% 19/09/15 copy legend for object lines as UserData
 
 % Default properties
 propAXESlist  = {'sXlabel','sYlabel','nXscale','nYscale','nXlim','nYlim','nPosition','nUnits'};
@@ -52,6 +53,17 @@ for hi = flipud(hc(indisaxes))'
         i = i+1; dispf('AXES [%d]',i)
         hp = flipud(get(hi,'children'));
         data = setfield(data,{i},'handles','axes','main',hi);
+        % Possible legends if any
+        hleg = find_legend(hi,'legend');
+        if ishandle(hleg)
+            hleg_data = get(hleg,'UserData');
+            hleg_handles = hleg_data.handles;
+            hleg_strings = get(hleg,'String');
+        else
+            hleg_data = struct([]);
+            hleg_handles = [];
+            hleg_strings = {};
+        end
         % Axes properties
         for p = propAXESlist
             if any(get(hi,p{1}(2:end)))
@@ -95,8 +107,46 @@ for hi = flipud(hc(indisaxes))'
                         tmp = [cellstr(data(i).text(j).String)'; repmat({eol},1, size(data(i).text(j).String,1))];
                         data(i).text(j).String = [tmp{1:end-1}]; %#ok<AGROW>
                     end
+                    % copy legend for object lines as UserData
+                    if strcmp(typeOBJECT,'line') && ismember(hl,hleg_handles)
+                        data(i).line(j).UserData = hleg_strings(hleg_handles==hl);
+                    else
+                        data(i).line(j).UserData = '';
+                    end
                 end
-            end
+            end % next hl (handle object)
+        end % next object type
+    end
+end
+
+% =======================
+%   private functions
+% =======================
+function leg = find_legend(ha,type)
+% find the legend object, which match the axes with handle ha
+parent = get(ha,'Parent');
+ax = findobj(get(parent,'Children'),'flat','Type','axes','Tag',type);
+leg=[]; k=1;
+if strcmp(type,'legend') % Matlab legend
+    prop = 'axes';
+else % Pub legend
+    prop = 'UserData';
+end
+while k<=length(ax) && isempty(leg)
+    if islegend(ax(k),type)
+        hax = handle(ax(k));
+        if isequal(double(hax.(prop)),ha)
+            leg=ax(k);
         end
     end
+    k=k+1;
+end
+
+function tf=islegend(ax,type)
+% true if it is a legend
+if strcmp(type,'legend') % Matlab legend
+    if length(ax) ~= 1 || ~ishandle(ax), tf=false;
+    else tf=isa(handle(ax),'scribe.legend'); end
+else % Pub legend
+    tf = ishandle(ax) && strcmp(get(ax,'Tag'),'legendpub') && ishandle(get(ax,'UserData'));
 end

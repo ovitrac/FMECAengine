@@ -21,15 +21,18 @@ function f=print_csv(filename,destination,varargin)
 %
 % See also: print_pdf, print_png, print_tif, gcfd, tab2csv
 
-%INRA\MS 2.1 - 05/04/2015 - Olivier Vitrac - rev.
+%INRA\MS 2.1 - 05/04/2015 - Olivier Vitrac - rev. 19/09/15
 
 % Revision history
+% 06/09/15 accept labels spread over multiple lines
+% 19/09/15 use legends in titles (see how gcfd stores legend text in UserData)
 
 % default
 ext = '.csv';
 default = struct(...
                'separator', ',',...
-               'textdelimiter', '"' ...
+               'textdelimiter', '"',...
+               'formattitle','%s ::%s' ...
                );
 
 %% arg check
@@ -56,8 +59,16 @@ lines = [data.line]; nlines = length(lines); nrows = arrayfun(@(i) length(lines(
 table = repmat({''},m+1,nlines);
 for i=1:nlines
     icol = 1 + 2*(i-1);
-    table(1,icol) = xlabels(i);
-    table(1,icol+1) = ylabels(i);
+    if isfield(lines,'UserData'), prefix = lines(i).UserData; else prefix=''; end
+    if isempty(prefix) && nlines>4, prefix = sprintf('%02d',i); end
+    if ~isempty(prefix)
+        table{1,icol}   = sprintf(options.formattitle,printtxt(prefix),printtxt(xlabels{i}));
+        table{1,icol+1} = sprintf(options.formattitle,printtxt(prefix),printtxt(ylabels{i}));
+
+    else
+        table{1,icol} = printtxt(xlabels{i});
+        table{1,icol+1} = printtxt(ylabels{i});
+    end
     table(2:nrows(i)+1,icol) = num2cell(lines(i).Xdata(:),2);
     table(2:nrows(i)+1,icol+1) = num2cell(lines(i).Ydata(:),2);
 end
@@ -66,3 +77,11 @@ end
 tab2csv(table,filename,options)
 fileinfo(filename)
 if nargout, f = filename; end
+
+%% prinvate function
+function s=printtxt(s0)
+if iscellstr(s0)
+    s = regexprep(sprintf('%s\n',s0{:}),'\n','');
+else
+    s = s0;
+end

@@ -43,12 +43,13 @@
 %
 %     [4] "X11 color names" http://en.wikipedia.org/wiki/X11_color_names
 %
-% Revision INRA\Olivier Vitrac - 20/03/10 - rev. 22/05/2014
+% Revision INRA\Olivier Vitrac - 20/03/10 - rev. 28/10/2015
 
 % revision history
 %   13/10/2013 accepts 'none' and Matlab codes 'b' 'r' 'g'...
 %   14/10/2013 add shortcuts for group colors
 %   22/05/2014 strtrim color names 'r ' noes not generate anymore an error
+%   28/10/2015 fix vectorization when none is mixed with real colors
 
 
 function rgbout = rgb(s)
@@ -77,9 +78,15 @@ function rgbout = rgb(s)
   end
   if iscellstr(s)
       ns = numel(s);
-      rgbout = zeros(ns,3);
-      for i=1:ns, rgbout(i,:)=rgb(s{i}); end
-      return
+      if ismember('none',s)
+          rgbout = cell(ns,1);
+          for i=1:ns, rgbout{i} = rgb(s{i}); end
+          return
+      else
+          rgbout = zeros(ns,3);
+          for i=1:ns, rgbout(i,:)=rgb(s{i}); end
+          return
+      end
   end
   if strcmpi(s,'none'), rgbout = s; return, end
   s = strtrim(regexprep(s,{'^b$' '^g$' '^r$' '^c$' '^m$' '^y$' '^k$' '^w$'},...

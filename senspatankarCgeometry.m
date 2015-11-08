@@ -5,7 +5,7 @@ function res = senspatankarCgeometry(F,ploton,dispon)
 %   IT IS THE RESPONSABILITY OF THE USER TO PROVIDE THE APPROPRIATE DIMENSIONLESS NUMBERS
 %   a wrapper used for the online version is available in ../www/home/diffusion_1DFVn.m
 
-% MS-MATLAB-WEB 1.0 - 25/09/09 - Olivier Vitrac - rev. 12/11/2013
+% MS-MATLAB-WEB 1.0 - 25/09/09 - Olivier Vitrac - rev. 18/09/2015
 
 % Revision history
 % 01/10/07 improve speed
@@ -14,6 +14,7 @@ function res = senspatankarCgeometry(F,ploton,dispon)
 % 26/10/11 replace xmesh/xmesh(end) xmesh/F.lrefc(end) in the interpolation (thanks to Nicolas)
 % 17/10/2013 implementation of new geometries (cylindrical, spherical)
 % 12/11/2013 add F.CF0
+% 18/09/2015 set 'pchip' as default method instead of the depreciated 'cubic' one
 
 % Example: spherical
 %  F = struct('ngeometry',2,'Bi',1e3,'k',1,'D',1,'k0',1,'l',1,'L',1/20,'C0',1000,'t',[0:.00001:.005 .01:.01:.1 .11:.1:5])
@@ -42,7 +43,7 @@ Fdefault	= 	struct(...
 					); 
 Fdefault.t	= [0:.00001:.005 .01:.01:.1 .11:.1:5]; %0:.00001:.005; %[0:.00001:.005 .01:.01:.1 .11:.1:5]';
 if Fdefault.Bi<10, Fdefault.t = Fdefault.t/(Fdefault.Bi/10); end
-method		= 'cubic'; %'cubic';
+method		= 'pchip'; %'cubic';
 ploton_default = false;
 dispon_default = false;
 nmesh_default  = 200; % number of nodes for a layer of normalized thickness 1

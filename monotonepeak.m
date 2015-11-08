@@ -33,9 +33,9 @@ function peaks = monotonepeak(varargin)
 %   If 'array' is used p is a npx1 structure arra
 %
 %
-%   See also: monotone, filtzero, monotonepeak, monotone2peaks (toolbox: RMNspec)
+%   See also: monotone, filtzero, monotonepeak, monotone2peaks, monotonepeakder (toolbox: RMNspec)
 
-% INRA\MS 2.1 - 20/03/2013 - Olivier Vitrac - rev. 23/05/2013
+% INRA\MS 2.1 - 20/03/2013 - Olivier Vitrac - rev. 30/09/2015
 
 % Revision history
 % 21/03/2013 add istart, istop
@@ -47,6 +47,7 @@ function peaks = monotonepeak(varargin)
 % 14/05/2013 add 'keeporder', 'maxpeak'
 % 23/05/2013 fix empty peaks when no peak is found
 %            add 'zero' for monotone as varargin
+% 30/09/2015 add field isprimitive, to be used for monotonepeakder
 
 % default
 keyword = {'array','keeporder'};
@@ -98,7 +99,8 @@ if nfilt==1 % one single mfilt value
         'width',  lpx(ip)'+lmx(im)',...
         'ratioheight',  max(ap(ip),am(im))'./min(ap(ip),am(im))',...
         'ratiowidth',  max(lpx(ip),lmx(im))'./min(lpx(ip),lmx(im))',...
-        'ibase',[] ...
+        'ibase',[],...
+        'isprimitive',NaN(1,length(p)) ...
         );
     if ~isempty(peaks.istart)
         base = [peaks.istart;peaks.istop];

@@ -68,7 +68,7 @@ function res = senspatankar(F,ploton,dispon)
 %
 %   See also: senspatankar_wrapper, setoffpatankar, senspatankarT, senspatankarC, senspatankarnonlin (beta)
 
-% MS-MATLAB-WEB 1.0 - 28/09/07 - Olivier Vitrac - rev 26/04/13
+% MS-MATLAB-WEB 1.0 - 28/09/07 - Olivier Vitrac - rev 21/10/15
 
 % Revision history
 % 01/10/07 improve speed
@@ -76,6 +76,9 @@ function res = senspatankar(F,ploton,dispon)
 % 17/11/10 improve documentation
 % 15/02/11 fix Out of Memory for large Fo values (Fo>10)
 % 26/04/13 fix warning using method='cubic', set it to 'pchip'
+% 20/10/15 add layerid, capture C0eq
+% 21/10/15 set layerid and xlayerid (more robust), xlayerid modified to include NaN at interfaces
+
 
 % definitions
 global timeout
@@ -131,6 +134,7 @@ for prop = {'D' 'k' 'C0'};
     m = min(m,length(F.(prop{1})));
 end
 F.m = m;
+layerid = 1:m; % added OV 20/10/2015
 
 
 if initon
@@ -194,6 +198,7 @@ k        = xmesh;
 de       = xmesh; % distance to the next interface in the east direction
 dw       = xmesh; % distance to the next interface in the west direction
 C0       = xmesh;
+xlayerid  = xmesh; % added OV 20/10/2015
 j = 1; x0 = 0;
 for i=1:F.m
     ind = j+(0:X(i)-1);
@@ -205,6 +210,7 @@ for i=1:F.m
     xmesh(ind) = linspace(x0+dw(ind(1)),F.lrefc(i)-de(ind(end)),X(i));
     x0 = F.lrefc(i);
     j = ind(end)+1;
+    xlayerid(ind) = layerid(i); % added OV 20/10/2015
 end
 
 % use a previous solution (if any)
@@ -290,12 +296,14 @@ xw = xmesh-dw+zero;
 xe = xmesh+de-zero;
 xfull = [xw';xmesh';xe']; xfull = xfull(:);
 kfull = [k';k';k']; kfull = kfull(:); %#ok<NASGU>
+xlayerid = [NaN(1,F.nmesh);xlayerid';NaN(1,F.nmesh)]; xlayerid = xlayerid(:);
 
 % outputs
 res.C = interp1(t,trapz(xfull,Cfull,2)*C0eq,ti,method)/xfull(end); % av conc
 res.t = ti; % time base
 res.p = NaN; %interp1(t,repmat(kfull',length(t),1).*Cfull*C0eq,ti,method); % to fast calculations
 res.peq = F.peq;
+res.C0eq = C0eq;
 res.V  = F.lrefc(end); %*F.l(F.iref);
 res.C0 = C0*C0eq;
 res.F  = F;
@@ -306,6 +314,8 @@ res.CF = interp1(t,CF*C0eq,ti,method);
 res.fc = res.CF/F.L;
 res.f  = interp1(t,hw(1) * ( F.k0/k(1) * CF - C(:,1) ) * C0eq,ti,method);
 res.timebase = res.F.l(res.F.iref)^2/(res.F.D(res.F.iref));
+res.layerid = layerid; % added OV 20/10/2015
+res.xlayerid = xlayerid; % added OV 21/10/2015
 
 end
 

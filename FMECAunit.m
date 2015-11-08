@@ -8,8 +8,9 @@ function num=FMECAunit(quantity,str,quantitychecked)
 %                'volume' or 'v' or 'vol'
 %                'mass' or 'm'
 %                'weightconcentration' or 'w' or 'weight'
-%                'concentraion' or 'c' or 'conc'
+%                'concentration' or 'c' or 'conc'
 %                'density' or 'd'
+%                'grammage' or 'g'
 %                'Ctemperature' or 'C' or 'Ctemp' (attention: absolute scale temperature)
 %                'Ktemperature' or 'K' or 'Ktemp' (attention: absolute scale temperature)
 %       str: string or cell string array collecting a number and its unit
@@ -36,14 +37,17 @@ function num=FMECAunit(quantity,str,quantitychecked)
       % temperature scale
         FMECAunit('C','40°C')
         FMECAunit('K','40°C')
+      % grammage and paper density
+        FMECAunit('g','80 g/m2')
 %}
 
 
-% INRA\FMECAengine v 0.6 - 02/04/2015 - Olivier Vitrac - rev. 03/04/2015
+% INRA\FMECAengine v 0.6 - 02/04/2015 - Olivier Vitrac - rev. 24/06/2015
 
 % Revision history
 % 03/04/2015 release candidate with examples
 % 04/04/2015 add temperature and pressure, additional conversion of crazy notations from users
+% 24/06/2015 add grammage
 
 
 
@@ -60,7 +64,8 @@ unit2SI = struct(... % add concentration
     'density','kg/m^3',...
     'Ctemperature','C',...
     'Ktemperature','K',...
-    'Pressure','Pa' ...
+    'Pressure','Pa',...
+    'grammage','kg/m^2' ...
 );
 
 % arg check
@@ -142,7 +147,8 @@ synonyms = struct(...
                       'Kelvin' 'K'
                       'Celsius' 'C'
                       }}, ...
-    'Pressure',{cell(0,2)} ...
+    'Pressure',{cell(0,2)}, ...
+    'grammage',{cell(0,2)} ...
 );
 
 % string interpretation

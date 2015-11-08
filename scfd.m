@@ -3,7 +3,7 @@ function scfd(data,varargin)
 %   syntax: scfd(data)
 %   options: scfd(data [,'noaxes','nolegend'])
 
-% INRA\Olivier Vitrac 28/10/02 - rev. 14/12/11
+% INRA\Olivier Vitrac 28/10/02 - rev. 19/09/15
 
 % REVISION HISTORY
 % 29/10/02 release candidate
@@ -11,7 +11,8 @@ function scfd(data,varargin)
 % 20/02/11 add nolegend
 % 31/08/11 fix nolegend
 % 01/09/11 prevent empty strings from being printed (text(.5,.5,[]) generates an error)
-% 14/12/11 add pacth
+% 14/12/11 add patch
+% 19/09/15 retrieve legends stored as UserData in line objects (see gcfd to see the implementation)
 
 % object properties
 propAXESlist = {'sXlabel','sYlabel','nXscale','nYscale','nXlim','nYlim'};
@@ -69,7 +70,11 @@ for i=1:length(data)
                         else
                             hp(j) = plot(data(i).line(j).Ydata,'ko');
                         end
-                        legp{j} = sprintf('line %d',j);
+                        if isfield(data(i).line(j),'UserData') && ~isempty(data(i).line(j).UserData)
+                            legp{j} = formattext(data(i).line(j).UserData);
+                        else
+                            legp{j} = sprintf('line %d',j);
+                        end
                         for p = propOBJECTlist
                             value = getfield(data,{i},'line',{j},p{1});
                             if any(value), set(hp(j),p{1},value), end
@@ -124,4 +129,11 @@ for i=1:length(data)
         ylabel(data(i).Ylabel)
         title(sprintf('AXES [\\bf%d\\rm]',i))
     end
+end
+
+% private functions
+function t = formattext(s)
+% format string arrays as char with \n
+if iscell(s)
+    t = regexprep(sprintf('%s\n',s{:}),'\n$','');
 end

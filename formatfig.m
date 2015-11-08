@@ -7,7 +7,7 @@ function hfigout = formatfig(hfig,varargin)
 %      property/value any valid axes properties
 %      property 'figname' codes for the name of the file (' ' and ':' are replaced respectively by '_' and '-')
 
-% MS 2.1 - 28/12/09  - INRA\Olivier Vitrac - rev. 12/03/15
+% MS 2.1 - 28/12/09  - INRA\Olivier Vitrac - rev. 31/08/15
 
 % Revision history
 % 22/04/11 force case sensitive values (required for filename on Linux)
@@ -15,6 +15,7 @@ function hfigout = formatfig(hfig,varargin)
 % 08/01/15 new color scheme for defaultAxesColorOrder based R2014b http://fr.mathworks.com/help/matlab/graphics_transition/why-are-plot-lines-different-colors.html
 % 28/02/15 add Tag
 % 12/03/15 add hfigout
+% 31/08/15 update 'Number' as it is fixed now by Mathworks
 
 arg_default = struct(...
 'figname'  ,sprintf('fig_%s',datestr(now)),...
@@ -60,8 +61,12 @@ nfig = length(hfig);
 % change the name in the titlebar
 if ~isempty(arg.figname)
     for ifig=1:nfig
-        % before 4/9/11: set(hfig(ifig),'Name',sprintf('%0.2d: %s',ifig,arg.figname),'FileName',arg.figname,'NumberTitle','off')
-        set(hfig(ifig),'Name',sprintf('%0.2d: %s',hfig(ifig),arg.figname),'FileName',arg.figname,'NumberTitle','off')
+        if verLessThan('matlab','8.4')
+            % before 4/9/11: set(hfig(ifig),'Name',sprintf('%0.2d: %s',ifig,arg.figname),'FileName',arg.figname,'NumberTitle','off')
+            set(hfig(ifig),'Name',sprintf('%0.2d: %s',hfig(ifig),arg.figname),'FileName',arg.figname,'NumberTitle','off')
+        else % 'Number' has been fixed by Matworks
+            set(hfig(ifig),'Name',sprintf('%0.2d: %s',get(hfig(ifig),'Number'),arg.figname),'FileName',arg.figname,'NumberTitle','off')
+        end
     end
 end
 

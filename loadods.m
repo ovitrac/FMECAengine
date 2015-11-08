@@ -1,31 +1,34 @@
-function dataout = loadods(infile,varargin)
+function [dataout,attrout] = loadods(infile,varargin)
 % LOADODS: loads data from an open document spreadsheet (ods) file into a cell array or structure
 % SYNTAX: data = loadods(filename [,options])
 %         data = loadods(filename [,property1,value1,property2,value2,...])
+%         [data,attributes] = loadods(...)
 %
 % INPUTS:
 %   filename:   String representing the path and name of the ods file
 %   options:    structure with fields options.property = value
 %     property/default value:
-%         'sheetname',''    ... sheet to load (empty for the first sheet, 'all' for all sheets)
-%             'blank',NaN   ... value for blank cells
-%         'transpose',false ... true to transpose table/headers
-%            'concat',true  ... true to concat column content
-%           'headers',1     ... number of header lines
-%           'struct',true   ... to transform the table as a structure with headers
-%      'structarray',false  ... to transform the original structure of arrays into a structure array
-%     'forceboolean',false  ... convert to a boolean any column with uniquely 0 and 1
+%        'sheetname': ''     ... sheet to load (empty for the first sheet, 'all' for all sheets)
+%            'blank': NaN    ... value for blank cells
+%        'transpose': false  ... true to transpose table/headers
+%           'concat': true   ... true to concat column content
+%          'headers': 1      ... number of header lines
+%           'struct': true   ... to transform the table as a structure with headers
+%      'structarray': false  ... to transform the original structure of arrays into a structure array
+%     'forceboolean': false  ... convert to a boolean any column with uniquely 0 and 1
+%        'maketable': false  ... convert the generated structure into a table and populate attributes as metadata
 %
 % OUTPUTS:
-%   data:       MxN cell array containing data from the spreadsheet
-%               structure as data.header = column data
-%               NB: not that header contains only a-z and A-Z characters
+%        data: MxN cell array containing data from the spreadsheet
+%              structure as data.header = column data
+%              NB: not that header contains only a-z and A-Z characters
+%  attributes: structure containing the attributes
 %
 % TIP: NaN, Inf, -Inf, true, false are read litteraly
 %
 % SEE ALSO: XLSTBLREAD, XLSREAD
 
-% MS 2.1 - 11/02/11 - INRA\Olivier Vitrac - rev. 17/01/14
+% MS 2.1 - 11/02/11 - INRA\Olivier Vitrac - rev. 07/11/15
 % Initial code from (C) 2007 Alex Marten - alex.marten@gmail.com
 
 % Revision history
@@ -43,6 +46,7 @@ function dataout = loadods(infile,varargin)
 %   03/01/12 add forceboolean
 %   24/01/12 fix header with item(3), based on a correct identification of office:body tag (starting from item 3)
 %   17/01/14 fix test bounds when empty cells are mixed with NaN, etc.
+%   07/11/15 add attributes (to be used to feed the data type: table), add maketable
 
 % Set default options
 validchars = '[^a-zA-Z0-9]'; % accepted characters for fields
@@ -55,7 +59,8 @@ options_default = struct(...
       'headers',1     ,... number of header lines
       'struct',true   ,...  to transform the table as a structure with headers
  'structarray',false,  .... to transform the original structure of arrays into a structure array
- 'forceboolean',false ... convert to a boolean any column with uniquely 0 and 1
+ 'forceboolean',false, ... convert to a boolean any column with uniquely 0 and 1
+ 'maketable',false ....    make data as table
         );
 options = argcheck(varargin,options_default);
 if options.structarray, options.struct = true; end
@@ -129,6 +134,7 @@ if ~iscell(options.sheetname), options.sheetname = {options.sheetname}; end
 numSheets = nodes_sheets.getLength;
 ivalidsheet = 0;
 dataout = [];
+attr = [];
 for isheet = 1:numSheets
     sheet = nodes_sheets.item(isheet-1);
     wksht = get_attribute(sheet,'table:name');
@@ -256,6 +262,7 @@ for isheet = 1:numSheets
         % convert to struct
         if options.struct && ~isempty(data)
             if isempty(dataout), dataout = struct([]); end
+            if isempty(attr), attr = struct([]); end
             if isempty(headers), headers = repmat({''},1,n); end
             for i=1:n
                %if ischar(headers{:,i}), f = regexprep([headers{:,i}],validchars,''); else f = ''; end
@@ -273,8 +280,16 @@ for isheet = 1:numSheets
                 else
                     dataout(1).(fs).(f) = data(:,i);
                 end
+                attr(1).(fs).(f) = struct('filename',infile,'table',fs,'title',f,'description','');
+                attr(1).(fs).(f).description = tmpheaders;
             end
-            if options.structarray
+            if options.maketable % works only on recent versions of Matlab (2012)
+                dataout(1).(fs) = struct2table(dataout(1).(fs));
+                attrtmp = struct2cell(attr(1).(fs)); attrtmp = [attrtmp{:}];
+                dataout(1).(fs).Properties.UserData = attrtmp;
+                dataout(1).(fs).Properties.Description = sprintf('%s::%s:%s',attrtmp(1).filename,attrtmp(1).table,attrtmp(1).title);
+                dataout(1).(fs).Properties.VariableDescriptions = {attrtmp.description}; 
+            elseif options.structarray
                 currentfields = fieldnames(dataout(1).(fs));
                 currentvalues = struct2cell(dataout(1).(fs));
                 notcell = cellfun(@(x)~iscell(x),currentvalues);
@@ -296,7 +311,7 @@ if ivalidsheet<1
     dataout = '';
 elseif ivalidsheet==1
     if iscell(dataout), dataout = dataout{1};
-    elseif isstruct(dataout), dataout = dataout.(fs);
+    elseif isstruct(dataout), dataout = dataout.(fs);  attr = attr.(fs);
     end
 end
 
@@ -305,6 +320,7 @@ if ~rmdir(dir_temp,'s')
     warning('Temporary files in ''%s'' could not be removed',dir-temp); %#ok<WNTAG>
 end
 
+if nargout>1, attrout = attr; end
 
 end % end function
 

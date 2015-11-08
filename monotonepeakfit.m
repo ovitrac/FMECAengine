@@ -11,20 +11,27 @@ function [gaussianpeak,outsum,outsumbaseline] = monotonepeakfit(p,varargin)
 %         [gaussianpeak,outsum,outsumwithbaseline] = monotonepeakfit(...)
 %
 % LIST OF PAIR PROPERTY/VALUE
-%            p: npx1 structure array created with MONOTONEPEAK (with np = peak number)
-%            x: vector of x values (default = [])
-%            y: mx1 vector of y values
-%  significant: percent to keep signifiant peaks (default = .95)  % search the first peaks >95% of weight
-%minpointsinbaseline: (default 5)
-%     shiftmax: maximum shift tolerated with method 2(default = [])
-%      preject: rejection probability for baseline detection (default = 5);
+%                p: npx1 structure array created with MONOTONEPEAK (with np = peak number)
+%                x: vector of x values (default = [])
+%                y: mx1 vector of y values
+%      significant: percent to keep signifiant peaks (default = .95)  % search the first peaks >95% of weight
+%     minpointsinbaseline: (default 5)
+%         shiftmax: maximum shift tolerated with method 2 (default = []), scalar or 1xnp vector to customize shifts for each peak
+%      shiftbuffer: shift tolerance buffer (default = []), scalar quantity or or 1xnp vector to customize shifts for each peak
+%shiftpenaltyscale: shift Langrange multiplier (default = []), scalar or 1xnp vector to enforce constraints differently for each peak
+%         widthmax: maximum width (default = Inf), scalar or 1xnp vector to customize shifts for each peak
+%      widthbuffer: shift tolerance buffer (default = []), scalar or 1xnp vector to customize shifts for each peak
+%widthpenaltyscale: width Langrange multiplier (default = []), scalar or 1xnp vector to enforce constraints differently for each peak
+%          preject: rejection probability (percentile) for baseline detection (default = 5);
 %
 % KEYWORDS
-%   'baseline': fit and remove linear baseline 
-%       'sort': to sort in an descend order of weigth attributed to gaussian peaks
-% 'lorentzian': to fit lineshape with lorentzian peak
-%  'endforced': to add last point of x to identify baseline
-%  'keeporder': force Gaussians/Lorentzian to have increasing positions
+%       'baseline': fit and remove linear baseline 
+%           'sort': to sort in an descend order of weigth attributed to gaussian peaks
+%     'lorentzian': to fit lineshape with lorentzian peak
+%      'endforced': to add last point of x to identify baseline
+%      'keeporder': force Gaussians/Lorentzian to have increasing positions
+% keepinitialorder: keeps the initial peak order
+%     'independent': start strategy 2 with the same guess as strategy 1 instead of using the width of strategy 1
 %
 % OUTPUTS (with the following notations: np = number of peaks, 2 = 2 fitting models)
 %
@@ -85,7 +92,7 @@ function [gaussianpeak,outsum,outsumbaseline] = monotonepeakfit(p,varargin)
 % hp = plot(x,[y model(x,3,1) model(x,3,2)]);
 %
 %
-% INRA\MS 2.1 - 24/03/2013 - Olivier Vitrac - rev. 23/11/2013
+% INRA\MS 2.1 - 24/03/2013 - Olivier Vitrac - rev. 01/11/15
 %
 %
 % TODO LIST
@@ -105,13 +112,21 @@ function [gaussianpeak,outsum,outsumbaseline] = monotonepeakfit(p,varargin)
 % 14/05/13 fix outputs, major help update
 % 15/05/13 update help
 % 23/11/13 accept mfilt=0
+% 30/10/15 implements shiftmax as vector, add shiftbuffer and shiftpenaltyscale
+% 31/10/15 fix for x in decreasing order (H(x) has been modifidied consequently so that dx>0 in all cases)
+% 31/10/15 add widthmax, widthbuffer, widthpenaltyscale, independent, keepinitialorder
+% 01/11/15 harmonization of constraints handling
 
 %% default
-keyword = {'baseline','sort','lorentzian','endforced','keeporder'};
+keyword = {'baseline','sort','lorentzian','endforced','keeporder','keepinitialorder','independent'};
 options = struct('display','iter','FunValCheck','on','MaxIter',1e3,'TolFun',1e-6,'TolX',1e-6);
-default = struct('x',[],'y',[],'significant',.95,'options',options,'minpointsinbaseline',5,'shiftmax',[],'preject',5);
+default = struct('x',[],'y',[],'significant',.95,'options',options,'minpointsinbaseline',5,...
+            'shiftmax',[],'shiftbuffer',[],'shiftpenaltyscale',[],...
+            'widthmax',Inf,'widthbuffer',[],'widthpenaltyscale',[],...
+            'preject',5);
 minumunrequiredfields = {'center','width','ibase'};
 requiredfields = {'tail' 'wall' 'height' 'center' 'istart' 'start' 'stop' 'istop' 'width','ratioheight','ratiowidth','ibase'};
+maxpeaksforconstraints = 7;
 
 %% Kernels
 % simplified Gaussian kernel
@@ -126,21 +141,37 @@ if nargin<1, gaussianpeak = cell2struct(repmat({[]},1,length(minumunrequiredfiel
 if isempty(p), p = monotonepeak(varargin{:}); end
 if ~isstruct(p) && all(cellfun(@(f) isfield(p,f),minumunrequiredfields)), error('p must be created with monotonepeak'), end
 if ~all(cellfun(@(f) isfield(p,f),requiredfields)), dispf('WARNING:: object p has not been created with monotonepeak'), end
-if length(p)==1 && length(p.center)>1, p = struct2structtab(p); end, n = length(p);
+if length(p)==1 && length(p.center)>1, p = struct2structtab(p); end
+n = length(p);
 o = argcheck(varargin,default,keyword,'nostructexpand');
 m = length(o.y);
 if m == 0, error('y is empty'), end
 if numel(o.y)~=m, error('y must be a vector'), end
 if isempty(o.x), o.x = (1:m)'; end
 if numel(o.x)~=m, error('x and y must be of the same size'); end
-if isempty(o.shiftmax), o.shiftmax = min([p.width]); end
 o.x = o.x(:); o.y = o.y(:);
 sce = var(o.y)*(m-1);
 penaltyscale = sqrt(sce)/n;
-dx = median(diff(o.x))/4;
+xrange = [min(o.x) max(o.x)]; xwidth = diff(xrange);
+dx = abs(median(diff(o.x))/4);
 H = @(x) 1/2 * ( 1 + tanh(x/dx) ); % heaviside
 % keyword 'lorentzian' if fitting with lorentzian peaks
 if o.lorentzian, gaussiankernel = lorentziankernel; end
+
+% Constraints control (shift and width), note that they are used only for the second fitting strategy
+if isempty(o.shiftmax), o.shiftmax = min([p.width]); end, o.shiftmax = abs(o.shiftmax);
+if isempty(o.shiftbuffer), o.shiftbuffer = dx; end
+if isempty(o.shiftpenaltyscale), o.shiftpenaltyscale = penaltyscale; end
+if isempty(o.widthmax), o.widthmax = o.shiftmax; end
+if isempty(o.widthbuffer), o.widthbuffer = o.shiftbuffer; end
+if isempty(o.widthpenaltyscale), o.widthpenaltyscale = o.shiftpenaltyscale; end
+for prop = {'shiftmax' 'shiftbuffer' 'shiftpenaltyscale' 'widthmax' 'widthbuffer' 'widthpenaltyscale'}
+    o.(prop{1}) = argpad(o.(prop{1}),n);
+    o.(prop{1}) = o.(prop{1})(:)';
+end
+xbuffer = o.shiftbuffer; Hshift = @(x) 1/2 * ( 1 + tanh(x./xbuffer) ); % heaviside for shift constraint
+xbuffer = o.widthbuffer; Hwidth = @(x) 1/2 * ( 1 + tanh(x./xbuffer) ); % heaviside for width constraint
+
 
 % remove baseline
 if o.baseline
@@ -173,13 +204,45 @@ positionguess = cat(2,p.center); % first guess of p
 [windowcenter,nsignificantpeaks] = deal(zeros(2,1));
 critfit = zeros(2,1); % 2 solutions - column-wise
 yfit    = NaN(m,2);   % 2 solutions - column-wise
-% fit based on s only (peak positions set by [p.center])
+% STRATEGY 1:: fit based on s only (peak positions set by [p.center])
 warning off %#ok<WNOFF>
 [width(1,:),critfit(1)] = fminsearch(@fitgaussianfixedpos,widthguess,o.options);
 position(1,:) = positionguess;
-% fit with positions and s free
-[tmp,critfit(2)] = fminsearch(@fitgaussian,[positionguess;width(1,:)],o.options);
+% STRATEGY 2:: fit with positions and s free
+if o.independent
+    [tmp,critfit(2)] = fminsearch(@fitgaussian,[positionguess;widthguess],o.options);
+else
+    [tmp,critfit(2)] = fminsearch(@fitgaussian,[positionguess;width(1,:)],o.options);
+end
 position(2,:) = tmp(1,:); width(2,:) = tmp(2,:);
+
+% Strategy 2 may change the positions of peaks, this section try to find the combination, which matches user expectations
+% NB: the sum of Gaussian is commutative, the math itself cannot resolve the issue (constraints may help)
+% try to find the combination which minimizes the number of constraint violations
+if n<=maxpeaksforconstraints
+    perm = fliplr(perms(1:n)); nperm = length(perm); violations = zeros(nperm,7);
+    [~,p0order] = sort(positionguess); [~,porder] = sort(position(2,:)); % sorted peak positions
+    widthmax = max(width(2,:));
+    for i = 1:nperm
+        violations(i,1) = sum(abs(porder(perm(i,:))-p0order)); % peak order
+        violations(i,2) = sum((abs(position(2,perm(i,:))-positionguess))); % position deviation (to be normalized)
+        violations(i,3) = sum(abs(width(1,:)-width(2,perm(i,:)))); % width deviation (to be normalized)
+        violations(i,4) = sum((abs(position(2,perm(i,:))-positionguess))>o.shiftmax)/n; % to large shifts
+        violations(i,5) = sum(width(2,perm(i,:))>o.widthmax)/n; % unverified peak widths
+        violations(i,6) = sum(width(2,perm(i,:))>3*4*widthguess)/n; % unverified peak widths
+        violations(i,7) = sum(width(2,perm(i,:))<widthguess)/n; % unverified peak widths
+    end
+    maxviolations = max(violations,[],1); violations(:,1:3) = violations(:,1:3)./maxviolations(ones(nperm,1),1:3);
+    if widthmax>xwidth/2,  % widths are so large that positions are unusable
+                              violationweights = [0  ; 0 ;1  ;0  ;1  ;1 ; 1 ]; % current weight for each rule
+    elseif widthmax>xwidth/4, violationweights = [.5 ;.5 ;1 ;.5  ;1  ;1 ; 1]; % current weight for each rule
+    else                      violationweights = [1.5;1  ;1  ;1  ;.3 ;.3;.3]; % current weight for each rule
+    end
+    [~,ibest] = min(violations * violationweights);
+    position(2,:) = position(2,perm(ibest,:));
+    width(2,:) = width(2,perm(ibest,:));
+end
+
 % distance
 warning on %#ok<WNON>
 for k=1:2
@@ -226,6 +289,12 @@ end
 
 % sorting peaks if required
 if o.sort || (nargout>1),
+    
+    % peak initial order
+    initialorder = zeros(2,1);
+    [~,ip1] = sort([gaussianpeak(:,1).position]); initialorder(1,ip1)=1:n;
+    [~,ip2] = sort([gaussianpeak(:,2).position]); initialorder(2,ip2)=1:n;
+    
     % sort all models
     for k=1:2
         gaussianpeak(:,k) = gaussianpeak(order(:,k),k);
@@ -238,7 +307,15 @@ if o.sort || (nargout>1),
         windowcenter(k) = position(k,1:nsignificantpeaks(k))*weight(1:nsignificantpeaks(k),k)/sum(weight(1:nsignificantpeaks,k),1);       
     end
     % user override
-    if o.keeporder
+    if o.keepinitialorder
+        for k=1:2
+            [~,order] = sort([gaussianpeak(:,k).position]);
+            gaussianpeak(:,k) = gaussianpeak(order(initialorder(k,:)),k);
+            position(k,:) = position(k,order(initialorder(k,:)));
+            width(k,:) = width(k,order(initialorder(k,:)));
+            weight(:,k) = weight(order(initialorder(k,:)),k);
+        end
+     elseif o.keeporder
         [~,order] = sort([gaussianpeak(:,1).position]); gaussianpeak = gaussianpeak(order,:);
         position = position(:,order); width = width(:,order); weight = weight(order,:);        
     end
@@ -266,8 +343,9 @@ if nargout>2, outsumbaseline = expansion2; end
 %% Nested functions
     function err = fitgaussian(ps)
         err = norm(gaussian(o.x,ps(1,:),ps(2,:))-o.y) ...
-              + norm((1-H(ps(2,:)))*penaltyscale) ...
-              + norm((H( abs(ps(1,:)-[p.center])-o.shiftmax) )*penaltyscale);
+              + norm((1-H(ps(2,:)))*penaltyscale) ... force positive variance, constraint the displacement of peaks
+              + norm(Hwidth( ps(2,:) - o.widthmax) .*o.widthpenaltyscale) ... % width constraints
+              + norm((Hshift( abs(ps(1,:)-[p.center]) - o.shiftmax) ).*o.shiftpenaltyscale); % shift constraints
     end
 
     function err = fitgaussianfixedpos(s)

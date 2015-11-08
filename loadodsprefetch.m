@@ -1,15 +1,50 @@
-function [data,isupdated]=loadodsprefetch(filename,varargin)
-%LOADODSPREFETCH loadods surrogate to use/manage prefetch files when they exist
-%      data = loadodsprefetch(...)
-%         It uses the same syntax as loadods.
-%         Additional properties/values are:
+function [data,isupdated,attrout]=loadodsprefetch(filename,varargin)
+%LOADODSPREFETCH is a common surrogate for LOADODS and XLSTBLREAD enabling and managing prefetch files
+% SYNTAX (it uses the same syntax as LOADODS, the syntax is made back compatible to XLSTBLREAD)
+%     data = loadodsprefetch(filename [,property1,value1,property2,value2,...])
+%     [data,isupdated]=loadodsprefetch(...), isupdated=true if the data has been updated
+%
+%       filename with .ODS as extension forces the use of LOADODS, filename with .XLS/.XLSX forces the use of XLSTBLREAD
+%
+%   LIST OF PAIR PROPERTY/VALUE (DEFAULT VALUE)
+%         'sheetname' : ''    ... sheet to load (empty for the first sheet, 'all' for all sheets)
+%             'blank': NaN    ... value for blank cells
+%         'transpose': false  ... true to transpose table/headers (available only with LOADODS)
+%            'concat': true   ... true to concat column content (available only with LOADODS)
+%           'headers': 1      ... number of header lines
+%            'struct': true   ... to transform the table as a structure with headers (available only with LOADODS)
+%       'structarray': false  ... to transform the original structure of arrays into a structure array (available only with LOADODS)
+%      'forceboolean': false  ... convert to a boolean any column with uniquely 0 and 1 (available only with LOADODS)
+%         'maketable': false  ... convert generated structures into tables with attributes (works only on recent versions of Matlab, since 2012)
+%   
+%    SPECIFIC PROPERTIES TO MANAGE PREFETCH FILES
 %           prefetchprefix: prefetch extension (default = 'PREFETCH_')
 %             prefetchpath: path of the prefetch file (default=tempdir)            
-%               noprefetch: flag to forcce the prefetch to be updated (default=false);
-%       [data,isupdated]=loadodsprefetch(...)
-%           isupdated returns true if the data has been updated
+%               noprefetch: flag to forcce the prefetch to be updated (default=false)
+%            prefetchsheet: flag to force a different prefetch for each worksheet (default=false, forced to true if realname is used)
+%                 realname: name to be used in the final structure instead of the sheetname 
+%                           TIP 1: any empty value will be replaced by the sheet name
+%                           TIP 2: if realname is too short, corresponding values of sheetname are used
+%
+% SEE ALSO: LOADODS, XLSTBLREAD, BYKEYWORDS
+%
+%
+% TWO ADVANCED EXAMPLES FROM THE PROJECT FINDUS
+%
+% 1) READ MULTIPLE SHEETS (WITH DIFFERENT PREFETCH FILES) AS A TABLE AND RENAME THEM
+%    NOTE THAT REALNAME DOES NOT NEEDD TO BE ON THE SAME SIZE (AS THE SUBSITUTION CAN BE PARTIAL
+%   db= loadodsprefetch(fullfile(local,datafile),...
+%    'sheetname',{'variables','boxes','samples','RHsalts','DVS','TGA','DSC','oven','awmeter','layout'},...
+%    'realname', {'vars'     ,''     ,''       ,'RHtable'},...
+%    'maketable',true);
+%
+% 2) READ TEMPERATURES STORED IN DIFFERENT EXCEL FILES (WITH LABVIEW)
+%   f = explore('*.xlsx',local,[],'abbreviate'); nf = length(f);
+%   for i=1:nf
+%       [f(i).data,~,f(i).attr] = loadodsprefetch(fullfile(f(i).path,f(i).file));
+%   end
 
-% MS 2.1 - 20/01/12 - INRA\Olivier Vitrac rev. 17/01/14
+% MS 2.1 - 20/01/12 - INRA\Olivier Vitrac rev. 08/11/15
 
 % Revision history
 % 24/01/12 add a comparison based on requested sheetnames
@@ -19,23 +54,76 @@ function [data,isupdated]=loadodsprefetch(filename,varargin)
 % 20/09/13 add isupdated
 % 08/12/13 force prefetchupdate = true when new spreadsheets are requested
 % 17/01/14 force columnwise loadodsoptions
+% 07/11/15 manage different prefetch and names for each sheet, first implementation of XLSTBLREAD
+% 08/11/15 updated help
 
 % default
 default = struct(...
     'prefetchprefix','PREFETCH_',...
     'prefetchpath',tempdir,...
     'noprefetch',false,...
-    'sheetname',[] ...
+    'prefetchsheet',false,...
+    'sheetname',[],...
+    'realname',[] ...
     );
+validchars = '[^a-zA-Z0-9]'; % accepted characters for fields
+propertiesODS2XLS = struct(...
+          'blank',NaN   ,... value for blank cells
+      'transpose',false ,... true to transpose table/headers
+        'headers',1     ,... number of header lines
+      'noheaders',false,...
+  'emptyisnotnan',false,...
+  'notext2values',false,...
+'mergeheaderlines',false,...
+       'maketable',false ...
+);
 
 % arg check
 if nargin<1, error('one argument is at least required'), end
 [options,loadodsoptions] = argcheck(varargin,default,'','case');
-if isempty(options.sheetname), options.sheetname=''; end
+if ~isempty(options.realname), options.prefetchsheet = true; end
+
+% manage different prefetch and names for each sheet (added 07/11/2015)
+if isempty(options.sheetname)
+    options.sheetname='';
+elseif options.prefetchsheet
+    if ~iscell(options.sheetname), options.sheetname = {options.sheetname}; end
+    if isempty(options.realname), options.realname = options.sheetname; end
+    if ~iscell(options.realname), options.realname = {options.realname}; end
+    nsheets = length(options.sheetname); nreals = length(options.realname);
+    options.realname = argpad(options.realname,nsheets,'periodic',options.sheetname(nreals+1:end));
+    if nsheets==0 || ismember('all',options.sheetname)
+        error('sheetname='''' or sheetname=''all'' are not authorized with the flag prefetchsheet, list all sheets explicitly')
+    end
+    updtd = false; [data,attributes] =deal(struct([]));
+    for i=1:nsheets
+        wsk = regexprep(options.sheetname{i},validchars,'');
+        wskreal = regexprep(options.realname{i},validchars,'');
+        if isempty(wskreal), wskreal = wsk; end
+        [data(1).(wskreal),isupdatedtmp,attributes(1).(wskreal)] = ...
+            loadodsprefetch(...
+            filename,'sheetname',wsk,'realname','','prefetchsheet',false,...
+            'prefetchpath',options.prefetchpath,...
+            'prefetchprefix',sprintf('%s_%s_',options.prefetchprefix,wsk),...
+            loadodsoptions{:} ... all options except sheetname
+            );
+        updtd = isupdatedtmp || updtd;
+    end
+    if nsheets==1, data = data.(wskreal); end
+    if nargout>1, isupdated = updtd; end
+    if nargout>2, attrout = attributes; end
+    return    
+end
+
+% arg check (cont'ed)
 if ~isempty(options.sheetname), loadodsoptions(end+1:end+2) = {'sheetname';options.sheetname}; end % %propagate sheetname
 loadodsoptions = loadodsoptions(:);
 [~,prefetchfile] = fileparts(filename);
 if ~exist(filename,'file'), error('the supplied file ''%s'' does not exist',filename); end
+[~,~,ext] = fileparts(filename); ext = lower(ext);
+isods = strcmp(ext,'.ods');
+if ~isods && ~strcmp(ext,'.xls') && ~strcmp(ext,'.xlsx'); error('only ODS, XLS and XLSX files are managed'), end
+if isunix && ~isods, error('XLSTBLREAD and XLSREAD requires a WINOWS environment to run'), end
 prefetchfile = fullfile(options.prefetchpath,[options.prefetchprefix prefetchfile '.mat']);
 prefetchupdate = false;
 
@@ -83,24 +171,47 @@ end
 if useprefetch
     dispf('LOADODSPREFETCH: use the prefetchfile below')
     fileinfo(prefetchfile)
-    load(prefetchfile,'data') % load data
+    load(prefetchfile,'data','attributes') % load data
     if length(sheetname)>1 || strcmp(sheetname,'all') 
         data = rmfield(data,setdiff(sheetname,options.sheetname)); %#ok<NODEF> % remove unwanted worksheets
+        attributes = rmfield(attributes,setdiff(sheetname,options.sheetname)); %#ok<NODEF>
     end
     fdata = fieldnames(data);
-    if length(fdata)==1 && isstruct(data.(fdata{1})), data = data.(fdata{1}); end
+    if length(fdata)==1 && isstruct(data.(fdata{1}))
+        data = data.(fdata{1}); attributes = attributes.(fdata{1});
+    end
 else
-    loadodsoptions = [{filename};loadodsoptions];
-    data = loadods(loadodsoptions{:});
+    if isods % ODS file
+        loadodsoptions = [{filename};loadodsoptions];
+        [data,attributes] = loadods(loadodsoptions{:});
+    else % XLS/XSLX file
+        if ~isempty(loadodsoptions)
+            xlstblreadoptions = argcheck(loadodsoptions,[]);
+            if isempty(xlstblreadoptions), error('please, replace keywords by pair protery/boolean value'), end
+        else
+            xlstblreadoptions = loadodsoptions;
+        end
+        xlstblreadoptions = argcheck(xlstblreadoptions,propertiesODS2XLS,'','keep'); 
+        xlstblkeywords = struct(...
+            'transpose',xlstblreadoptions.transpose,...
+            'noheaders',xlstblreadoptions.noheaders,...
+            'emptyisnotnan',~isnan(xlstblreadoptions.blank),...
+            'notext2values',xlstblreadoptions.notext2values,...
+            'mergeheaderlines',xlstblreadoptions.mergeheaderlines,...
+            'maketable',xlstblreadoptions.maketable);
+        kw = fieldnames(xlstblkeywords); kw = kw(structfun(@any,xlstblkeywords));
+        [data,attributes] = xlstblread(filename,options.sheetname,xlstblreadoptions.headers,kw{:});
+    end
 end
 
 % update prefetch file if needed
 if prefetchupdate
     nfo = dir(filename); %#ok<NASGU>
     sheetname = options.sheetname; %#ok<NASGU>
-    save(prefetchfile,'data','nfo','sheetname')
+    save(prefetchfile,'data','nfo','sheetname','attributes')
     dispf('LOADODSPREFETCH: the prefetch file below has been updated')
     fileinfo(prefetchfile)
 end
 
 if nargout>1, isupdated=prefetchupdate; end
+if nargout>2, attrout = attributes; end
