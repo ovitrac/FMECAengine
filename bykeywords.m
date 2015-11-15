@@ -6,7 +6,7 @@ function [X0,foundindexout,nfound]=bykeywords(X,f,varargin)
 %   [X0,foundindex,nfound] = bykeywords(...)
 %
 % INPUTS
-%          X: simple structure (i.e. X.fieldi = mx1 vector or mxn array) or mxn cell array
+%          X: simple structure or 2D table object (i.e. X.fieldi = mx1 vector or mxn array) or mxn cell array
 %             structure example: s=struct('kw',{{'kw1' 'kw2' 'kw3'}},'field1',1:3,'field2',10:10:30)
 %             cell example1: c={{'kw1' 'kw2' 'kw3'} 1:3 10:10:30}
 %             cell example2: c={'kw1' 'kw2' 'kw3'; 1 2 3; 10 20 30}'; % note TRANSPOSE to make a columwise table (default)
@@ -17,7 +17,7 @@ function [X0,foundindexout,nfound]=bykeywords(X,f,varargin)
 %             anonymous function or cell array of anonymous function
 %
 % OUTPUTS
-%         X0: index structure or cell array based on X and keys
+%         X0: structure/table or cell array based on X and keys
 % foundindex: found indices
 %     nfound: number of found records
 %
@@ -60,9 +60,9 @@ function [X0,foundindexout,nfound]=bykeywords(X,f,varargin)
 %
 %   Dependencies for distribution: none
 %
-%   See also: XLSTBLREAD, LOADODS, LOADODSPREFETCH, STRUCT2STRUCTTAB, STRUCTTAB2STRUCT, SUBSTRUCTARRAY
+%   See also: XLSTBLREAD, LOADODS, LOADODSPREFETCH, STRUCT2STRUCTTAB, STRUCTTAB2STRUCT, SUBSTRUCTARRAY, CLEANTABLE
 
-% MS 2.0 - 20/01/2008 - INRA\Olivier Vitrac - rev. 27/10/2015
+% MS 2.0 - 20/01/2008 - INRA\Olivier Vitrac - rev. 14/11/2015
 
 % Revision history
 % 29/01/2008 add finindex, new rules for missing KEYVALUES
@@ -71,13 +71,15 @@ function [X0,foundindexout,nfound]=bykeywords(X,f,varargin)
 % 10/01/2014 add logical type, implementation of formula
 % 07/03/2015 fix 1D index based anonymous function (boolean output are converted to numeric index and not kept as logical index)
 % 27/10/2015 add slicing capability along one dimension (example:  bykeywords(db.layout,{'table','sample'},'oven',{'batter' 'batter'}))
+% 14/11/2O15 implement table objects
 
 % Definitions
 reshapeon =false;
+if verLessThan('matlab','8.2'), isatable = false; else isatable = istable(X); end 
 
 % arg check
 if nargin<3, error('syntax: X0 = bykeywords(X,key,keyvalues)\nX0 = bykeywords(X,{key1 key2...},keyvaluesforkey1,keyvaluesforkey2,...)'), end
-if isstruct(X)
+if isstruct(X) || isatable
     Xfields = fieldnames(X); nXfields = length(Xfields);
     if ~iscell(f), f = {f}; end
     ndim = length(f);
@@ -89,8 +91,13 @@ if isstruct(X)
         f0(idim) = j;
     end
     f = f0;
+    if isatable
+        Properties = X.Properties;
+        X = structtab2struct(table2struct(X));
+        if nXfields>size(X,2), Xfields = setdiff(Xfields,'Properties'); end
+    end
     X = struct2cell(X);
-else
+ else
     Xfields = cellfun(@(x) sprintf('%02d',x),1:length(X),'UniformOutput',false);  nXfields = 0;
     if  ~iscell(X), error('invalid object, only structures and cell arrays are accepted'), end
     if all(~cellfun(@iscell,X(:)))
@@ -123,7 +130,7 @@ for idim = 1:ndim
             error('the %dth dim must be a string, a cell array of strings or a numeric vector (mixed types are not permitted)',idim),
         end
     else
-        if any(cellfun('isempty',X{f(idim)})), error('some keyvalues along the %dth dim are empty.',idim), end
+        if any(cellfun(@isempty,X{f(idim)})), error('some keyvalues along the %dth dim are empty.',idim), end
     end
 end
 nkeyvalues = length(keyvalues{1}); %max(cellfun(@length,keyvalues)); 
@@ -199,6 +206,14 @@ elseif reshapeon     % reshape as initial
 end
 if nargout>1, foundindexout = find(foundindex); end
 if nargout>2, nfound = length(foundindexout); end
+
+% recreate table if required
+if isatable
+    X0 = struct2table(X0);
+   for fp = fieldnames(Properties)'
+       X0.Properties.(fp{1}) = Properties.(fp{1});
+   end
+end
 
 % ==========================================================================
 %      PRIVATE FUNCTION: convert a function handle into a string

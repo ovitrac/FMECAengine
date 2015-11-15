@@ -49,7 +49,7 @@ function [tab,attrout] = xlstblread(filename,sheetname,headerlines,varargin)
 %
 %   See also: BYKEYWORDS, LOADODS, LOADODSPREFETCH, XLSREAD
 
-% MS 2.0 - 15/01/08 - INRA\Olivier Vitrac - rev. 07/11/15
+% MS 2.0 - 15/01/08 - INRA\Olivier Vitrac - rev. 14/11/15
 
 % Revision History
 % 21/01/08 automatic conversion of text into numbers when possible (e.g. after OCR, when mixed types are used)
@@ -60,14 +60,15 @@ function [tab,attrout] = xlstblread(filename,sheetname,headerlines,varargin)
 % 04/08/10 add [discardedlines headerlines], remove char(10) and char(13), add 'first' 'last'
 % 19/09/15 add mergeheaderlines
 % 07/11/15 add attributes, add makedata
+% 14/11/15 add '~' to the table of replacement characters ('~' is replaced by '')
 
 % Definitions
 kwlist = {'Inf' '+Inf' '-Inf' 'NaN' 'ActiveX VT_ERROR: '}; % values which are replaced 
 varprefix = 'col'; % default variable name when no column name is found
 varprefixtranspose = 'row'; % variable name when transpose is used
 duplicatesuffix = 'dup'; % suffix for duplicated column name
-table = {' ' 'é' 'è' 'ê' 'à' 'ù' ':' ',' ';' '.' '-' '+' '*' '\' '/' '°' 'µ' '(' ')' '[' ']' '{' '}' '=' '''' '%' '?' '!' '§' char(13) char(10)
-         ''  'e' 'e' 'e' 'a' 'u' ''  ''  ''  ''  ''  'p' 'x' ''  ''  'o' 'u' ''  ''  ''  ''  ''  ''  ''  '_'  'p'  '' ''  ''  ''       ''}'; % add additional character conversion rules if needed
+table = {' ' 'é' 'è' 'ê' 'à' 'ù' ':' ',' ';' '.' '-' '~' '+' '*' '\' '/' '°' 'µ' '(' ')' '[' ']' '{' '}' '=' '''' '%' '?' '!' '§' char(13) char(10)
+         ''  'e' 'e' 'e' 'a' 'u' ''  ''  ''  ''  ''  '' 'p' 'x' ''  ''  'o' 'u' ''  ''  ''  ''  ''  ''  ''  '_'  'p'  '' ''  ''  ''       ''}'; % add additional character conversion rules if needed
 hearderlines_default = 1;
 transposeon = false;
 allsheetson = false;

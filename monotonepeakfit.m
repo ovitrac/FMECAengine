@@ -32,6 +32,7 @@ function [gaussianpeak,outsum,outsumbaseline] = monotonepeakfit(p,varargin)
 %      'keeporder': force Gaussians/Lorentzian to have increasing positions
 % keepinitialorder: keeps the initial peak order
 %     'independent': start strategy 2 with the same guess as strategy 1 instead of using the width of strategy 1
+% 'dispconstraints': print when contraints are introduced
 %
 % OUTPUTS (with the following notations: np = number of peaks, 2 = 2 fitting models)
 %
@@ -92,7 +93,7 @@ function [gaussianpeak,outsum,outsumbaseline] = monotonepeakfit(p,varargin)
 % hp = plot(x,[y model(x,3,1) model(x,3,2)]);
 %
 %
-% INRA\MS 2.1 - 24/03/2013 - Olivier Vitrac - rev. 01/11/15
+% INRA\MS 2.1 - 24/03/2013 - Olivier Vitrac - rev. 10/11/15
 %
 %
 % TODO LIST
@@ -116,11 +117,14 @@ function [gaussianpeak,outsum,outsumbaseline] = monotonepeakfit(p,varargin)
 % 31/10/15 fix for x in decreasing order (H(x) has been modifidied consequently so that dx>0 in all cases)
 % 31/10/15 add widthmax, widthbuffer, widthpenaltyscale, independent, keepinitialorder
 % 01/11/15 harmonization of constraints handling
+% 10/11/15 add dispconstraints
+% 11/11/15 change argcheck behavior to expand structures while protecting options ('nostructaxpand')
+% 14/11/15 add area field
 
 %% default
-keyword = {'baseline','sort','lorentzian','endforced','keeporder','keepinitialorder','independent'};
+keyword = {'baseline','sort','lorentzian','endforced','keeporder','keepinitialorder','independent','dispconstraints'};
 options = struct('display','iter','FunValCheck','on','MaxIter',1e3,'TolFun',1e-6,'TolX',1e-6);
-default = struct('x',[],'y',[],'significant',.95,'options',options,'minpointsinbaseline',5,...
+default = struct('x',[],'y',[],'significant',.95,'minpointsinbaseline',5,...
             'shiftmax',[],'shiftbuffer',[],'shiftpenaltyscale',[],...
             'widthmax',Inf,'widthbuffer',[],'widthpenaltyscale',[],...
             'preject',5);
@@ -140,10 +144,14 @@ lorentziankernel =  @(x,position,width) 1./(1+((x-position)./(0.5.*width)).^2);
 if nargin<1, gaussianpeak = cell2struct(repmat({[]},1,length(minumunrequiredfields)),minumunrequiredfields,2); return, end
 if isempty(p), p = monotonepeak(varargin{:}); end
 if ~isstruct(p) && all(cellfun(@(f) isfield(p,f),minumunrequiredfields)), error('p must be created with monotonepeak'), end
-if ~all(cellfun(@(f) isfield(p,f),requiredfields)), dispf('WARNING:: object p has not been created with monotonepeak'), end
+ismonotonepeakobject = all(cellfun(@(f) isfield(p,f),requiredfields));
+if ~ismonotonepeakobject, dispf('WARNING:: object p has not been created with monotonepeak'), end
 if length(p)==1 && length(p.center)>1, p = struct2structtab(p); end
 n = length(p);
-o = argcheck(varargin,default,keyword,'nostructexpand');
+% retrieve options with 'nostructexpand' and bring the reminaing to normal argcheck (implemented on 11/11/15)
+[otmp,remain] = argcheck(varargin,struct('options',options),keyword,'nostructexpand');
+o = argcheck(remain,default);
+o = argcheck(otmp,o,'','keep');
 m = length(o.y);
 if m == 0, error('y is empty'), end
 if numel(o.y)~=m, error('y must be a vector'), end
@@ -199,7 +207,7 @@ end
 G = zeros(m,n);       % kernels (used by nested functions)
 widthguess = cat(2,p.width)/4; %first guess of s
 positionguess = cat(2,p.center); % first guess of p
-[width,position,sigma]  = deal(NaN(2,n)); % 2 solutions - row-wise
+[width,position,sigma,area]  = deal(NaN(2,n)); % 2 solutions - row-wise
 [weight,cumweight,order,rank,relativeweight] = deal(NaN(n,2)); % 2 solutions - column-wise
 [windowcenter,nsignificantpeaks] = deal(zeros(2,1));
 critfit = zeros(2,1); % 2 solutions - column-wise
@@ -256,7 +264,7 @@ end
 
 % list of peaks
 gaussianpeak = repmat(struct('rank',[],'weight',[],'relativeweight',[],...
-                             'width',[],'sigma',[],'position',[],'baseline',[],'xbaseline',[],'isbaseline',[],...
+                             'width',[],'sigma',[],'area',[],'position',[],'baseline',[],'xbaseline',[],'isbaseline',[],...
                              'kernel',[],'r2',NaN,'r2max',[],...
                              'window',struct('center',[],'width',[],'widthalpha',[],'alpha',[],'nsignificantpeaks',[],'significantproba',[])),[n,2]);
 alpha = 0.05; % probability of rejection
@@ -265,7 +273,8 @@ for k = 1:2
     windowcenter(k) = position(k,:)*weight(:,k)/sum(weight(:,k),1);
     windowwidth = o.x(end)-o.x(1);
     windowwidthalpha = norminv([alpha/2 1-alpha/2],windowcenter(k),(0.6006*windowwidth)/sqrt(2));
-    sigma(k,:) = (0.6006*width(k,:))/sqrt(2);
+    sigma(k,:) = (0.6006*width(k,:))/sqrt(2); % standard deviation: 0.6006/sqrt(2)*width
+    area(k,:) = 0.6006*sqrt(pi)*width(k,:);   % area: 0.6006*sqrt(pi)*width
     for i=1:n
         gaussianpeak(i,k).kernel =  @(x) gaussiankernel(x,position(k,i),width(k,i));
         gaussianpeak(i,k).weight = weight(i,k);  
@@ -280,6 +289,7 @@ for k = 1:2
         gaussianpeak(i,k).width = width(k,i);    
         gaussianpeak(i,k).position = position(k,i);        
         gaussianpeak(i,k).sigma = sigma(k,i);
+        gaussianpeak(i,k).area = area(k,i);
         gaussianpeak(i,k).window.center = windowcenter(k);
         gaussianpeak(i,k).window.width = windowwidth;
         gaussianpeak(i,k).window.alpha = alpha;
@@ -342,10 +352,16 @@ if nargout>2, outsumbaseline = expansion2; end
 
 %% Nested functions
     function err = fitgaussian(ps)
+        WC = sum(Hwidth( ps(2,:) - o.widthmax) .*o.widthpenaltyscale);
+        SC = sum((Hshift( abs(ps(1,:)-[p.center]) - o.shiftmax) ).*o.shiftpenaltyscale);
         err = norm(gaussian(o.x,ps(1,:),ps(2,:))-o.y) ...
               + norm((1-H(ps(2,:)))*penaltyscale) ... force positive variance, constraint the displacement of peaks
-              + norm(Hwidth( ps(2,:) - o.widthmax) .*o.widthpenaltyscale) ... % width constraints
-              + norm((Hshift( abs(ps(1,:)-[p.center]) - o.shiftmax) ).*o.shiftpenaltyscale); % shift constraints
+              + WC ... % width constraints
+              + SC; % shift constraints
+        if o.dispconstraints 
+            if SC>0, dispf('\t -->shift constraints introduced'), end
+            if WC>0, dispf('\t -->width constraints introduced'), end
+        end
     end
 
     function err = fitgaussianfixedpos(s)
