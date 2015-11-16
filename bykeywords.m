@@ -62,7 +62,7 @@ function [X0,foundindexout,nfound]=bykeywords(X,f,varargin)
 %
 %   See also: XLSTBLREAD, LOADODS, LOADODSPREFETCH, STRUCT2STRUCTTAB, STRUCTTAB2STRUCT, SUBSTRUCTARRAY, CLEANTABLE
 
-% MS 2.0 - 20/01/2008 - INRA\Olivier Vitrac - rev. 14/11/2015
+% MS 2.0 - 20/01/2008 - INRA\Olivier Vitrac - rev. 16/11/2015
 
 % Revision history
 % 29/01/2008 add finindex, new rules for missing KEYVALUES
@@ -72,6 +72,7 @@ function [X0,foundindexout,nfound]=bykeywords(X,f,varargin)
 % 07/03/2015 fix 1D index based anonymous function (boolean output are converted to numeric index and not kept as logical index)
 % 27/10/2015 add slicing capability along one dimension (example:  bykeywords(db.layout,{'table','sample'},'oven',{'batter' 'batter'}))
 % 14/11/2O15 implement table objects
+% 16/11/2015 impose the original order the title of columns when tables are used (pb with setdiff, to remove Properties)
 
 % Definitions
 reshapeon =false;
@@ -94,7 +95,11 @@ if isstruct(X) || isatable
     if isatable
         Properties = X.Properties;
         X = structtab2struct(table2struct(X));
-        if nXfields>size(X,2), Xfields = setdiff(Xfields,'Properties'); end
+        if nXfields>size(X,2)
+            [~,iokfield] = setdiff(Xfields,'Properties');
+            % make order stable without using 'stable' (don't work on old Matlabs, before 2012)
+            Xfields = Xfields(sort(iokfield,'ascend'));
+        end
     end
     X = struct2cell(X);
  else
