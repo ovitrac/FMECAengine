@@ -8,7 +8,10 @@ function Tclean=cleantable(T,emptystring)
 %
 % See also: XLSTBLREAD, LOADODS, LOADODSPREFETCH, STRUCT2STRUCTTAB, STRUCTTAB2STRUCT, SUBSTRUCTARRAY, BYKEYWORDS
 
-% MS 2.1 - 15/11/2015 - INRA\Olivier Vitrac - rev. 
+% MS 2.1 - 15/11/2015 - INRA\Olivier Vitrac - rev. 24/11/15
+
+% revision history
+% 24/11/15 updated See also section
 
 % arg check
 if nargin<1, error('one argument is required'), end

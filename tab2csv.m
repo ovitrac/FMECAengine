@@ -8,15 +8,16 @@ function tab2csv(tab,filename,varargin)
 %       'separator', ',' (default)
 %   'textdelimiter', '"' (default)
 %
-%   See also: loadods, xlstblread
+%   See also: LOADODS, LOADODSPREFETCH, XLSTBLREAD, STRUCT2STRUCTTAB, STRUCTTAB2STRUCT, SUBSTRUCTARRAY, FLATENSTRUCTTAB
 %   Additional information on CSV: http://creativyst.com/Doc/Articles/CSV/CSV01.htm
 
-% MS 2.1 - 13/04/2011 INRA\Olivier Vitrac - rev. 20/07/11
+% MS 2.1 - 13/04/2011 INRA\Olivier Vitrac - rev. 24/11/15
 
 % Revision History
 % 20/06/11 recast structure array into a structure will cell fields
 % 21/06/11 fix cell2struct used to recast structure arrays
 % 20/07/11 fix rescan (insert abs)
+% 24/11/15 updated see also section
 
 % default
 options_default = struct(...

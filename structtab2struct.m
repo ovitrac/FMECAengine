@@ -16,15 +16,16 @@ function s = structtab2struct(sarray,dim,NonUniformOutput)
     ab = structtab2struct([as;bs],[],true);
 %}
 %
-%   See also STRUCTTAB2STRUCT, SUBSTRUCTARRAY
+%   See also STRUCTTAB2STRUCT, SUBSTRUCTARRAY, CLEANTABLE, FLATENSTRUCTTAB, TAB2CSB
 
 
-% MS 2.1 - 29/11/13 - INRA\Olivier Vitrac - rev. 10/03/2014
+% MS 2.1 - 29/11/13 - INRA\Olivier Vitrac - rev. 24/11/2015
 
 % Revision history
 %  05/06/2014 add see also
 %  09/03/2015 add NonUniformOutput
 %  10/03/2015 remove uncell when NonUniformOutput=true
+%  24/11/2015 update See also section
 
 % Default
 dim_default = 1;
