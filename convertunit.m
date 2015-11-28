@@ -132,7 +132,11 @@ function varargout = convertunit(varargin)
 %   convertunit('C','F',3,'abstemp')    returns 37.4 farenheit = 3 celcius
 %   convertunit('C/s','F/s','abstemp'); returns an error
 %
-%version: 2015.01.29 - modified INRA\Olivier Vitrac - 01/04/15, 04/04/15
+%version: 2015.01.29 - modified INRA\Olivier Vitrac - 01/04/15, 04/04/15, 28/11/15
+
+% REVISION HISTORY
+% 28/11/15 add prefix 'd' for dm,...
+
 
 %% SETUP
 if ~nargin, convertunit('report'), return, end
@@ -327,8 +331,13 @@ function opt = sub_setup_prefix(opt)
 %sets up data on prefixes
 %opt = sub_setup_prefix(opt)
 
-opt.prefix.symb = 'numcHkMGT';
-opt.prefix.powr = [-9 -6 -3 -2 2 3 6 9 12];
+% before 28/11/2015
+% opt.prefix.symb = 'numcHkMGT';
+% opt.prefix.powr = [-9 -6 -3 -2 2 3 6 9 12];
+% after 28/11/2015
+opt.prefix.symb = 'numcdHkMGT';
+opt.prefix.powr = [-9 -6 -3 -2 -1 2 3 6 9 12];
+
 end
 
 function opt = sub_setup_constant(opt)

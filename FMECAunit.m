@@ -42,16 +42,22 @@ function num=FMECAunit(quantity,str,quantitychecked)
 %}
 
 
-% INRA\FMECAengine v 0.6 - 02/04/2015 - Olivier Vitrac - rev. 24/06/2015
+% INRA\FMECAengine v 0.6 - 02/04/2015 - Olivier Vitrac - rev. 28/11/2015
 
 % Revision history
 % 03/04/2015 release candidate with examples
 % 04/04/2015 add temperature and pressure, additional conversion of crazy notations from users
 % 24/06/2015 add grammage
+% 28/11/2015 fix min (starting from now mi = min, mo = mounth, m does not exist)
+% 28/11/2015 add a prefetch to accelerate conversions
 
+% PREFETCH management
+persistent DBunit DBunitprefetch
+if isempty(DBunitprefetch)
+    DBunitprefetch = fullfile(tempdir,sprintf('PREFETCH_DBunit_%s.mat',mfilename));
+end
 
-
-% Definition
+% Definitions
 anynumber = '[-+]?[0-9]*\.?[0-9]+([eEdD][-+]?[0-9]+)?';
 unit2SI = struct(... % add concentration
     'time','s',...
@@ -68,7 +74,16 @@ unit2SI = struct(... % add concentration
     'grammage','kg/m^2' ...
 );
 
-% arg check
+if isempty(DBunit)
+    if exist(DBunitprefetch,'file')
+        load(DBunitprefetch)
+    else
+        fall = fieldnames(unit2SI); nfall = length(fall);
+        DBunit = cell2struct(repmat({struct('unit',{{}},'scale',[])},nfall,1),fall);
+    end
+end
+
+%% arg check
 if nargin<2, error('two arguments are required'), end
 if nargin<3, quantitychecked = false; end
 if ~ischar(quantity), error('quantity must be a char'), end
@@ -85,7 +100,7 @@ else
 end
 istemperature = ~isempty(regexp(q,'.temperature$','once'));
 
-% Recursion if needed
+%% Recursion if needed
 if iscellstr(str)
     nstr = numel(str); num = zeros(size(str));
     for i=1:nstr
@@ -96,13 +111,13 @@ elseif ~ischar(str)
     error('str must be a char');
 end
 
-% Additional definitions (defined only after recursion)
+%% Additional definitions (defined only after recursion)
 % ==> to enable many notations used by end users even if they are not not standard
 synonyms = struct(...
     'time',{{ 
              '^an\w*'    ,'year'
              '^y\w*'      ,'year'
-              '^m\w*'     ,'month'
+              '^mo\w*'     ,'month'
               '^sem\w*'   ,'week'
               '^w\w*'     ,'week'              
               '^d$'       ,'day'
@@ -111,7 +126,7 @@ synonyms = struct(...
               '^h$'       ,'hour'
               '^ho$'      ,'hour'
               '^heu\w*$'  ,'hour'
-              '^m$'       ,'min'
+              '^mi\w*$'   ,'min'
               '^mn$'      ,'min'
               '^sec$'     ,'s'}},...
     'length',{{'µ' 'u'
@@ -151,25 +166,35 @@ synonyms = struct(...
     'grammage',{cell(0,2)} ...
 );
 
-% string interpretation
-uSI = unit2SI.(q);
+%% string extraction
 tmp = uncell(regexp(strtrim(str),sprintf('^(%s)(.*)$',anynumber),'tokens'));
 n   = strtrim(tmp{1}); % literal number
+nconverted = str2double(n);
 u   = regexprep(tmp{2},'\s',''); % literal unit
+
+%% string interpretation
+uSI = unit2SI.(q);
 if isempty(n), error('no number recognized in ''%s''',str), end
 if isempty(u)
     dispf('WARNING: no unit provided for number ''%s'', the SI unit of ''%s'' is used (''%s'') instead',n,quantity,uSI)
-    num = str2double(n);
+    num = nconverted;
 else
     if length(u)>1, u = regexprep(u,'s$',''); end % to add d, h,
     if ~isempty(synonyms.(q))
         u = regexprep(u,synonyms.(q)(:,1),synonyms.(q)(:,2));
     end
+    % check whether the converion has been previously done
+    iprefetch = find(ismember(DBunit.(q).unit,u),1);
+    if ~isempty(iprefetch)
+        num = nconverted * DBunit.(q).scale(iprefetch);
+        return
+    end
+    % do the conversation
     try
         if istemperature 
-            num = convertunit(u,uSI,str2double(n),'abstemp');
+            num = convertunit(u,uSI,nconverted,'abstemp');
         else
-            num = convertunit(u,uSI,str2double(n));
+            num = convertunit(u,uSI,nconverted);
         end
     catch cunit
         dispf('ERROR in ''%s/%s'' at line %d',cunit.stack(2).name,cunit.stack(1).name,cunit.stack(1).line)
@@ -177,3 +202,8 @@ else
         error('please check the input ''%s: %s''',q,str)
     end
 end
+
+%% update prefetch
+DBunit.(q).unit{end+1} =  u;
+DBunit.(q).scale(end+1) = num/nconverted;
+save(DBunitprefetch,'DBunit')
