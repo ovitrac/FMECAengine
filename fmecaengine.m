@@ -220,7 +220,7 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 % Any question to this script/function must be addressed to: olivier.vitrac@agroparistech.fr
 % The script/function was designed to run on the cluster of JRU 1145 Food Process Engineering (admin: Olivier Vitrac)
 %
-% Migration 2.1 (Fmecaengine v0.53) - 10/04/2011 - INRA\Olivier Vitrac - Audrey Goujon - Mai Nguyen - rev. 24/10/2015
+% Migration 2.1 (Fmecaengine v0.54) - 10/04/2011 - INRA\Olivier Vitrac - Audrey Goujon - Mai Nguyen - rev. 30/11/2015
 
 % Revision history
 % 06/04/2011 release candidate
@@ -292,9 +292,10 @@ function [fmecadb,data0out,dataout,options] = fmecaengine(varargin)
 % 21/10/2015 set layerid and xlayerid (more robust) (FMECAengine version 0.523)
 % 21/10/2015 the following rule is implemented in senspantankarC(): negative concentration, remove the layer (FMECAengine version 0.524)
 % 24/10/2015 full implementation of senspatankar_restart (FMECAengine version 0.53)
+% 30/11/2015 add general deletion enabling the addition of layers on the fly (FMECAengine version 0.54)
 
 %% Fmecaengine version
-versn = 0.53; % official release
+versn = 0.54; % official release
 mlmver = ver('matlab');
 extension = struct('Foscale','Fo%d%d','Kscale','K%d%d','ALT','%sc%d'); % naming extensions (associated to scaling)
 prop2scale = struct('Foscale','regular_D','Kscale','regular_K'); % name of columns
@@ -770,8 +771,13 @@ for iseries = 1:nseries  % Main loop on each series of independent simulations (
                 t0 = clock;
                 if isempty(previousres) % simulation without using a previous profile as initial solution
                     if ~setoff(map(isim,iseries)) % without setoff
-                        screen = dispb(screen,'[%d/%d (%d/%d)]\t%s\t %s (SENSPATANKAR)...',count,countmax,isim,nsim,currentid,msg);
-                        r = senspatankar(senspatankar_wrapper(s(map(isim,iseries))));
+                        if any(s(map(isim,iseries)).C0<0) % added 30/11/2015
+                            screen = dispb(screen,'[%d/%d (%d/%d)]\t%s\t %s (SENSPATANKARC with deleted layer(s))...',count,countmax,isim,nsim,currentid,msg);
+                            r = senspatankarC(senspatankar_wrapper(s(map(isim,iseries))));
+                        else
+                            screen = dispb(screen,'[%d/%d (%d/%d)]\t%s\t %s (SENSPATANKAR)...',count,countmax,isim,nsim,currentid,msg);
+                            r = senspatankar(senspatankar_wrapper(s(map(isim,iseries))));
+                        end
                     else % with setoff
                         screen = dispb(screen,'[%d/%d (%d/%d)]\t%s\t %s (SETOFFPATANKAR)...',count,countmax,isim,nsim,currentid,msg);
                         r = setoffpatankar(senspatankar_wrapper(s(map(isim,iseries))));

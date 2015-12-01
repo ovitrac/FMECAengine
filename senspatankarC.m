@@ -5,7 +5,7 @@ function res = senspatankarC(F,ploton,dispon)
 %   IT IS THE RESPONSABILITY OF THE USER TO PROVIDE THE APPROPRIATE DIMENSIONLESS NUMBERS
 %   a wrapper used for the online version is available in ../www/home/diffusion_1DFVn.m
 
-% MS-MATLAB-WEB 1.0 - 25/09/09 - Olivier Vitrac - rev. 24/10/15
+% MS-MATLAB-WEB 1.0 - 25/09/09 - Olivier Vitrac - rev. 01/12/15
 
 % Revision history
 % 01/10/07 improve speed
@@ -20,6 +20,8 @@ function res = senspatankarC(F,ploton,dispon)
 % 22/10/15 restrict k to real layers, and fic C0 CO mixup 
 % 23/10/15 separation of iref and iabsref
 % 24/10/15 full implementation of senspatankar_restart, fix L correction
+% 30/11/15 reverse modifications of 24/10/15 as most of the work is not carried out by senspatankar_wrapper
+% 01/12/15 generate a warning in no source found
 
 % definitions
 global timeout
@@ -69,19 +71,22 @@ if isempty(dispon), dispon = dispon_default; end
 isrestarrequired = isfield(F,'restart') && ~isempty(F.restart) && isstruct(F.restart) && isfield(F.restart,'x') && isfield(F.restart,'C');
 
 % physical check
-m = Inf;
 % for prop = {'D' 'k' 'C0' 'kR'}; %line to be deleted (OV: 09/04/11, incomplete pieces of code)
-if isrestarrequired, proptocheck = {'D' 'k' 'l'}; else proptocheck = {'D' 'k' 'C0' 'l'}; end % implemented on 21/10/2015
+% if isrestarrequired, proptocheck = {'D' 'k' 'l'}; else proptocheck = {'D' 'k' 'C0' 'l'}; end % implemented on 21/10/2015
+proptocheck = {'D' 'k' 'C0' 'l'};
+m = max(cellfun(@(p) length(F.(p)),proptocheck)); % m = inf;
+isavalidlayersubmitted = true(1,m);
 for prop = proptocheck
-    if strcmp(prop{1},'C0')
-        F.(prop{1}) = F.(prop{1})(F.(prop{1})>=0);
-    else
-        F.(prop{1}) = F.(prop{1})(F.(prop{1})>0);
+    if strcmp(prop{1},'C0'), ok = (F.(prop{1})>=0);
+    else                     ok = (F.(prop{1})>0);
     end
+    %F.(prop{1}) = F.(prop{1})(ok); % not required
+    isavalidlayersubmitted(~ok) = false;
     m = min(m,length(F.(prop{1})));
 end
 % check for negative concentrations (they code for layers to remove)
-ireallayers = find(F.C0(1:m)>=0); % layers are always counted from left to right
+% before 30/11/15: ireallayers = find(F.C0(1:m)>=0); % layers are always counted from left to right
+ireallayers = find(isavalidlayersubmitted);
 F.m = length(ireallayers);
 % end check (added section on 21/10/2015)
 
@@ -95,7 +100,7 @@ end
 F.k = F.k/F.k0; F.k0 = 1;   % by convention
 a = F.D(ireallayers)./F.k(ireallayers);
 if isfield(F,'iref')
-    iref = ireallayers(F.iref);
+    iref = F.iref; %ireallayers(F.iref); % fixed on 30/11/2015
 else
     [crit,iref] = min( a./F.l(ireallayers) );
     F.iref = iref;
@@ -106,13 +111,14 @@ F.lengthscale = F.l(iabsref);
 F.lref  = F.l(ireallayers)./F.l(iabsref);
 F.lrefc = cumsum(F.lref);
 F.C0    = F.C0(ireallayers);
-if isfield(F,'hasbeenwrapped') && F.hasbeenwrapped
-    timescale = F.l(iabsref)^2/F.D(iabsref);
-    F.t = F.t *  F.timescale/timescale; % rescaling when the reference layer changes
-    if isrestarrequired
-        F.L = F.L *  F.l(iabsref)/F.restart.lengthscale; % rescaling when the reference layer changes
-    end
-end
+% %%% section removed OV: 30/11/2015 (not required anymore with new standards)
+% if isfield(F,'hasbeenwrapped') && F.hasbeenwrapped
+%     timescale = F.l(iabsref)^2/F.D(iabsref);
+%     F.t = F.t *  F.timescale/timescale; % rescaling when the reference layer changes
+%     if isrestarrequired
+%         F.L = F.L *  F.l(iabsref)/F.restart.lengthscale; % rescaling when the reference layer changes
+%     end
+% end
 F.l     = F.l(ireallayers);
 F.D     = F.D(ireallayers);
 F.k     = F.k(ireallayers);
@@ -127,12 +133,13 @@ else
 end
 MaxStepmax = max(MaxStepmax,ceil(F.t(end)/nstepchoice));
 
-% ID of layers
-if isrestarrequired
-    layerid = F.restart.layerid(ireallayers);
-else
-    layerid = ireallayers;
-end
+% ID of layers (before 30/11/15)
+% if isrestarrequired
+%     layerid = F.restart.layerid(ireallayers);
+% else
+%     layerid = ireallayers;
+% end
+layerid = ireallayers;
 
 
 % check if restrictions applied %added 24/01/07
@@ -153,7 +160,16 @@ end
 
 % equilibrium value
 C0eq = sum(F.lref*F.L.*F.C0)/(1+sum((F.k0./F.k .* F.lref*F.L)));
-if C0eq<=0 && isrestarrequired, C0eq = F.restart.C0eq; end
+if C0eq<=0
+    if isrestarrequired
+        C0eq = F.restart.C0eq;
+    else
+        dispf('\n%s',repmat('=',1,48))
+        dispf('%s::\tWARNING\n\tall %d layers are empty (no source terms)!!!\n\tPlease check (C0eq forced to 1)',mfilename,m)
+        dispf('\n%s',repmat('=',1,48))
+        C0eq = 1;
+    end
+end
 F.peq = F.k0 * C0eq;
 
 % mesh generation
@@ -197,9 +213,13 @@ if isrestarrequired
     for i=1:F.m
         iold = find(F.restart.xlayerid==layerid(i)); % <--- we assume that id are well preserved between steps
         inew = find(xlayerid==layerid(i));           % <--- current layers
-        xold = (F.restart.x(iold)-F.restart.x(iold(1)))/(F.restart.x(iold(end))-F.restart.x(iold(1))); %<-- dimensionless 0=begin 1=end
-        xnew = (xmesh(inew)-xmesh(inew(1))) / (xmesh(inew(end))-xmesh(inew(1))); %<-- dimensionless 0=begin 1=end
-        C0(inew) = interp1(xold,F.restart.C(iold),xnew,F.restart.method)/C0eq;   %<-- interpolation from old values and positions
+        if isempty(iold)
+            C0(inew) = F.C0(i)/C0eq;
+        else
+            xold = (F.restart.x(iold)-F.restart.x(iold(1)))/(F.restart.x(iold(end))-F.restart.x(iold(1))); %<-- dimensionless 0=begin 1=end
+            xnew = (xmesh(inew)-xmesh(inew(1))) / (xmesh(inew(end))-xmesh(inew(1))); %<-- dimensionless 0=begin 1=end
+            C0(inew) = interp1(xold,F.restart.C(iold),xnew,F.restart.method)/C0eq;   %<-- interpolation from old values and positions
+        end
     end
     % end of layer by layer interpolation
     if isfield(F.restart,'CF'), CF0 = F.restart.CF/C0eq; end

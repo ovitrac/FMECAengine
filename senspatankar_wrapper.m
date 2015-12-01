@@ -17,6 +17,7 @@ function S=senspatankar_wrapper(S0,varargin)
 %       example: senspatankar_wrapper(S0,'k',[10 1 1 1])
 %  Note: parameters defined after S0 have higher precedence
 %       (example: if S0.options exists and 'options' is defined, the value of 'options' is used instead of S0.options)
+%  Note: iref is an index based on existing layers (i.e. if C0 = [-1 100 0] with layer 1 removed, iref must be ranged between 1 and 2)
 %
 %  OUTPUTs: Sdimensionless has the same fields as S0 (+ user overrides)
 %       Modified fields
@@ -55,7 +56,7 @@ function S=senspatankar_wrapper(S0,varargin)
     subplot(122), plot(R.x*S.wrap.position.scale(R),R.Cx'), xlabel(S.wrap.position.label)
 %}
 
-% MS-MATLAB-WEB 1.0 - 13/05/09 - Olivier Vitrac - rev. 28/11/2015
+% MS-MATLAB-WEB 1.0 - 13/05/09 - Olivier Vitrac - rev. 01/12/2015
 
 % revision history
 % 28/04/11 add S.lengthscale
@@ -63,19 +64,21 @@ function S=senspatankar_wrapper(S0,varargin)
 % 24/10/2015 add hasbeenwrapped (i.e. dimensionless)
 % 27/11/2015 major update, user override for iref and all properties of senspatankar
 % 28/11/2015 extract options correctly
+% 30/11/2015 keep case on S0, iref based only on existing layers only
+% 01/12/2015 fix the size control of C0
 
 %% default
 keywords = 'display';
 default = struct('iref',[],'options',[],'tunit','days','lunit','um','tlabel','time','llabel','position');
 usertscale = 24*3600; % it should match default.tunit
 userlscale = 1e-6;    % it should match default.lunit
-mandatoryfields = {'t' 'L' 'l' 'k' 'D'};
-isvector = [false false true true true];
+mandatoryfields = {'t' 'L' 'l' 'k' 'D' 'C0'};
+isvector = [false false true true true true];
 
 %% arg check
 % 1) extract the specific options and keywords of the function
 % note that options (for ODE) are extracted at this stage with 'nostructexpand'
-[options,remain] = argcheck(varargin,default,keywords,'nostructexpand');
+[options,remain] = argcheck(varargin,default,keywords,'nostructexpand','case');
 if length(options.iref)>1, error('iref is a scalar property'); end
 missingfields = setdiff(mandatoryfields,fieldnames(S0));
 if ~isempty(missingfields)
@@ -84,27 +87,27 @@ if ~isempty(missingfields)
     error('SENSPATANKAR_WRAPPER:: %d properties are missing',length(missingfields)),
 end
 % 2) populate S with overdefined user parameters
-S = argcheck(remain,S0,'','keep');
+S = argcheck(remain,S0,'','keep','case');
 if ~isempty(options.options), S.options = options.options; end
 n = unique(cellfun(@(f) length(S.(f)),mandatoryfields(isvector)));
-if length(n)>1, error('the size of l, k and D are not consistent'); end
+if length(n)>1, error('the size of l, k D, C0 are not consistent (ranged between %d and %d)',min(n),max(n)); end
 
 %% main
-[crit,irefcandidate] = min(S.D./(S.k.*S.l));  % PERMEATION CRITERION
+ok = find(S.C0>=0); nok = length(ok);
+[crit,irefcandidate] = min(S.D(ok)./(S.k(ok).*S.l(ok)));  % PERMEATION CRITERION
 if ~isempty(options.iref) && ~isnan(options.iref)
-    if options.iref>0 && options.iref<=n
-        iref = options.iref;
+    if options.iref>0 && options.iref<=nok
+        irefcandidate = options.iref;
     else
-        error('iref should be an integer ranging between %d and %d',1,n)
+        error('iref should be an integer ranging between %d and %d (number of layers=%d)',1,nok,n)
     end
-else
-    iref = irefcandidate;
 end
-S.iref = iref;
-S.L = S.L * S.l(iref) / sum(S.l);
-S.t = S.t*S.D(iref)/S.l(iref)^2;
-S.timescale = S.l(iref)^2/S.D(iref);
-S.lengthscale = S.l(iref); % reference length scale (added 28/04/11)
+S.iref = irefcandidate;
+iabsref = ok(irefcandidate);
+S.L = S.L * S.l(iabsref) / sum(S.l); % normalization for all layers (even those removed with C0<0)
+S.t = S.t*S.D(iabsref)/S.l(iabsref)^2;
+S.timescale = S.l(iabsref)^2/S.D(iabsref);
+S.lengthscale = S.l(iabsref); % reference length scale (added 28/04/11)
 S.hasbeenwrapped = true;
 
 %% result wrapper
@@ -123,5 +126,5 @@ S.wrap = struct(...
 
 %% diplay
 if options.display
-    dispf('\n%s::\nthe reference layer is the %dth of %d (conductance %0.4g m/s)',mfilename,iref,n,crit)
+    dispf('\n%s::\nthe reference layer is the %dth of %d (conductance %0.4g m/s)',mfilename,iabsref,n,crit)
 end

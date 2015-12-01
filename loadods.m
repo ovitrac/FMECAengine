@@ -26,12 +26,12 @@ function [dataout,attrout] = loadods(infile,varargin)
 %
 % TIP: NaN, Inf, -Inf, true, false are read litteraly
 %
-% SEE ALSO: XLSTBLREAD, XLSREAD
+% SEE ALSO: XLSTBLREAD, XLSREAD, LOADODSPREFETCH
 
-% MS 2.1 - 11/02/11 - INRA\Olivier Vitrac - rev. 07/11/15
+% MS 2.1 - 11/02/11 - INRA\Olivier Vitrac - rev. 30/11/15
 % Initial code from (C) 2007 Alex Marten - alex.marten@gmail.com
 
-% Revision history
+% Revision history (INRA\Olivier Vitrac)
 %   09/02/11 major revision, release candidate
 %   10/02/11 handle several sheets, NaN, Inf
 %   11/02/11 fix the method to guess the name of the first worksheet
@@ -47,6 +47,7 @@ function [dataout,attrout] = loadods(infile,varargin)
 %   24/01/12 fix header with item(3), based on a correct identification of office:body tag (starting from item 3)
 %   17/01/14 fix test bounds when empty cells are mixed with NaN, etc.
 %   07/11/15 add attributes (to be used to feed the data type: table), add maketable
+%   30/11/15 recognize dates
 
 % Set default options
 validchars = '[^a-zA-Z0-9]'; % accepted characters for fields
@@ -184,7 +185,7 @@ for isheet = 1:numSheets
                 num_repeated = get_attribute(col,'table:number-columns-repeated');
                 num_repeated = str2double(char(num_repeated));
                 value_type = get_attribute(col,'office:value-type');
-                if strcmp(value_type,'string')
+                if strcmp(value_type,'string') || strcmp(value_type,'date') % added date on Nov 30th, 2015
                     temp = col.getChildNodes;
                     temp = temp.item(0);
                     temp = temp.getChildNodes;
