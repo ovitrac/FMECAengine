@@ -20,7 +20,9 @@ function out = gifmultilayers(varargin)
 % OUTPUTS (not fully documented at this stage)
 %
 %
-% EXAMPLES (generated for Saint-Gobain USA)
+% ========================================================================================================
+% EXAMPLES to illustrate the principles of transfer between multilayers (generated for Saint-Gobain USA)
+% ========================================================================================================
 %{
 % ======= Reference ======= 
 gifmultilayers('makegif')
@@ -41,7 +43,9 @@ position = [200   150   1280   800];
 gifmultilayers(manymodel,'Fo',logspace(-2,log10(200),1200),'filename','manylayers','makegif','position',position,'markersize',4,'title','\bfQUADRIlayer ABCD\rm')
 %}
 %
+% ====================================================================================================
 % EXAMPLES to illustrate superposition effects (generated for Sartorius-Stedim, France, Germany)
+% ====================================================================================================
 %{
     % reference [F1 P F2], note the asymmetry
     local = pwd; % set your path here
@@ -85,15 +89,51 @@ gifmultilayers(manymodel,'Fo',logspace(-2,log10(200),1200),'filename','manylayer
     gifmultilayers('xticklabel',{'0' '1' '2'},'title','left approximation',Sleft,'makegif')
     gifmultilayers('xticklabel',{'1' '2' '3'},'title','right approximation',Sright,'makegif')
 %}
+%
+% ======================================================================
+% alternative scenario based on mass balance and thickness correction
+% Note: that additional sources and reflections are required to make the
+%       approximation exact (see applications of Green's transform)
+% =======================================================================
+%{
+    meq = Rref.Ceq .* Sref.l;
+    ratio = meq([1 3])./sum(meq([1 3])); % main assumption: each side of P contributes proportionally to the final eq value
+    S2left = gifmultilayers('initialize','restriction',1:2,'filename','superposition2_left',Sref); % matches [F1 P]
+    S2left.l(2) = S2left.l(2) *ratio(1); % update the source thickness (position 1)
+    R2left =  gifmultilayers(S2left);
+    S2right = gifmultilayers('initialize','restriction',2:3,'filename','superposition2_right',Sref); % matches [P F2]
+    S2right.l(1) = S2right.l(1) *ratio(2); % update the source thickness (position 1)
+    R2right =  gifmultilayers(S2right);
+    figure, hold on, hp = [
+        plot(Rref.Fo_input,Rref.Cmean(:,1),'-','color',rgb('Teal'),'linewidth',2)
+        plot(Rref.Fo_input,Rref.Cmean(:,3),'-','color',rgb('Crimson'),'linewidth',2)
+        plot(Rleft.Fo_input,R2left.Cmean(:,1),'-','color','b','linewidth',1)
+        plot(Rright.Fo_input,R2right.Cmean(:,2),'-','color','r','linewidth',1)
+        plot(Rref.Fo_input,Rref.Cmean(:,2),'-','color','k','linewidth',2)
+        plot(Rref. Fo_input, ratio(1)*interp1(R2left.Fo_input,R2left.Cmean(:,2),Rref.Fo_input) + ...
+                              ratio(2)*interp1(R2right.Fo_input,R2right.Cmean(:,1),Rref.Fo_input),...
+        '--','color','k','linewidth',1)
+        ]; title('2nd strategy: mass balance + thickness correction'), xlabel('Fo'), ylabel('Conc.'); 
+    legend(hp,{'exact F_1' 'exact F_2' 'F_1 alone' 'F_2 alone' 'exact P' 'average of 2 approximations'})
+    figure, Fotarget =2; it = nearestpoint(Fotarget,Rref.Fo_input); % Concentration profile for a particular Fo
+    subplot(131), hold on, Rref.plotbnd(),Rref.plotpart(it), Rref.plot(it,it), axis tight, title('\bfexact solution')
+    subplot(132), hold on, R2left.plotbnd(),R2left.plotpart(it), R2left.plot(it,it), axis tight, title('left approximation')
+    subplot(133), hold on, R2right.plotbnd(),R2right.plotpart(it), R2right.plot(it,it), axis tight, title('right approximation')
+%}
+% As above but generate GIF images (please run the example above before launching this code)
+%{
+    gifmultilayers('xticklabel',{'0' '1' sprintf('%0.3g',1+ratio(1)) },'title','left approximation (2)',S2left,'makegif')
+    gifmultilayers('xticklabel',{sprintf('%0.3g',1+ratio(1)) '2' '3'},'title','right approximation (2)',S2right,'makegif')
+%}
 
-
-% Migration 2.1 - 17/12/2015 - INRA\Olivier Vitrac - rev. 24/12/2015
+% Migration 2.1 - 17/12/2015 - INRA\Olivier Vitrac - rev. 25/12/2015
 
 % Revision history
 % 17/12/2015 release candidate as a function with examples, based on the script used by Mai and a former script used for EU Commission in 2012
 % 23/12/2015 consolidation and output, documentation is still succinct but sufficient for advanced users
 % 24/12/2015 function renamed as gifmultilayers (to be integrated within MIGRATION toolbox)
 % 24/12/2015 example for Sartorius completed, add restriction, plots with arbitrary concentration units
+% 25/12/2015 second approximation of superpoposition (preferred): mass balance and thickness correction
 
 % default
 ndefault = 20;
