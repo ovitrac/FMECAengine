@@ -32,7 +32,7 @@ function [param,remaining]=argcheck(list,propdefault,keywordlist,varargin)
 % NB: keywords have a higher precedence on properties (a missing keyword is always set to false whatever the value assigned in propdefault)
 %     e.g. argcheck({'a',false},struct('a',false),'a') returns TRUE
 
-% MS 2.1 - 25/12/09 - INRA/Olivier Vitrac - rev. 28/02/12
+% MS 2.1 - 25/12/09 - INRA/Olivier Vitrac - rev. 18/02/16
 
 % Revision history
 % 27/12/09: case insensitive, several fixes
@@ -50,6 +50,7 @@ function [param,remaining]=argcheck(list,propdefault,keywordlist,varargin)
 % 08/04/11 add 'NaNequalmissing'
 % 28/02/12 add three notes on conflict resolution when multiple definitions are found and when 'property' is used
 % 28/02/12 sort mixed structures list to keep precedence rules when user override (with multiple definitions) are used
+% 18/02/16 add isnan2() for cell inputs combined with 'NaNequalmissing'
 
 % definitions
 options_list = {'case' 'property' 'order' 'keep' 'inherit' 'nostructexpand' 'NaNequalmissing' 'nosort'}; % inherit is a private property
@@ -135,7 +136,7 @@ if ~isempty(propdefault)
         if any(ifound)
             for j=1:length(ifound)
                 if ~isfield(param,propertylist{iprop}) || options.property
-                    if ichar(ifound(j))<nlist && ~(options.NaNequalmissing && any(isnan(list{ichar(ifound(j))+1})))
+                    if ichar(ifound(j))<nlist && ~(options.NaNequalmissing && any(isnan2(list{ichar(ifound(j))+1})))
                         param(1).(propertylist{iprop}) = list{ichar(ifound(j))+1};
                         iremaining(ichar(ifound(j))+[0 1]) = false;
                     elseif j<2
@@ -164,3 +165,14 @@ end
 % ouput
 if options.order, param = orderfields(param); end
 if nargout>1, remaining = list(iremaining); end
+
+end % end function
+
+%% %%%% PRIVATE FUNCTIONS %%%%
+function b=isnan2(x)
+    if isnumeric(x), b=isnan(x);
+    elseif ischar(x), b=false;
+    elseif iscell(x), b = cellfun(@isnan2,x);
+    else b = false(size(x));
+    end
+end

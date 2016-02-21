@@ -5,7 +5,7 @@ function res = senspatankarC(F,ploton,dispon)
 %   IT IS THE RESPONSABILITY OF THE USER TO PROVIDE THE APPROPRIATE DIMENSIONLESS NUMBERS
 %   a wrapper used for the online version is available in ../www/home/diffusion_1DFVn.m
 
-% MS-MATLAB-WEB 1.0 - 25/09/09 - Olivier Vitrac - rev. 01/12/15
+% MS-MATLAB-WEB 1.0 - 25/09/09 - Olivier Vitrac - rev. 15/02/16
 
 % Revision history
 % 01/10/07 improve speed
@@ -21,7 +21,8 @@ function res = senspatankarC(F,ploton,dispon)
 % 23/10/15 separation of iref and iabsref
 % 24/10/15 full implementation of senspatankar_restart, fix L correction
 % 30/11/15 reverse modifications of 24/10/15 as most of the work is not carried out by senspatankar_wrapper
-% 01/12/15 generate a warning in no source found
+% 15/12/15 generate a warning in no source found
+% 15/02/16 add CF0 as default property
 
 % definitions
 global timeout
@@ -65,6 +66,7 @@ if ~isfield(F,'n'), F.n = n_default; end
 if ~isfield(F,'nmesh'), F.nmesh = nmesh_default; end
 if ~isfield(F,'nmeshmin'), F.nmeshmin = nmeshmin_default; end
 if ~isfield(F,'options'), F.options = options; end
+if ~isfield(F,'CF0'), F.CF0 = 0; end % added 15/02/2016
 if ~nargout, ploton=true; dispon=true; end
 if isempty(ploton), ploton = ploton_default; end
 if isempty(dispon), dispon = dispon_default; end
@@ -146,7 +148,7 @@ layerid = ireallayers;
 if isfield(F,'ivalid')
     F.ivalid = F.ivalid(ismember(F.ivalid,layerid)); %F.ivalid(F.ivalid<m)% modified OV 21/10/2015
     F.a = F.a(F.ivalid);
-    F.lref = F.lref(F.ivalid);
+    F.lref = F.lref(F.ivalid); % normalized lentghs
     F.lrefc = F.lrefc(F.ivalid);
     F.C0 = F.C0(F.ivalid);
     F.l = F.l(F.ivalid);
@@ -158,8 +160,12 @@ if isfield(F,'ivalid')
     layerid = layerid(F.ivalid);
 end
 
-% equilibrium value
-C0eq = sum(F.lref*F.L.*F.C0)/(1+sum((F.k0./F.k .* F.lref*F.L)));
+% initial concentration in the food 'revision 15/02/2016)
+CF0 = F.CF0; % default initial concentration in F
+
+% equilibrium value 'revision 15/02/2016)
+% Note that L = lref/l0 with liref = li/lref (read senspantankar_wrapper: S.L = S.Ltotal * S.l(iabsref) / sum(S.l) )
+C0eq = (F.CF0 + sum(F.lref*F.L.*F.C0)) /(1+sum((F.k0./F.k .* F.lref*F.L)));
 if C0eq<=0
     if isrestarrequired
         C0eq = F.restart.C0eq;
@@ -202,7 +208,6 @@ for i=1:F.m
 end
 
 % use a previous solution (if any)
-CF0 = 0; % default initial concentration in F
 if isrestarrequired
     if ~isfield(F.restart,'method'), F.restart.method = 'linear'; end
     % bulk interpolation (before 19/10/2015)

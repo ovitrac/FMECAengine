@@ -42,7 +42,7 @@ function num=FMECAunit(quantity,str,quantitychecked)
 %}
 
 
-% INRA\FMECAengine v 0.6 - 02/04/2015 - Olivier Vitrac - rev. 28/11/2015
+% INRA\FMECAengine v 0.6 - 02/04/2015 - Olivier Vitrac - rev. 07/02/2015
 
 % Revision history
 % 03/04/2015 release candidate with examples
@@ -50,6 +50,7 @@ function num=FMECAunit(quantity,str,quantitychecked)
 % 24/06/2015 add grammage
 % 28/11/2015 fix min (starting from now mi = min, mo = mounth, m does not exist)
 % 28/11/2015 add a prefetch to accelerate conversions
+% 07/02/2015 fix Temp unit conversions
 
 % PREFETCH management
 persistent DBunit DBunitprefetch
@@ -79,7 +80,7 @@ if isempty(DBunit)
         load(DBunitprefetch)
     else
         fall = fieldnames(unit2SI); nfall = length(fall);
-        DBunit = cell2struct(repmat({struct('unit',{{}},'scale',[])},nfall,1),fall);
+        DBunit = cell2struct(repmat({struct('unit',{{}},'scale',[],'offset',[])},nfall,1),fall);
     end
 end
 
@@ -165,7 +166,20 @@ synonyms = struct(...
     'Pressure',{cell(0,2)}, ...
     'grammage',{cell(0,2)} ...
 );
-
+offset = struct(...
+    'time',0,...
+    'length',0,...
+    'area',0,...
+    'volume',0,...
+    'mass',0,...
+    'weightconcentration',0,...
+    'concentration',0,...
+    'density',0, ...
+    'Ctemperature',-273.15,...
+    'Ktemperature',+273.15,...
+    'Pressure',0,...
+    'grammage',0 ...
+);
 %% string extraction
 tmp = uncell(regexp(strtrim(str),sprintf('^(%s)(.*)$',anynumber),'tokens'));
 n   = strtrim(tmp{1}); % literal number
@@ -183,10 +197,10 @@ else
     if ~isempty(synonyms.(q))
         u = regexprep(u,synonyms.(q)(:,1),synonyms.(q)(:,2));
     end
-    % check whether the converion has been previously done
+    % check whether the conversion has been previously done
     iprefetch = find(ismember(DBunit.(q).unit,u),1);
     if ~isempty(iprefetch)
-        num = nconverted * DBunit.(q).scale(iprefetch);
+        num = nconverted * DBunit.(q).scale(iprefetch) + DBunit.(q).offset(iprefetch);
         return
     end
     % do the conversation
@@ -205,5 +219,6 @@ end
 
 %% update prefetch
 DBunit.(q).unit{end+1} =  u;
-DBunit.(q).scale(end+1) = num/nconverted;
+DBunit.(q).offset(end+1) = offset.(q);
+DBunit.(q).scale(end+1) = (num-offset.(q))/nconverted;
 save(DBunitprefetch,'DBunit')

@@ -68,7 +68,7 @@ function res = senspatankar(F,ploton,dispon)
 %
 %   See also: senspatankar_wrapper, setoffpatankar, senspatankarT, senspatankarC, senspatankarnonlin (beta)
 
-% MS-MATLAB-WEB 1.0 - 28/09/07 - Olivier Vitrac - rev 21/10/15
+% MS-MATLAB-WEB 1.0 - 28/09/07 - Olivier Vitrac - rev 19/02/16
 
 % Revision history
 % 01/10/07 improve speed
@@ -78,6 +78,7 @@ function res = senspatankar(F,ploton,dispon)
 % 26/04/13 fix warning using method='cubic', set it to 'pchip'
 % 20/10/15 add layerid, capture C0eq
 % 21/10/15 set layerid and xlayerid (more robust), xlayerid modified to include NaN at interfaces
+% 19/02/16 add CF0 as defaut property
 
 
 % definitions
@@ -119,6 +120,7 @@ if ~isfield(F,'n'), F.n = n_default; end
 if ~isfield(F,'nmesh'), F.nmesh = nmesh_default; end
 if ~isfield(F,'nmeshmin'), F.nmeshmin = nmeshmin_default; end
 if ~isfield(F,'options'), F.options = options; end
+if ~isfield(F,'CF0'), F.CF0 = 0; end % added 19/02/2016
 if ~nargout, ploton=true; dispon=true; end
 if isempty(ploton), ploton = ploton_default; end %#ok<NASGU>
 if isempty(dispon), dispon = dispon_default; end
@@ -180,8 +182,11 @@ if isfield(F,'ivalid')
     F.m = m;
 end
 
-% equilibrium value
-C0eq = sum(F.lref*F.L.*F.C0)/(1+sum((F.k0./F.k .* F.lref*F.L)));
+% initial concentration in the food 'revision 19/02/2016)
+CF0 = F.CF0; % default initial concentration in F
+
+% equilibrium value 'revision 19/02/2016)
+C0eq = (F.CF0 + sum(F.lref*F.L.*F.C0)) /(1+sum((F.k0./F.k .* F.lref*F.L)));
 F.peq = F.k0 * C0eq;
 
 % mesh generation
@@ -217,6 +222,9 @@ end
 if isfield(F,'restart') && ~isempty(F.restart) && isstruct(F.restart) && isfield(F.restart,'x') && isfield(F.restart,'C')
     if ~isfield(F.restart,'method'), F.restart.method = 'linear'; end
     C0 = interp1(F.restart.x/F.restart.x(end),F.restart.C,xmesh/xmesh(end),F.restart.method)/C0eq; 
+    if isfield(F.restart,'CF'), CF0 = F.restart.CF/C0eq; end % add 19/02/16
+else
+    CF0 = F.CF0/C0eq; %% add 19/2/16
 end
 
 % equivalent conductances
@@ -272,11 +280,11 @@ end
 % F.options.Jacobian = J;
 if F.nmesh<400
     F.options.Vectorized = 'on';
-    [t,C] = ode15s(dCdt,F.t,[0;C0],F.options); % integration
+    [t,C] = ode15s(dCdt,F.t,[CF0;C0],F.options); % integration [t,C] = ode15s(dCdt,F.t,[0;C0],F.options);
 else % accelerated procedure
     F.options.Vectorized = 'off';
     A = {diag(A,0) diag(A,1) diag(A,-1)};
-    [t,C] = ode15s(@dCdt_opt,F.t,[0;C0],F.options); % integration
+    [t,C] = ode15s(@dCdt_opt,F.t,[CF0;C0],F.options); % integration ode15s(@dCdt_opt,F.t,[0;C0],F.options);
 end
 
 CF = C(:,1);

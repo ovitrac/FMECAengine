@@ -113,7 +113,7 @@ function [hout,propout] = plotpub(x,y,varargin)
 %                      'csapszz': plot(c,fnval(csaps(x,y,zz/100),x))
 %                      >> a combination of plotter is possible {'plot' 'plotequi'}
 %           'sign'   : 'all' (default) '+' (only positive values) '-', a combination is possible {'all' '+' '+' '-'}
-%           'interp' : 'index' 'nearest','linear' (default),'cubic' or any combination
+%           'interp' : 'index' 'nearest','linear' (default),'pchip' or any combination
 %           'disp'   : 'pretty' (default) prevents the superposition of symbols when a same xscale is used for all x{i}
 %                      'pretty with ends' as 'pretty' but plots also the ends
 %                      'optimized' precalculate the best common scale to display symbols
@@ -175,7 +175,7 @@ function [hout,propout] = plotpub(x,y,varargin)
 %    figure, plotpub(y1,'marker','o','linestyle',':')
 %    disp('rapid syntax')
 %    figure, plotpub(magic(3),'interp','linear')
-%    disp('note that the default ''interp'' value, ''cubic'' does not provide satisfactory value')
+%    disp('note that the default ''interp'' value, ''pchip'' does not provide satisfactory value')
 %    figure, plotpub(x1,{y1 y1/2},{'r-o' 'gs-'})
 %    disp('a rapid combination of several properties')
 %    figure, plotpub({1:3 1:4},{magic(3) magic(4)},{'ra-' 'cb-'},'interp','linear')
@@ -190,7 +190,7 @@ function [hout,propout] = plotpub(x,y,varargin)
 % To display a legend
 % legendpub(h2,{'leg1',{'leg1_line1' 'leg1_line2' 'leg1_line3' 'leg1_line4' 'line5'}},[],[],'interpreter','none')
 
-% MS 2.1 - 09/08/07 - Olivier Vitrac - rev. 08/03/11
+% MS 2.1 - 09/08/07 - Olivier Vitrac - rev. 19/02/16
 
 % history
 % 09/08/07 Release candidate
@@ -213,6 +213,7 @@ function [hout,propout] = plotpub(x,y,varargin)
 % 02/12/08 add 'sqrt' as xscale
 % 20/03/10 fix ny for colors
 % 08/03/11 fix text symbols on a sqrt scale, accept mixed colors rgb and letter codes
+% 19/02/16 replace 'cubic' by 'pchip' to follow Matlab rules starting from R2014a
 
 % Default (configuration section, must be modified with care since parsing rules relies on the content of default)
 default =    struct( ... parsing rules are indicated as comments
@@ -237,7 +238,7 @@ default =    struct( ... parsing rules are indicated as comments
     'plotter',{{'plot'}},...
     'sign',{{'all'}},...
     'xscale',{{'linear'}},...
-    'interp',{{'cubic'}},...
+    'interp',{{'pchip'}},...
     'disp',{{'pretty'}},...
     'type',{{'sparse'}},...
     'box',{{'on'}},...

@@ -30,6 +30,7 @@ function [gaussianpeak,outsum,outsumbaseline] = monotonepeakfit(p,varargin)
 %     'lorentzian': to fit lineshape with lorentzian peak
 %      'endforced': to add last point of x to identify baseline
 %      'keeporder': force Gaussians/Lorentzian to have increasing positions
+%  keepfittedorder: keeps the peak order as fitted
 % keepinitialorder: keeps the initial peak order
 %     'independent': start strategy 2 with the same guess as strategy 1 instead of using the width of strategy 1
 % 'dispconstraints': print when contraints are introduced
@@ -93,7 +94,7 @@ function [gaussianpeak,outsum,outsumbaseline] = monotonepeakfit(p,varargin)
 % hp = plot(x,[y model(x,3,1) model(x,3,2)]);
 %
 %
-% INRA\MS 2.1 - 24/03/2013 - Olivier Vitrac - rev. 10/11/15
+% INRA\MS 2.1 - 24/03/2013 - Olivier Vitrac - rev. 06/12/15
 %
 %
 % TODO LIST
@@ -120,9 +121,10 @@ function [gaussianpeak,outsum,outsumbaseline] = monotonepeakfit(p,varargin)
 % 10/11/15 add dispconstraints
 % 11/11/15 change argcheck behavior to expand structures while protecting options ('nostructaxpand')
 % 14/11/15 add area field
+% 06/12/15 replace keepinitialorder by keepfittedorder, implements a true keepinitialorder based on nearestpointunique
 
 %% default
-keyword = {'baseline','sort','lorentzian','endforced','keeporder','keepinitialorder','independent','dispconstraints'};
+keyword = {'baseline','sort','lorentzian','endforced','keeporder','keepinitialorder','keepfittedorder','independent','dispconstraints'};
 options = struct('display','iter','FunValCheck','on','MaxIter',1e3,'TolFun',1e-6,'TolX',1e-6);
 default = struct('x',[],'y',[],'significant',.95,'minpointsinbaseline',5,...
             'shiftmax',[],'shiftbuffer',[],'shiftpenaltyscale',[],...
@@ -318,6 +320,14 @@ if o.sort || (nargout>1),
     end
     % user override
     if o.keepinitialorder
+        for k=1:2
+            order = nearestpointunique(positionguess,[gaussianpeak(:,k).position]);
+            gaussianpeak(:,k) = gaussianpeak(order,k);
+            position(k,:) = position(k,order);
+            width(k,:) = width(k,order);
+            weight(:,k) = weight(order,k);
+        end
+    elseif o.keepfittedorder % previously o.keepinitialorder (fixed on Jan 6, 2016)
         for k=1:2
             [~,order] = sort([gaussianpeak(:,k).position]);
             gaussianpeak(:,k) = gaussianpeak(order(initialorder(k,:)),k);
