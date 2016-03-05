@@ -23,6 +23,10 @@ function [fmecadb,data0out,dataout,options] = fmecaengine2(varargin)
 %                      a structure such database.table.column than can be indexed as valueA:table::columnA->columnB
 %                      a valid ODS file that code for a similar structure (table=sheetname, column names=first row)
 %                      By default, FMECAENGINE assumes that fmecamainfile is a such database
+%        enginesingle engine for single step simulation (default = @(S) senspatankar(senspatankar_wrapper(S)))
+%       enginerestart engine for multiple simulations (default = @(S)senspatankarC(senspatankar_wrapper(S))) 
+%        enginedelete engine to manage deleted/added layers on the fly (default = @(S)senspatankarC(senspatankar_wrapper(S)))
+%        enginesetoff engine to manage setoff and periodic boundary conditions (default = setoffpatankar(senspatankar_wrapper(S)))
 %            severity vectorized anonymous function to define severity (default = @(CF,SML) 100*99./max(100*SML./CF-1,0))
 %                     Alternative, define first NOELfact = 100;
 %                     @(CF,SML) NOELfact*(NOELfact-1)./max(NOELfact*SML./CF-1,0)
@@ -176,6 +180,7 @@ function [fmecadb,data0out,dataout,options] = fmecaengine2(varargin)
 % =============================================================================
 %   a persistent RAMDISK is used where all results are stored within a single session
 %        KEYWORD: 'ramdisk' (to be combined with 'noprint' 'nograph' for maximum efficiency)
+%                 'savememory' accelerate calculations and reduce memory usage (please unload fmecaengine2 with clear functions)
 %       PROPERTY: 'session' sets session name (default = autoprojectname(5,true))
 %       RAMDISK sessions can be managed via KEYWORDS 'ls' 'flush' 'delete' (they can be combined, 'delete' is executed the last)
 %           'ls': list sessions (set session='' or session='all' to list all)
@@ -262,7 +267,7 @@ function [fmecadb,data0out,dataout,options] = fmecaengine2(varargin)
 % Any question to this script/function must be addressed to: olivier.vitrac@agroparistech.fr
 % The script/function was designed to run on the cluster of JRU 1145 Food Process Engineering (admin: Olivier Vitrac)
 %
-% Migration 2.1 (Fmecaengine v0.6019) - 10/04/2011 - INRA\Olivier Vitrac - Audrey Goujon - Mai Nguyen - rev. 20/02/2016
+% Migration 2.1 (Fmecaengine v0.6023) - 10/04/2011 - INRA\Olivier Vitrac - Audrey Goujon - Mai Nguyen - rev. 05/03/2016
 
 % Revision history
 % 06/04/2011 release candidate
@@ -344,6 +349,7 @@ function [fmecadb,data0out,dataout,options] = fmecaengine2(varargin)
 % 19/02/2016 fix schedule, add nohtml, add parentF and CF0 to fmecadb, fix the test fmecadb(1).(previousid).CF-r.CF(1)<eps when parentF is used
 % 19/02/2016 optimized cache and fix the comparison of simulations
 % 20/02/2016 first documented example for flows (version 0.60019)
+% 05/03/2016 add CPi, CFi: concentrations at the interface, add savememory, add  enginesingle,enginerestart,enginedelete,enginesetoff (version 0.6023)
 
 %% RAMDISK
 persistent RAMDISK % usage RAMDISK.(session).(jobid).r
@@ -377,6 +383,10 @@ default = struct('local','','inputpath','','outputpath','','fmecamainfile','','f
                  'cls',false,... force clean screen
                  'database',struct([]),... database to be used with keys
                  'databaseheaders',1,... number of header lines for database
+                 'enginesingle',@(S) senspatankar(senspatankar_wrapper(S)),...  engine for single step
+                 'enginerestart',@(S)senspatankarC(senspatankar_wrapper(S)),... engine with restart section
+                 'enginedelete',@(S) senspatankarC(senspatankar_wrapper(S)),... engine with deleted/added layers
+                 'enginesetoff',@(S) setoffpatankar(senspatankar_wrapper(S)),...engine with periodic boundary condition
                  'regular_l','^l\d+m$',... regular expression to check l
                  'regular_D','^D\d+m2s$',... regular expression to check D
                  'regular_K','^KFP\d+kgm3kgm3$',... regular expression to check K
@@ -400,7 +410,7 @@ default = struct('local','','inputpath','','outputpath','','fmecamainfile','','f
                  'severity',@(CF,SML) 100*99./max(100*SML./CF-1,0),...
                  'sample',@(x) prctile(x,[5 50 95]),...
                  'session', defaultsession...
-                 ); kwdefault = {'noprint' 'nograph' 'noplot' 'ramdisk' 'ls' 'flush' 'delete'};
+                 ); kwdefault = {'noprint' 'nograph' 'noplot' 'ramdisk' 'ls' 'flush' 'delete' 'savememory'};
 % Possible user override of default values by defining variables with similar name in workspace 'base' and char content
 % recognized variables: local, inputpath, outputpath, fmecamainfile, fmecadbfile, fmecasheetname
 vlist = fieldnames(default)';
@@ -454,7 +464,7 @@ end
 % === manage sessions in RAMDISK (basic functions: 'ls' 'flush' 'delete')
 if o.ramdisk
     nforamdisk=whos('RAMDISK');
-    dispf('FEMCAengine:: the RAMDISK contains ''%d'' sessions and uses %0.4g MBytes',length(fieldnames(RAMDISK)),nforamdisk.bytes/1e6)
+    dispf('FEMCAengine:: the RAMDISK contains ''%d'' sessions and uses %s',length(fieldnames(RAMDISK)),memsize(nforamdisk.bytes,5,'Bytes'))
     if (o.ls || o.flush || o.delete)
         if isempty(o.session) || strcmp(o.session,defaultsession), o.session = 'all'; end
         if ischar(o.session) && strcmpi(o.session,'all'), o.session = fieldnames(RAMDISK); end
@@ -465,11 +475,11 @@ if o.ramdisk
             if ~isfield(RAMDISK,s{1}), error('FMECAengine RAMDISK:: the session ''%s'' does not exist',s{1}), end
             idlist = fieldnames(RAMDISK.(s{1}))';
             nodetmp = RAMDISK.(s{1}); nodenfo = whos('nodetmp'); %#ok<NASGU>
-            dispf('\tSESSION ''%s'' includes %d simulations(%0.4g MB)',s{1},length(idlist)-1,nodenfo.bytes/1e6); dispf(repmat('-',1,80))
+            dispf('\tSESSION ''%s'' includes %d simulations (%s)',s{1},length(idlist)-1,memsize(nodenfo.bytes,4,'Bytes')); dispf(repmat('-',1,80))
             for id = idlist
                 if o.ls && ~strcmp(id{1},'fmecadb')
                     nodetmp = RAMDISK.(s{1}).(id{1}).file; nodenfo = whos('nodetmp'); %#ok<NASGU>
-                    dispf('\tSTEP=''%s''\t [%0.3g MB, %s]\t%s',id{1},nodenfo.bytes/1e6,RAMDISK.(s{1}).(id{1}).date,RAMDISK.(s{1}).(id{1}).filename);
+                    dispf('\tSTEP=''%s''\t [%s, %s]\t%s',id{1},memsize(nodenfo.bytes,3,'b'),RAMDISK.(s{1}).(id{1}).date,RAMDISK.(s{1}).(id{1}).filename);
                 end % ls
                 if o.flush % RAMDISK content is flushed to disk
                     if strcmp(id{1},'fmecadb'), fmecadb = RAMDISK.(s{1}).(id{1}).file; save(RAMDISK.(s{1}).(id{1}).filename,'fmecadb')
@@ -828,6 +838,8 @@ if any(isstatic)
             'CF',CF0(idata),... CF=CF0 by definition of a static step
             'SML',NaN,... by definition of a static step
             'dCF',0,... since CF=CF0
+            'CPi',NaN,... concentration at the interface (P side) - updated on 05/03/2016
+            'CFi',NaN,... concentration at the interface (F side) - updated on 05/03/2016
             'nfo','static object (no mass transfer)',...
             'session',o.session);
     end % next idata
@@ -1034,6 +1046,13 @@ actionmessage = {
     'regenerating PDF and PNG'
     }; % corresponding to action+1 values
 alreadydone = false(ndata,1) | isstatic(:); % flag, true if the simulation was already launched
+% relax all constraints if savememory is used
+if o.ramdisk && o.savememory && isstruct(RAMDISK) && isfield(RAMDISK, o.session)
+    for idata=1:ndata
+        alreadydone(idata) = isfield(fmecadb,idusercode{idata}) && isfield(RAMDISK.(o.session),idusercode{idata}); 
+    end
+end
+% end  alreadydone
 
 [count,simcount] = deal(0) ;  % scenario and simulation counters
 for iseries = 1:nseries  % Main loop on each series of independent simulations (i.e. paths through trees)
@@ -1063,6 +1082,9 @@ for iseries = 1:nseries  % Main loop on each series of independent simulations (
                     previousfile = fullfile(o.local,o.outputpath,sprintf('%s.mat', previousid));
                     if o.ramdisk
                         previousres(1).r = RAMDISK.(o.session).(previousid).file;
+                        if ischar(previousres(1).r)
+                            error('FMECAengine:: node ''%s'' has been cleared from session ''%s'' with message:\n-->\t''%s''',currentid,o.session,previousres(1).r)
+                        end
                     else
                         previousres  = load(previousfile); % load previous simulation results
                     end
@@ -1078,28 +1100,28 @@ for iseries = 1:nseries  % Main loop on each series of independent simulations (
                     end
                 end
                 
-                % simulation
+                % simulation (main job)
                 t0 = clock;
                 if isempty(previousres) % simulation without using a previous profile as initial solution
                     if ~setoff(map(isim,iseries)) % without setoff
                         if any(s(map(isim,iseries)).C0<0) % added 30/11/2015 (deleted layer)
-                            screen = dispb(screen,'[%d/%d (%d/%d)]\t%s\t %s (SENSPATANKARC with deleted layer(s))...',count,countmax,isim,nsim,currentid,msg);
-                            r = senspatankarC(senspatankar_wrapper(s(map(isim,iseries))));
+                            screen = dispb(screen,'[%d/%d (%d/%d)]\t%s\t %s (engine=%s with deleted layer(s))...',count,countmax,isim,nsim,currentid,msg,func2str(o.enginedelete));
+                            r = o.enginedelete(s(map(isim,iseries))); %senspatankarC(senspatankar_wrapper(s(map(isim,iseries))));
                         else
-                            screen = dispb(screen,'[%d/%d (%d/%d)]\t%s\t %s (SENSPATANKAR)...',count,countmax,isim,nsim,currentid,msg);
-                            r = senspatankar(senspatankar_wrapper(s(map(isim,iseries))));
+                            screen = dispb(screen,'[%d/%d (%d/%d)]\t%s\t %s (engine=%s)...',count,countmax,isim,nsim,currentid,msg,func2str(o.enginesingle));
+                            r = o.enginesingle(s(map(isim,iseries))); %senspatankar(senspatankar_wrapper(s(map(isim,iseries))));
                         end
                     else % with setoff
-                        screen = dispb(screen,'[%d/%d (%d/%d)]\t%s\t %s (SETOFFPATANKAR)...',count,countmax,isim,nsim,currentid,msg);
-                        r = setoffpatankar(senspatankar_wrapper(s(map(isim,iseries))));
+                        screen = dispb(screen,'[%d/%d (%d/%d)]\t%s\t %s (engine=%s)...',count,countmax,isim,nsim,currentid,msg,func2str(o.enginesetoff));
+                        r = o.enginesetoff(s(map(isim,iseries))); %setoffpatankar(senspatankar_wrapper(s(map(isim,iseries))));
                     end
                 else % simulation with a previously calculated profile
-                    screen = dispb(screen,'[%d/%d (%d/%d)]\t%s\t %s (SENSPATANKARC)...\nreusing ''%s'' located in ''%s''',count,countmax,isim,nsim,currentid,msg,previousid,previousfile);
+                    screen = dispb(screen,'[%d/%d (%d/%d)]\t%s\t %s (engine=%s)...\nreusing ''%s'' located in ''%s''',count,countmax,isim,nsim,currentid,msg,func2str(o.enginerestart),previousid,previousfile);
                     s(map(isim,iseries)).restart = struct('x',previousres.r.x,... the initial solution is interpolatedd at the previous requested contact time
                        'C',interp1(sqrt(previousres.r.tC*previousres.r.timebase),previousres.r.Cx,sqrt(data(map(isim-1,iseries)).(o.print_t)),o.interp1),...
                        'CF',interp1(previousres.r.t*previousres.r.timebase,previousres.r.CF,data(map(isim-1,iseries)).(o.print_t),o.interp1),...
                        'layerid',previousres.r.layerid,'xlayerid',previousres.r.xlayerid,'C0eq',previousres.r.C0eq,'lengthscale',previousres.r.F.lengthscale);
-                    r = senspatankarC(senspatankar_wrapper(s(map(isim,iseries))));
+                    r = o.enginerestart(s(map(isim,iseries))); %senspatankarC(senspatankar_wrapper(s(map(isim,iseries))));
                 end
                 screen = dispb(screen,'[%d/%d (%d/%d)]\t%s\t... completed in %0.4g s',count,countmax,isim,nsim,currentid,etime(clock,t0));
                 alreadydone(map(isim,iseries)) = true;
@@ -1126,6 +1148,8 @@ for iseries = 1:nseries  % Main loop on each series of independent simulations (
                 fmecadb(1).(currentid).t = data(map(isim,iseries)).(o.print_t); % requested time
                 if isfield(s,'CF0'), fmecadb(1).(currentid).CF0 = s(map(isim,iseries)).CF0; else fmecadb(1).(currentid).CF0 = 0; end
                 fmecadb(1).(currentid).CF = interp1(r.t*r.timebase,r.CF,data(map(isim,iseries)).(o.print_t),o.interp1); % CF value
+                fmecadb(1).(currentid).CPi = interp1(r.tC*r.timebase,interp1(r.x,r.Cx',0,o.interp1)',data(map(isim,iseries)).(o.print_t),o.interp1);
+                fmecadb(1).(currentid).CFi = fmecadb(1).(currentid).CPi * ( r.F.k(1)/r.F.k0 );
                 fmecadb(1).(currentid).SML = data(map(isim,iseries)).(o.print_SML);
                 % variation in CF value between 2 consecutive steps
                 if isempty(previousid)
@@ -1148,11 +1172,20 @@ for iseries = 1:nseries  % Main loop on each series of independent simulations (
                     fmecadb(1).(currentid).(sprintf('CP%d',jlayer)) = trapz(r.x(layerind),CP(layerind)) / ( r.x(layerind(end))-r.x(layerind(1)) );
                 end % end (added 24/10/11)
                 
-                % Save current simulation
+                % Save current simulation (savememory implemented on 05/03/2016)
                 if o.ramdisk
-                    screen = dispb(screen,'FMECAengine:: save ''%s'' results in RAMDISK under session ''%s''',currentid,o.session);
-                    RAMDISK(1).(o.session).(currentid) = struct('file',r,'filename',fullfile(o.local,o.outputpath,[currentid '.mat']),'date',datestr(now));
-                else
+                    if o.savememory &&  isfield(fmecadb(1).(currentid),o.print_parentF) && ~isempty(fmecadb(1).(currentid).(o.print_parentF))
+                        for previousnodeF = fmecadb(1).(currentid).(o.print_parentF);
+                            RAMDISK(1).(o.session).(previousnodeF{1}).file = 'cleared to save memory'; % clear parentF node
+                            RAMDISK(1).(o.session).(previousnodeF{1}).filename = 'no file';
+                            screen = dispb(screen,'FMECAengine:: save ''%s'' results (clear parentF node ''%s'' to save memory) in RAMDISK under session ''%s''',currentid,previousnodeF{1},o.session);
+                        end
+                        RAMDISK(1).(o.session).(currentid) = struct('file',compressresult(r,data(map(isim,iseries)).(o.print_t)),'filename','compressed data','date',datestr(now));
+                    else % no savememory
+                        screen = dispb(screen,'FMECAengine:: save ''%s'' results in RAMDISK under session ''%s''',currentid,o.session);
+                        RAMDISK(1).(o.session).(currentid) = struct('file',r,'filename',fullfile(o.local,o.outputpath,[currentid '.mat']),'date',datestr(now));
+                    end                    
+                else % no ramdisk
                     save(fullfile(o.local,o.outputpath,[currentid '.mat']),'r');
                 end
                 
@@ -1161,6 +1194,9 @@ for iseries = 1:nseries  % Main loop on each series of independent simulations (
                 screen = dispb(screen,'[%d/%d (%d/%d)]\t%s\t %s... (some files have been removed)',count,countmax,isim,nsim,currentid,msg);
                 if o.ramdisk
                     r = RAMDISK.(o.session).(currentid).file;
+                    if ischar(r)
+                       error('FMECAengine:: node ''%s'' has been cleared from session ''%s'' with message:\n-->\t''%s''',currentid,o.session,r)
+                    end
                 else
                     load(fullfile(o.local,o.outputpath,[currentid '.mat']))
                 end
@@ -2060,3 +2096,36 @@ function S=unprotectcell(Sp)
         end
     end
 end
+
+%%%% --------------------------------------------------------------------------------------
+%%%% memsize() generates memory size with proper prefix
+%%%% 
+function pn = memsize(n,ndigits,unit)
+if nargin<2, ndigits = 3; end
+if nargin<3, unit = 'B'; end
+    pfix = {'' 'k' 'M' 'G' 'T' 'P' 'E'};
+    irange = floor((log(n)/log(2))/10);
+    if irange<1
+        pn = 'cleared data';
+    else
+        pn = sprintf(['%0.' num2str(ndigits) 'g %s%s'],n/2.^(10*irange),pfix{irange+1},unit);
+    end
+end
+
+
+%%%% --------------------------------------------------------------------------------------
+%%%% compressresult() compress results (along time) to be used with savememory
+%%%%
+function rc=compressresult(r,t,ratio)
+if nargin<3, ratio = 50; end % time compression only
+rc = r;
+it = nearestpoint(t,r.t*r.timebase); % targeted time
+ind = [1:ratio:it-ratio-1 it-ratio:it+ratio]; % preserve resolution around it
+for v={'t' 'C' 'CF' 'fc' 'f' 'days'}, rc.(v{1}) = r.(v{1})(ind); end
+it = nearestpoint(t,r.tC*r.timebase); % idem for concentration profiles
+ind = [1:ratio:it-ratio-1 it-3:it+3];
+for v={'tC' 'Cx'}, rc.(v{1}) = r.(v{1})(ind,:); end
+rc.xlayerid = uint16(rc.xlayerid);
+rc.iscompressed = true;
+end
+

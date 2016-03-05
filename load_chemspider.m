@@ -42,7 +42,7 @@ function data = load_chemspider(mol,varargin)
 %
 %   SEE ALSO: LOAD_NIST, LOAD_NIST_IR, LOAD_NCBI, LOAD_NCBISTRUCT, LOAD_CHEMINDUSTRY
 
-% MS 2.1 - 21/05/11 - INRA\Olivier Vitrac - rev. 23/06/15
+% MS 2.1 - 21/05/11 - INRA\Olivier Vitrac - rev. 08/02/16
 
 %Revision history
 % 22/05/11 vectorization, minor bugs
@@ -62,6 +62,8 @@ function data = load_chemspider(mol,varargin)
 % 27/05/15 TRANSIENT VERSION: first implementation of new chemspider rules
 % 02/06/15 IMPROVED VERSION with almost full recovery of all ancient features, quickproperties
 % 23/06/15 FIXES for EPI data and USER PROPERTIES
+% 07/02/16 CONVERT user properties into numbers and extract units (to be completed, see recognizedunits)
+% 08/02/16 add mmHg as recognized unit
 
 persistent CACHEDfiles CACHEglobal
 
@@ -91,6 +93,7 @@ imgengine = sprintf('%s/ImagesHandler.ashx?id=%%s&w=%%d&h=%%d',rooturl);
 tag2remove = {'</?span.*?>' '<wbr\s*/?>' '</?nobr>' '</?p>' '</?button.*?>' '</?wbr>' '</?strong>' '</?sup>' '</?sub>' '\r|\n' '\s+' '\&\#(\d+)\;'};
 tagreplacement = {'','','','','','','','','','',' ','${char(str2double($1))}'};
 num = '^\s*([+-]?\s*\d+\.?\d*[eEdD]?[+-]?\d*)'; % number
+recognizedunits = {'°C' 'g/L' 'g/mL' 'mg kg-1' 'mmHg'}; % TO BE COMPLETED (OV: 08/02/16)
 
 %arg check
 if nargin<1, error('one argument is required'); end
@@ -361,7 +364,7 @@ else
     prop = '';
 end
 
-%% User properties
+%% User properties (modified by OV: 07/02/2016)
 propuser = uncell(regexp(details,'<span.*?class="user_data_property_name".*?>([^<>]{1,100}):</span></a></h2>\s*<table style="display:none">(.*?)</table>','tokens'));
 % propuser = uncell(regexp(details,'<div.*?class="user_data_property_header_div".*?>(.*?)</div>','tokens'));
 if ~isempty(propuser) && size(propuser,1)>1
@@ -370,6 +373,19 @@ if ~isempty(propuser) && size(propuser,1)>1
     if ~isempty(propvalue) && iscell(propvalue{1}) % fix 23/06/2015
         propvalue = cellfun(@(x) [x{:}]',propvalue,'UniformOutput',false);
     end
+    % read numeric value
+    npropval = length(propvalue);
+    [propvaluenum,propvalunit] = deal(cell(npropval,1));
+    for i=1:npropval
+        tmp = strtrim(regexprep(propvalue{i},{'<span.*?>.*?</span>' '<a.*?>.*?</a>' '\(.*\)' '\[.*\]' '(-?\d+\.?\d*)-(-?\d+\.?\d*)'},{'' '' '' '' '$1 $2'}));
+        ntmp = length(tmp); propvaluenum{i} = zeros(1,ntmp); propvalunit{i} = cell(1,ntmp);
+        for j=1:ntmp
+            propvaluenum{i}(j) = mean(str2double(uncell(regexp(tmp{j},sprintf('(%s)',num(2:end)),'tokens'))));
+            itmpunit = find(~cellfun(@isempty,regexp(propvalue{i}{j},recognizedunits,'match')),1,'first');
+            if any(itmpunit), propvalunit{i}(j) = recognizedunits(itmpunit); else propvalunit{i}{j}=''; end
+        end
+        propvaluenum{i} = propvaluenum{i}(~isnan(propvaluenum{i}));
+    end
 %     propvalue = strtrim(regexprep(propuser,'<span.*?>.*?</span>',''));
 %     if ~isempty(propvalue)
 %         isnum = find(~cellfun('isempty',regexp(propvalue,[num '\s*$'],'once')));
@@ -377,7 +393,11 @@ if ~isempty(propuser) && size(propuser,1)>1
 %         valid = cellfun(@(x) ~isnan(x),tmp);
 %         propvalue(isnum(valid)) = tmp(valid);
 %     end
-    propuser = struct('name',propusername,'value',propvalue);
+    try
+        propuser = cell2struct(num2cell(struct('value',propvaluenum,'unit',propvalunit,'raw',propvalue),2),regexprep(propusername,'[\s-\\/\(\)\[\]]*',''));
+    catch
+        propuser = struct('name',propusername,'value',propvaluenum,'unit',propvalunit,'raw',propvalue);
+    end
 else
     propuser = struct('name',{},'value',{});
 end

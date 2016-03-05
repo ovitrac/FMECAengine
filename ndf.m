@@ -1,39 +1,56 @@
-function dydt = ndf(t,y,ordre,dydt0)
+function dydt = ndf(t,y,ordre,dydt0,varargin)
 %  NDF Numerical differentiation at order 1 with an approximation [h6y(8)/140] or order 2 with an approximation [h6y(8)/560]
-%   Syntax: dydt = ndf(t,y [,order,dydt0])
+%   Syntax: dydt = ndf(t,y [,order,dydt0 [,property,value,...]])
 %           t : mx1 array coding for times or x (diff(t) must be constant, no control is done for efficiency) 
 %           y : mxn array coding for y values
 %       order : 1 (default) or 2
 %       dydt0 : initial slope (if known)
 %        dydt : first or second derivative in t
+%   Pair/property value
+%       method: interpolation method (default='pchip')
+%  makeuniform: makes data uniform before derivation
+%   resolution: size of the uniform grid (default=1e4)
 
-% MS-MATLAB 1.0 - 28/01/04 - Olivier Vitrac - rev. 26/09/15
+% MS-MATLAB 1.0 - 28/01/04 - Olivier Vitrac - rev. 27/02/16
 
 %Revision history
 % 24/05/10 columnwise
 % 26/09/15 'cubic' replaced by 'pchip'
+% 27/02/16 implement argcheck
 
-% constants
-method = 'pchip';
-
+% default
+default = struct( 'method','pchip','makeuniform',false,'resolution',1e4);
+                 
 % arg check
 if nargin<2, y = t; t = (1:size(y,1))'; end
 if nargin<3, ordre = 1; end
 if nargin<4, dydt0 = []; end
-dt	= t(2)-t(1);
+o = argcheck(varargin,default);
 if size(y,1)>1 && size(y,2)>1
     ny = size(y,2);
     dydt = zeros(size(y));
     for i=1:ny
         if any(dydt0)
-            dydt(:,i)=ndf(t,y(:,i),ordre,dydt0(min(i,numel(dydt0))));
+            dydt(:,i)=ndf(t,y(:,i),ordre,dydt0(min(i,numel(dydt0))),o);
         else
-            dydt(:,i)=ndf(t,y(:,i),ordre);
+            dydt(:,i)=ndf(t,y(:,i),ordre,[],o);
         end
     end
     return
 end
- 
+
+% implements uniform sampling if requested
+x0 = [];
+if o.makeuniform
+    x0 = t;
+    if length(unique(x0))==1
+        dydt = Inf(size(y));
+        return
+    end
+    t = linspace(min(t),max(t),o.resolution)';
+    y = interp1(x0,y,t,o.method);
+end
+dt	= t(2)-t(1);
 
 switch ordre
 case 1
@@ -55,4 +72,9 @@ dydt = 	[
 if any(dydt0), dydt(1) = dydt0; end
 dy = diff(dydt);
 i = intersect(find(dy*sign(mean(sign(dy)))<0),2:10);
-if any(i), ni = setdiff(1:length(t),i); dydt(i) = interp1(t(ni),dydt(ni),t(i),method,'extrap'); end
+if any(i), ni = setdiff(1:length(t),i); dydt(i) = interp1(t(ni),dydt(ni),t(i),o.method,'extrap'); end
+
+% back transformation
+if o.makeuniform
+    dydt = interp1(t,dydt,x0,o.method);
+end

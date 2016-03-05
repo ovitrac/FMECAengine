@@ -42,7 +42,7 @@ function num=FMECAunit(quantity,str,quantitychecked)
 %}
 
 
-% INRA\FMECAengine v 0.6 - 02/04/2015 - Olivier Vitrac - rev. 07/02/2015
+% INRA\FMECAengine v 0.6 - 02/04/2015 - Olivier Vitrac - rev. 25/02/2016
 
 % Revision history
 % 03/04/2015 release candidate with examples
@@ -51,6 +51,7 @@ function num=FMECAunit(quantity,str,quantitychecked)
 % 28/11/2015 fix min (starting from now mi = min, mo = mounth, m does not exist)
 % 28/11/2015 add a prefetch to accelerate conversions
 % 07/02/2015 fix Temp unit conversions
+% 25/02/2016 fix conversion of Temp units on itself (identity)
 
 % PREFETCH management
 persistent DBunit DBunitprefetch
@@ -219,6 +220,11 @@ end
 
 %% update prefetch
 DBunit.(q).unit{end+1} =  u;
-DBunit.(q).offset(end+1) = offset.(q);
-DBunit.(q).scale(end+1) = (num-offset.(q))/nconverted;
+if strcmp(unit2SI.(q),u)
+    DBunit.(q).offset(end+1) = 0;
+    DBunit.(q).scale(end+1) = 1;
+else
+    DBunit.(q).offset(end+1) = offset.(q);
+    DBunit.(q).scale(end+1) = (num-offset.(q))/nconverted;
+end
 save(DBunitprefetch,'DBunit')

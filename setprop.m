@@ -1,5 +1,5 @@
 function setprop(h,varargin)
-%SETPROP retrieve properties from any object
+%SETPROP set properties to any object
 %   Syntax: setprop(h,'property1',value1,'property2',value2...)
 %           setfield(h,v)
 %       h: nx1 or 1xn vector of handles
@@ -11,9 +11,10 @@ function setprop(h,varargin)
 %         >> array of structure generate an error
 
 
-% MS 2.0 - 19/08/07 - Olivier Vitrac - rev.
+% MS 2.0 - 19/08/07 - Olivier Vitrac - rev. 27/02/2016
 
 % Revision history
+% 27/02/2016 updated help
 
 % arg check
 if nargin<2, error('syntax: setprop(h,''property1'',''value1'',''property2'',''value2'',...) or setfield(h,v)'), end
