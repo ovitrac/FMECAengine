@@ -56,6 +56,8 @@ function [data,isupdated,attrout]=loadodsprefetch(filename,varargin)
 % 17/01/14 force columnwise loadodsoptions
 % 07/11/15 manage different prefetch and names for each sheet, first implementation of XLSTBLREAD
 % 08/11/15 updated help
+% 15/03/16 add xlsm format
+%          add 'headerrowindex' property for excel file reading
 
 % default
 default = struct(...
@@ -71,6 +73,7 @@ propertiesODS2XLS = struct(...
           'blank',NaN   ,... value for blank cells
       'transpose',false ,... true to transpose table/headers
         'headers',1     ,... number of header lines
+ 'headerrowindex',1     ,... index of header line (see xlstblread)
       'noheaders',false,...
   'emptyisnotnan',false,...
   'notext2values',false,...
@@ -122,8 +125,8 @@ loadodsoptions = loadodsoptions(:);
 if ~exist(filename,'file'), error('the supplied file ''%s'' does not exist',filename); end
 [~,~,ext] = fileparts(filename); ext = lower(ext);
 isods = strcmp(ext,'.ods');
-if ~isods && ~strcmp(ext,'.xls') && ~strcmp(ext,'.xlsx'); error('only ODS, XLS and XLSX files are managed'), end
-if isunix && ~isods, error('XLSTBLREAD and XLSREAD requires a WINOWS environment to run'), end
+if ~isods && ~strcmp(ext,'.xls') && ~strcmp(ext,'.xlsx') && ~strcmp(ext,'.xlsm'); error('only ODS, XLS, XLSX and XLSM files are managed'), end
+if isunix && ~isods, error('XLSTBLREAD and XLSREAD requires a WINDOWS environment to run'), end
 prefetchfile = fullfile(options.prefetchpath,[options.prefetchprefix prefetchfile '.mat']);
 prefetchupdate = false;
 
@@ -200,7 +203,7 @@ else
             'mergeheaderlines',xlstblreadoptions.mergeheaderlines,...
             'maketable',xlstblreadoptions.maketable);
         kw = fieldnames(xlstblkeywords); kw = kw(structfun(@any,xlstblkeywords));
-        [data,attributes] = xlstblread(filename,options.sheetname,xlstblreadoptions.headers,kw{:});
+        [data,attributes] = xlstblread(filename,options.sheetname,xlstblreadoptions.headers,'headerrowindex',xlstblreadoptions.headerrowindex,kw{:});
     end
 end
 

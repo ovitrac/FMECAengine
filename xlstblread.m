@@ -17,6 +17,8 @@ function [tab,attrout] = xlstblread(filename,sheetname,headerlines,varargin)
 %                    Only the first row is used as variable names (after conversion), the other lines are discarded
 %                    When a column title is missing, a title is assigned to this column using 'noheaders' rules
 %                    TIP: use [discardedlines headerlines] to discard lines
+%  'headerrowindex': absolute index of header line (< headerlines) (default = 1)
+%                    use this property to discard lines
 %       'transpose': keyword (position >3) to transpose the ExcelSheet (row-wise Table instead of column-wise Table)
 %       'noheaders': keyword to discard headers as variable names with the following rules
 %                    - 'colj' is assigned to the jth column: 'col1',...'coln'
@@ -49,7 +51,7 @@ function [tab,attrout] = xlstblread(filename,sheetname,headerlines,varargin)
 %
 %   See also: BYKEYWORDS, LOADODS, LOADODSPREFETCH, XLSREAD
 
-% MS 2.0 - 15/01/08 - INRA\Olivier Vitrac - rev. 14/11/15
+% MS 2.0 - 15/01/08 - INRA\Olivier Vitrac - rev. 27/03/16
 
 % Revision History
 % 21/01/08 automatic conversion of text into numbers when possible (e.g. after OCR, when mixed types are used)
@@ -61,22 +63,28 @@ function [tab,attrout] = xlstblread(filename,sheetname,headerlines,varargin)
 % 19/09/15 add mergeheaderlines
 % 07/11/15 add attributes, add makedata
 % 14/11/15 add '~' to the table of replacement characters ('~' is replaced by '')
+% 15/03/16 accepts xlsm as file extension, add property 'headerrowindex' to set line which contains header
+% 27/03/16 instead of repeating dupdupdup..., repeated fields appear as dup01, dup02,...
+
+% Default
+default = struct('headerrowindex',1);
+keywords = {'noheader' 'emptyisnotnan' 'notext2values' 'mergeheaderlines' 'maketable' 'transpose'};
 
 % Definitions
 kwlist = {'Inf' '+Inf' '-Inf' 'NaN' 'ActiveX VT_ERROR: '}; % values which are replaced 
 varprefix = 'col'; % default variable name when no column name is found
 varprefixtranspose = 'row'; % variable name when transpose is used
-duplicatesuffix = 'dup'; % suffix for duplicated column name
 table = {' ' 'é' 'è' 'ê' 'à' 'ù' ':' ',' ';' '.' '-' '~' '+' '*' '\' '/' '°' 'µ' '(' ')' '[' ']' '{' '}' '=' '''' '%' '?' '!' '§' char(13) char(10)
          ''  'e' 'e' 'e' 'a' 'u' ''  ''  ''  ''  ''  '' 'p' 'x' ''  ''  'o' 'u' ''  ''  ''  ''  ''  ''  ''  '_'  'p'  '' ''  ''  ''       ''}'; % add additional character conversion rules if needed
 hearderlines_default = 1;
-transposeon = false;
 allsheetson = false;
 firstsheeton= false;
 lastsheeton = false;
 VARMAXLEN   = 48; % increase this number if required
 varlineseparator = '__';
 varlineseparatorpat = [regexptranslate('escape',varlineseparator) '$'];
+duplicates = struct([]); % added March 27, 2016 (duplicates.(field) = number of copies)
+duplicatesuffix = 'dup%02d'; % suffix for duplicated column name
 
  
 %arg check
@@ -87,7 +95,7 @@ if isempty(sheetname), sheetname = 'all'; end
 if isstruct(filename), filename = explore(filename,'fullabbreviate'); end
 if ~iscell(filename), filename = {filename}; end
 if ~iscell(sheetname), sheetname = {sheetname}; end
-varargin = lower(varargin);
+% varargin = lower(varargin);
 if strcmpi(sheetname,'all'), allsheetson = true;
 elseif strcmpi(sheetname,'first'), firstsheeton = true;
 elseif strcmpi(sheetname,'last'), lastsheeton = true;
@@ -97,12 +105,22 @@ n = length(sheetname);
 if isempty(headerlines), headerlines = hearderlines_default; end
 if ~isnumeric(headerlines), error('headerlines must be an integer>=0 = number of header lines'), end
 headerlines = max(0,headerlines);
-if ismember('transpose',varargin) || ~any(headerlines), transposeon = true; varprefix = varprefixtranspose; end
-nohearderson  = ismember('noheaders',varargin);
-emptyisnotnan = ismember('emptyisnotnan',varargin);
-notext2values = ismember('notext2values',varargin);
-mergeheaderlines = ismember('mergeheaderlines',varargin);
-maketable = ismember('maketable',varargin);
+% updated on 15/03/2016
+o = argcheck(varargin,default,keywords);
+o.transpose = o.transpose || ~any(headerlines);
+if o.transpose, varprefix = varprefixtranspose; end
+if ~isempty(o.headerrowindex)
+    if o.headerrowindex<0 || unique(o.headerrowindex>headerlines) || isnan(o.headerrowindex), error('headerrowindex must be ranged between 1 and %d',headerlines); end
+    o.mergeheaderlines = false;
+end
+
+% obsolete
+%if ismember('transpose',varargin) || ~any(headerlines), transposeon = true; varprefix = varprefixtranspose; end
+% noheaderson  = ismember('noheaders',varargin);
+% emptyisnotnan = ismember('emptyisnotnan',varargin);
+% notext2values = ismember('notext2values',varargin);
+% mergeheaderlines = ismember('mergeheaderlines',varargin);
+% maketable = ismember('maketable',varargin);
 
 % scan
 tab = [];
@@ -110,8 +128,11 @@ attributes = struct([]);
 for i=1:m % each file
     [pa,na,ex] = fileparts(filename{i});
     if ~isempty(pa) && ~exist(pa,'dir'), error('the directory ''%s'' does not exist.',pa), end
-    if (~strcmpi(ex,'.xls')) || (~strcmpi(ex,'.xlsx'))
-        if exist([fullfile(pa,na) '.xls'],'file'), ex='.xls'; else ex='.xlsx'; end
+    if (~strcmpi(ex,'.xls')) || (~strcmpi(ex,'.xlsx')) || (~strcmpi(ex,'.xlsm'))
+        if exist([fullfile(pa,na) '.xls'],'file'), ex='.xls';
+        elseif exist([fullfile(pa,na) '.xlsx'],'file'), ex='.xlsx';
+        else ex='.xlsm';
+        end
     end
     filename{i} = [fullfile(pa,na) ex];
     if ~exist(filename{i},'file'), error('the file ''%s'' does not exist in ''%s''',na,pa), end
@@ -135,15 +156,18 @@ for i=1:m % each file
         else
             [num,alpha,raw] = xlsread(filename{i}); %#ok<ASGLU>
         end
-        if transposeon, raw=raw'; end
+        if o.transpose, raw=raw'; end
         if size(raw,1)>sum(headerlines)
             if length(headerlines)>1
                 headers = raw(sum(headerlines(1:end-1))+1:sum(headerlines),:); % header lines
                 raw = raw(sum(headerlines)+1:end,:); % raw values
+            elseif ~isempty(o.headerrowindex)
+                headers = raw(o.headerrowindex,:); % header line
+                raw = raw(o.headerrowindex+1:end,:); %raw values
             else
                 headers = raw(1:headerlines,:); % header lines
                 raw = raw(headerlines+1:end,:); % raw values
-                if mergeheaderlines
+                if o.mergeheaderlines
                     for ih=1:size(headers,2) % added on 19/09/2015
                         headers{1,ih} = regexprep(sprintf(['%s' varlineseparator],headers{:,ih}),varlineseparatorpat,'');
                     end
@@ -163,24 +187,33 @@ for i=1:m % each file
         if ~isempty(raw)
             ichar = find(cellfun('isclass',raw,'char')); % index of char cells
             for kw = kwlist, raw(ichar(strcmpi(raw(ichar),kw{1})))={str2double(kw{1})}; end % Conversions 'NaN' 'Inf' '+Inf' '-Inf'
-            if ~emptyisnotnan, raw(cellfun('isempty',raw))={'NaN'}; end % replace empty cells by NaNs
+            if ~o.emptyisnotnan, raw(cellfun('isempty',raw))={'NaN'}; end % replace empty cells by NaNs
             % headers/variables
             var = cell(1,nraw);
             for k=1:nraw
                 if ischar(headers{k}), var{k} = replacefromtable(headers{k},table); else var{k} = ''; end
                 varlen = length(var{k});
                 if varlen>VARMAXLEN, var{k} = var{k}(1:VARMAXLEN); end
-                if isempty(var{k}) || nohearderson, var{k} = sprintf('%s%d',varprefix,k); end
-                while ismember(var{k},var(1:k-1)), var{k} = [var{k} duplicatesuffix]; end
+                if isempty(var{k}) || o.noheader, var{k} = sprintf('%s%02d',varprefix,k); end
+                % fix fieldname starting with a digit
+                if (var{k}(1)>='0') && (var{k}(1)<='9'), var{k} = sprintf('c%s',var{k}); end
+                % look for duplicates
+                if isfield(duplicates,var{k}) %ismember(var{k},var(1:k-1))
+                    duplicates(1).(var{k}) = duplicates(1).(var{k})+1;
+                    var{k} = sprintf(['%s' duplicatesuffix],var{k},duplicates(1).(var{k})-1);
+                else
+                    duplicates(1).(var{k})=1;
+                end
+                %while ismember(var{k},var(1:k-1)), var{k} = [var{k} duplicatesuffix]; end % old method
             end
             [tmp,attr] = deal(cell2struct(repmat({[]},1,nraw),var,2));
             % columns content
             for k=1:nraw
                 if all(cellfun('isclass',raw(:,k),'double')) % numerical vector
-                    if transposeon, val = [raw{:,k}]; else val = [raw{:,k}]'; end
+                    if o.transpose, val = [raw{:,k}]; else val = [raw{:,k}]'; end
                 else % otherwise cell vector
                     val = raw(:,k);
-                    if ~notext2values % automatic conversion of text numbers into values
+                    if ~o.notext2values % automatic conversion of text numbers into values
                         ichar = find(cellfun('isclass',val,'char'));
                         cval = cellfun(@str2double,val(ichar));
                         iconv = ~isnan(cval);
@@ -188,7 +221,7 @@ for i=1:m % each file
                         if ~isempty(cval)
                             val(ichar(iconv)) = num2cell(cval); %mat2cell(cval,ones(size(cval)),1);
                             if all(cellfun('isclass',val,'double'))
-                                if transposeon, val = [val{:}]; else val = [val{:}]'; end
+                                if o.transpose, val = [val{:}]; else val = [val{:}]'; end
                             end
                         end
                     end
@@ -199,7 +232,7 @@ for i=1:m % each file
                 if isnumeric(attr.(var{k}).description), attr.(var{k}).description = ''; end
             end % each column
             %
-            if maketable % works only on recent versions of Matlab (2012)
+            if o.maketable % works only on recent versions of Matlab (2012)
                 tmp = struct2table(tmp);
                 attrtmp = struct2cell(attr); attrtmp = [attrtmp{:}];
                 tmp.Properties.UserData = attrtmp;

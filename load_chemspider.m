@@ -42,7 +42,7 @@ function data = load_chemspider(mol,varargin)
 %
 %   SEE ALSO: LOAD_NIST, LOAD_NIST_IR, LOAD_NCBI, LOAD_NCBISTRUCT, LOAD_CHEMINDUSTRY
 
-% MS 2.1 - 21/05/11 - INRA\Olivier Vitrac - rev. 08/02/16
+% MS 2.1 - 21/05/11 - INRA\Olivier Vitrac - rev. 02/04/16
 
 %Revision history
 % 22/05/11 vectorization, minor bugs
@@ -64,6 +64,7 @@ function data = load_chemspider(mol,varargin)
 % 23/06/15 FIXES for EPI data and USER PROPERTIES
 % 07/02/16 CONVERT user properties into numbers and extract units (to be completed, see recognizedunits)
 % 08/02/16 add mmHg as recognized unit
+% 02/04/16 trim mol input
 
 persistent CACHEDfiles CACHEglobal
 
@@ -138,7 +139,7 @@ if iscell(mol)
 end
 
 %% Use Cache if enabled
-lowermol = lower(mol);
+lowermol = lower(strtrim(mol));
 if ~options.nocache && ~isempty(CACHEglobal.hash) && ismember(lowermol,CACHEglobal.hash)
     imol = CACHEglobal.idx(find(ismember(CACHEglobal.hash,lowermol),1,'first'));
     cachedfile = fullfile(CACHEDfiles(imol).path,CACHEDfiles(imol).file);

@@ -8,17 +8,26 @@ function [b,bstat] = xyrobustregress(x,y,alpha)
 %   bstat: [ interceptmin interceptmax
 %            slopemin     slopemax]
 
-% MS 2.1 - 02/03/12 - Olivier Vitrac - rev. 
+% MS 2.1 - 02/03/12 - Olivier Vitrac - rev. 07/03/2016
+
+% revision history
+% 07/03/2016 fix n=2 (robustfit was not working), manage NaN values
 
 if nargin<2, error('2 arguments are required'), end
 if nargin<3, alpha = 0.05; end
+x = x(:); y = y(:);
+ok = ~isnan(y); x = x(ok); y = y(ok);
 if numel(x) ~=numel(y), error('x and y must have the same size'); end
-x = x(:); y = y(:); n = length(x);
+n = length(x);
 [b1,b1stat] = regress(y,[ones(n,1) x]);
-[b2,b2stat] = robustfit(x,y);
-tval = tinv((1-alpha(1)/2),b2stat.dfe);
-b2stat = [b2-tval*b2stat.se, b2+tval*b2stat.se];
-performance = mean([(b1stat(:,2)-b2)./abs(b1) (b2stat(:,2)-b2)./abs(b2)]);
+if n>2
+    [b2,b2stat] = robustfit(x,y);
+    tval = tinv((1-alpha(1)/2),b2stat.dfe);
+    b2stat = [b2-tval*b2stat.se, b2+tval*b2stat.se];
+    performance = mean([(b1stat(:,2)-b2)./abs(b1) (b2stat(:,2)-b2)./abs(b2)]);
+else
+    performance = [0 Inf];
+end
 if performance(2)<performance(1)/1.05 % confidence interval reduced by at least 5% when robustfit is used instead regress
     b = b2;
     if nargout>1, bstat = b2stat; end

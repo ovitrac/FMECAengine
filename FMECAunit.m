@@ -1,4 +1,4 @@
-function num=FMECAunit(quantity,str,quantitychecked)
+function num=FMECAunit(quantity,str,quantitychecked,defaultunit)
 %FMECAUNIT converts a user string (to be used along with FMECAengine and OpenOffice/Calc) including number and unit into a number in SI units
 %   syntax: num=FMECAunit(quantity,str)
 %      quantity: type of quantity chosen among (note shorthands are possible, they are case sensitive)
@@ -13,6 +13,7 @@ function num=FMECAunit(quantity,str,quantitychecked)
 %                'grammage' or 'g'
 %                'Ctemperature' or 'C' or 'Ctemp' (attention: absolute scale temperature)
 %                'Ktemperature' or 'K' or 'Ktemp' (attention: absolute scale temperature)
+%                'diff' or 'diffusion'
 %       str: string or cell string array collecting a number and its unit
 %           examples: '1 g/cm3', '1 d' (note that "^" symbol is not required)
 %           Many units are recognized including 'day', 'month', 'd', 'jour', 'semaine', 'ppb', 'ppm'
@@ -42,7 +43,7 @@ function num=FMECAunit(quantity,str,quantitychecked)
 %}
 
 
-% INRA\FMECAengine v 0.6 - 02/04/2015 - Olivier Vitrac - rev. 25/02/2016
+% INRA\FMECAengine v 0.6 - 02/04/2015 - Olivier Vitrac - rev. 03/04/2016
 
 % Revision history
 % 03/04/2015 release candidate with examples
@@ -52,6 +53,8 @@ function num=FMECAunit(quantity,str,quantitychecked)
 % 28/11/2015 add a prefetch to accelerate conversions
 % 07/02/2015 fix Temp unit conversions
 % 25/02/2016 fix conversion of Temp units on itself (identity)
+% 31/03/2016 add defaultunit
+% 03/04/2016 add diffusion coefficients
 
 % PREFETCH management
 persistent DBunit DBunitprefetch
@@ -73,7 +76,8 @@ unit2SI = struct(... % add concentration
     'Ctemperature','C',...
     'Ktemperature','K',...
     'Pressure','Pa',...
-    'grammage','kg/m^2' ...
+    'grammage','kg/m^2',...
+    'diffusion','m^2/s' ...
 );
 
 if isempty(DBunit)
@@ -87,8 +91,10 @@ end
 
 %% arg check
 if nargin<2, error('two arguments are required'), end
-if nargin<3, quantitychecked = false; end
+if nargin<3, quantitychecked = []; end
+if nargin<4, defaultunit = ''; end
 if ~ischar(quantity), error('quantity must be a char'), end
+if isempty(quantitychecked), quantitychecked = false; end
 
 % Quantity recognition
 if quantitychecked
@@ -164,8 +170,9 @@ synonyms = struct(...
                       'Kelvin' 'K'
                       'Celsius' 'C'
                       }}, ...
-    'Pressure',{cell(0,2)}, ...
-    'grammage',{cell(0,2)} ...
+    'Pressure',{cell(0,2)},...
+    'grammage',{cell(0,2)},...
+    'diffusion',{{ 'm2'    ,'m^2'}} ...
 );
 offset = struct(...
     'time',0,...
@@ -179,7 +186,8 @@ offset = struct(...
     'Ctemperature',-273.15,...
     'Ktemperature',+273.15,...
     'Pressure',0,...
-    'grammage',0 ...
+    'grammage',0,...
+    'diffusion',0 ...
 );
 %% string extraction
 tmp = uncell(regexp(strtrim(str),sprintf('^(%s)(.*)$',anynumber),'tokens'));
@@ -190,11 +198,19 @@ u   = regexprep(tmp{2},'\s',''); % literal unit
 %% string interpretation
 uSI = unit2SI.(q);
 if isempty(n), error('no number recognized in ''%s''',str), end
+nounit = false;
 if isempty(u)
+    if isempty(defaultunit)
+        nounit = true;
+    else
+        u = defaultunit;
+    end
+end
+if nounit
     dispf('WARNING: no unit provided for number ''%s'', the SI unit of ''%s'' is used (''%s'') instead',n,quantity,uSI)
     num = nconverted;
 else
-    if length(u)>1, u = regexprep(u,'s$',''); end % to add d, h,
+    if (length(u)>1) && ~strcmp(q,'diffusion'), u = regexprep(u,'s$',''); end % to add d, h,
     if ~isempty(synonyms.(q))
         u = regexprep(u,synonyms.(q)(:,1),synonyms.(q)(:,2));
     end

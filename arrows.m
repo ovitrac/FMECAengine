@@ -78,11 +78,11 @@ if nargin < 4
 	error('Not enough input arguments.')
 end
 
-if ~isnumeric(x) | ~isnumeric(y) | ~isnumeric(l) | ~isnumeric(az)
+if ~isnumeric(x) || ~isnumeric(y) || ~isnumeric(l) || ~isnumeric(az)
 	error('X,Y,L and AZ must be numeric.')
 end
 
-if nargin > 4 & isnumeric(varargin{1})
+if nargin > 4 && isnumeric(varargin{1})
 	shape = varargin{1}(:)';
 	if numel(shape) ~= 4
 		error('SHAPE argument must be a 4-scalar vector.')
@@ -179,7 +179,7 @@ if ~isempty(k)
 		arg(k) = [];
 		s = 1;
 	else
-		if (k + 1) <= length(arg) & isnumeric(arg{k+1}) & feval(typ,arg{k+1})
+		if (k + 1) <= length(arg) && isnumeric(arg{k+1}) && feval(typ,arg{k+1})
 			v = arg{k+1};
 			arg(k:(k+1)) = [];
 			s = 2;
