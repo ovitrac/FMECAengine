@@ -10,6 +10,7 @@ function [hgraphtmp,hparentobjout,hobjout] = fmecagraph(fmecadb,values,varargin)
 %               min: minimal value for color scale
 %               max: maximal value for color scale
 %          colormap: colorscale setup between min and max (default = jet(64))
+%    colormapinterp: method of colormap interpolation (default='pchip')
 %  defaulfacetcolor: face color for out of bounds values (default = [0 0 0])
 %  defaultedgecolor: edge color for out of bounds values (default = [1 0 0])
 %  defaultlinewidth: linewidth for out of bounds values (default = 2)
@@ -37,6 +38,12 @@ function [hgraphtmp,hparentobjout,hobjout] = fmecagraph(fmecadb,values,varargin)
 %         alignment: HorizontalAlignment
 %  scipatterweights: tex pattern to be used to display weights with formatsci
 %    patternweights: alternative pattern to be used to display weights with formatsci
+%
+% User overrides (added 5/1/15)
+%         edgeColor: structure (e.g. usercolor) such as usercolor.('node') = 1x3 color or rgb name (see rgb) of node edges
+%         edgewidth: structure (e.g. edgewidth) such as usercolor.('node') = linewidth of node edges
+%         linecolor: structure (e.g. linecolor) such as linecolor.('node') = 1x3 color or rgb name (see rgb) of connected arrows
+%         linewidth: structure (e.g. linewidth) such as linewidth.('node') = linewidth of connected arrows
 %
 %   Advanced keyword properties that deviate from main use
 %          'noplot': keyword to retrieve graph objects without plots
@@ -90,7 +97,7 @@ function [hgraphtmp,hparentobjout,hobjout] = fmecagraph(fmecadb,values,varargin)
 %
 %   See also: PNGTRUNCATEIM, FMECAENGINE, FMECASINGLE, GCFD, SCFD, KEY2KEYGRAPH, KEY2KEY, BUILDMARKOV
 
-% Migration 2.0 - 24/05/11 - INRA\Olivier Vitrac - rev. 09/02/12
+% Migration 2.0 - 24/05/11 - INRA\Olivier Vitrac - rev. 05/01/15
 
 % Revision history
 % 14/12/11 add parent as property, update help to enable the copy of a graph
@@ -107,6 +114,9 @@ function [hgraphtmp,hparentobjout,hobjout] = fmecagraph(fmecadb,values,varargin)
 % 30/01/12 add gobject and corresponding example
 % 02/02/12 fix weightsarestring flag (it works correctly now)
 % 09/02/12 add windowscale
+% 31/01/15 add colormapinterp and replace 'cubic' by 'pchip' in line 194
+% 31/01/15 expand remaining structures in input arguments
+% 05/02/15 add user overrides: linewidth, linecolor, edgewidth, edgecolor
 
 % Default
 autoweights = false;
@@ -115,8 +125,13 @@ default = struct(...
     'min',-Inf,...
     'max',Inf,...
     'colormap',jet(64),...
+    'colormapinterp','pchip',...
     'defaultfacecolor',[0 0 0],...
     'defaultedgecolor',[1 0 0],...
+    'edgewidth',[],...
+    'edgecolor',[],...
+    'linecolor',[],...
+    'linewidth',[],...
     'defaultlinewidth',2,...
     'defaultmagnify',1.2,...
     'operation',@(x) max(x),...
@@ -149,7 +164,12 @@ keywordlist = {'noplot' 'nobiograph'};
 % arg check
 if nargin<1, error('1 inputs are required'), end
 if nargin<2, values = struct([]); end
-options = argcheck(varargin,default,keywordlist,'nostructexpand');
+[options,remain] = argcheck(varargin,default,keywordlist,'nostructexpand');
+% remain has been added on 31/12/15 to expand not considered structures sent as inputs
+if ~isempty(remain)
+    remain = remain(~cellfun(@iscell,remain));
+    options = argcheck(remain,options);
+end
 if ~isstruct(fmecadb) || numel(fmecadb)>1, error('fmecadb must be created with fmecaengine'), end
 fdb = fieldnames(fmecadb); nfdb = length(fdb);
 if isempty(options.names) && ~isstruct(options.names), options.names = struct([]); end
@@ -191,7 +211,7 @@ if any(lvalues>1), dispf('WARNING: several values were found by fields'), end
 vvalues = cellfun(@(x) options.operation(values.(x)),fvalues);
 
 % color scale
-col = interp1(linspace(0,1,size(options.colormap,1)),options.colormap,(vvalues-options.min)/(options.max-options.min),'cubic');
+col = interp1(linspace(0,1,size(options.colormap,1)),options.colormap,(vvalues-options.min)/(options.max-options.min),options.colormapinterp);
 bad = (vvalues<options.min) | (vvalues>options.max);
 col(bad,:) = repmat(options.defaultfacecolor,length(find(bad)),1);
 
@@ -323,6 +343,32 @@ for i=1:nvalues
         end
     end
 end
+
+% user values overriding default ones
+for userp = {'edgecolor' 'edgewidth' 'linewidth' 'linecolor'}
+    if isfield(options,userp{1}) && ~isempty(options.(userp{1})) && isstruct(options.(userp{1}))
+        if ~isempty(regexp(userp{1},'^edge','match'))
+            isedge=true; realp = regexprep(userp{1},'edge','line');
+        else
+            isedge=false; realp = userp{1};
+        end
+        for f = fdb'
+            inode = ismember(fdb,f);
+            if isfield(options.(userp{1}),f{1})
+                pval = options.(userp{1}).(f{1});
+                if ~isempty(pval) && ~any(isnan(pval))
+                    if ~isempty(regexp(userp{1},'color$','match')) && ischar(pval), pval = rgb(pval); end
+                    if isedge % edge
+                        set(hobj.Nodes(inode),realp,pval)
+                    else % arrow
+                        set(getedgesbynodeid(hobj,parents{inode},f{1}),realp,pval)
+                    end
+                end % if valid value
+            end % if property is set for this node
+        end % next node
+    end % if user property defined
+end % next user property
+
 % layout for regular nodes
 set(hobj.Nodes(1:nvalues),'Shape',options.shapenodes);
 if ~isempty(options.sizenodes), set(hobj.Nodes(1:nvalues),'Size',options.sizenodes); end

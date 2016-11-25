@@ -3,7 +3,7 @@ function scfd(data,varargin)
 %   syntax: scfd(data)
 %   options: scfd(data [,'noaxes','nolegend'])
 
-% INRA\Olivier Vitrac 28/10/02 - rev. 19/09/15
+% INRA\Olivier Vitrac 28/10/02 - rev. 19/09/16
 
 % REVISION HISTORY
 % 29/10/02 release candidate
@@ -13,6 +13,7 @@ function scfd(data,varargin)
 % 01/09/11 prevent empty strings from being printed (text(.5,.5,[]) generates an error)
 % 14/12/11 add patch
 % 19/09/15 retrieve legends stored as UserData in line objects (see gcfd to see the implementation)
+% 19/09/16 fix empty Ydata
 
 % object properties
 propAXESlist = {'sXlabel','sYlabel','nXscale','nYscale','nXlim','nYlim'};
@@ -67,7 +68,7 @@ for i=1:length(data)
                     for j = 1:nline
                         if any(data(i).line(j).Xdata)
                             hp(j) = plot(data(i).line(j).Xdata,data(i).line(j).Ydata,'ko');
-                        else
+                        elseif any(data(i).line(j).Ydata)
                             hp(j) = plot(data(i).line(j).Ydata,'ko');
                         end
                         if isfield(data(i).line(j),'UserData') && ~isempty(data(i).line(j).UserData)

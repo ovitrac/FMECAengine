@@ -37,12 +37,19 @@ function hpout = plotnormalarrows(x,y,xi,varargin)
     plotnormalarrows(t,y,t(10:8:end-10),'length',5,'width',1,'tipangle',30,'color','b','scale',5);
     plotnormalarrows(t,y,t(10:8:end-10),'scale',-5,'length',5,'width',1,'tipangle',30,'color','r');
 %}
+% Example on a log-log scale
+%{
+    x = logspace(1,3,100)'; y = x.^-2;
+    figure, hold on, plot(x,y), set(gca,'xscale','log','yscale','log'), drawnow, xax = axis;
+    plotnormalarrows(x,y,x(1:10:end),'scale',.6), axis(xax)
+%}
 
-% MS 2.1 - 26/02/2016 - INRA\Olivier Vitrac - rev. 29/02/2016
+% MS 2.1 - 26/02/2016 - INRA\Olivier Vitrac - rev. 20/07/2016
 
 % Revision history
 % 27/02/2016 RC
 % 29/02/2016 add notunique
+% 20/07/2016 add log scales
 
 % default
 default = struct(...
@@ -101,13 +108,18 @@ ni = length(xi);
 drawnow
 xax = xlim;
 yax = ylim;
+isxlog = strcmp(get(gca,'xscale'),'log');
+isylog = strcmp(get(gca,'yscale'),'log');
+
+%% manage log scales
+if isxlog, x = log(x); xi = log(xi); xax = log(xax); end
+if isylog, y = log(y); yax = log(yax); end
 
 %% scaling
 switch lower(o.autoscale)
     case 'on'
-        dx = diff(xlim);
-        dy = diff(ylim);
-    case ''
+        dx = diff(xax);
+        dy = diff(yax);
     otherwise
         dx = 1;
         dy = 1;
@@ -145,11 +157,15 @@ for i=1:ni
     end
     xa = xax(1) + (xi(i)+[0;translation(1)])*dx;
     ya = yax(1) + (yi(i)+[0;translation(2)])*dy;
+    if isxlog, xa = exp(xa); end
+    if isylog, ya = exp(ya); end
     %line(xa,ya)
     hp(i)=arrow([xa(1) ya(1)],[xa(2) ya(2)],o.length,o.baseangle,o.tipangle,o.width,o.page);
     if addtext
         xt = xax(1) + (xi(i)+translation(1)*o.textscale)*dx;
         yt = yax(1) + (yi(i)+translation(2)*o.textscale)*dy;
+        if isxlog, xt = exp(xt); end
+        if isylog, yt = exp(yt); end
         text(xt,yt,o.text(i),textproperties)
     end
 end

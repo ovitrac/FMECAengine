@@ -16,13 +16,13 @@ function Pvsat = FMECAvp(mol,T)
 %   See also: FMECAunit, FMECADpiringer, FMECADfuller, FMECAKairP, load_chemspider, fmecaengine
 
 
-% INRA\FMECAengine v 0.6 - 04/04/2015 - Olivier Vitrac - rev.  08/02/2016
+% INRA\FMECAengine v 0.6 - 04/04/2015 - Olivier Vitrac - rev.  24/11/2016
 
 % Revision history
 % 07/02/2016 add UserProperties for VP and MP if missing (now FMECAKairP limonene works)
 % 07/02/2016 intercept errors in ModifiedGrainMethod(), FMECAKairP ethane displays a warning
 % 08/02/2016 check the version of Chemspider
-
+% 24/11/2016 returns an error message if VP is missing in thermo, add mm Hg,25 deg C, add MeltingPt
 
 % Default
 Tdefault = '25°C';
@@ -43,8 +43,12 @@ if isempty(dmol.EPI) || ~isfield(dmol.EPI,'BoilingPt_MeltingPt_VaporPressureEsti
 thermo = dmol.EPI.BoilingPt_MeltingPt_VaporPressureEstimations;
 
 % reference pressure in units required by ModifiedGrainMethod()
+if ~isfield(thermo,'VP'), error('VP field is missing in thermodynamic property, please check website or parser'), end
 VP = thermo.VP; % reference pressure
 VP.interpreted = regexp(VP.unit,'(?<Punit>[\w\s]*)\s*at\s*(?<T>\d+)\s*(?<Tunit>.*)','names');
+if isempty(VP.interpreted) % alternative: mm Hg,25 deg C
+    VP.interpreted = regexp(VP.unit,'(?<Punit>[\w\s]*)\s*,\s*(?<T>\d+)\s*(?<Tunit>.*)','names');
+end
 P0 = convertunit(regexprep(VP.interpreted.Punit,'\s',''),... initial unit
                  'atm',... destination unit
                  VP.value); % reference P value
@@ -70,6 +74,8 @@ Tb = convertunit(tempclean(BP.unit),...
 % reference melting point in units required by ModifiedGrainMethod()
 if isfield(thermo,'MP') && ~isempty(thermo.MP)
     MP = thermo.MP;
+elseif isfield(thermo,'MeltingPt') && ~isempty(thermo.MeltingPt)
+    MP = thermo.MeltingPt;
 elseif isfield(dmol.UserProperties,'ExperimentalMeltingPoint')
     dispf('FMECAvp:: no melting point (MP) for ''%s'' in EPIsuite, switch to user properties',mol)
     MP = struct('value',mean(dmol.UserProperties.ExperimentalMeltingPoint.value),...

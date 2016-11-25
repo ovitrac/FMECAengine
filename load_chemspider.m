@@ -42,7 +42,7 @@ function data = load_chemspider(mol,varargin)
 %
 %   SEE ALSO: LOAD_NIST, LOAD_NIST_IR, LOAD_NCBI, LOAD_NCBISTRUCT, LOAD_CHEMINDUSTRY
 
-% MS 2.1 - 21/05/11 - INRA\Olivier Vitrac - rev. 02/04/16
+% MS 2.1 - 21/05/11 - INRA\Olivier Vitrac - rev. 25/11/16
 
 %Revision history
 % 22/05/11 vectorization, minor bugs
@@ -65,6 +65,11 @@ function data = load_chemspider(mol,varargin)
 % 07/02/16 CONVERT user properties into numbers and extract units (to be completed, see recognizedunits)
 % 08/02/16 add mmHg as recognized unit
 % 02/04/16 trim mol input
+% 19/05/16 add MAXNAMES due to inconsistencies in names aggregated by ChemSpider
+%          example: Tridecane is also named "Dodecane", see: http://www.chemspider.com/Chemical-Structure.11882.html
+%          currently MAXNAMES is set to 15 corresponding to last valid name for tridecane (93924-07-3)
+% 24/11/16 fix unit properties with no space before (unit)
+% 25/11/16 remove <stong> tags in user properties (to be checked in the future)
 
 persistent CACHEDfiles CACHEglobal
 
@@ -83,7 +88,8 @@ default = struct('thumbnail',true,...
                  'imsize',[640 480],...
                  'autocrop',false,...
                  'orientation','none');
-makehash = @(id) lower([{id.CSID};id.CAS;{id.SMILES};{id.InChI};{id.InChIKey};id.names]);
+MAXNAMES = 15;
+makehash = @(id) lower([{id.CSID};id.CAS;{id.SMILES};{id.InChI};{id.InChIKey};id.names(1:min(length(id.names),MAXNAMES))]);
 
 % Configuration
 token = '30c079d0-cedb-42a7-be40-6e8f9f2c0d75'; % Olivier Vitrac account
@@ -378,7 +384,8 @@ if ~isempty(propuser) && size(propuser,1)>1
     npropval = length(propvalue);
     [propvaluenum,propvalunit] = deal(cell(npropval,1));
     for i=1:npropval
-        tmp = strtrim(regexprep(propvalue{i},{'<span.*?>.*?</span>' '<a.*?>.*?</a>' '\(.*\)' '\[.*\]' '(-?\d+\.?\d*)-(-?\d+\.?\d*)'},{'' '' '' '' '$1 $2'}));
+        if ~iscell(propvalue{i}), propvalue{i} = {propvalue{i}}; end % added on Nov 25, 2016
+        tmp = strtrim(regexprep(propvalue{i},{'<span.*?>.*?</span>' '<strong.*?>.*?</strong>' '<a.*?>.*?</a>' '\(.*\)' '\[.*\]' '(-?\d+\.?\d*)-(-?\d+\.?\d*)'},{'' '' '' '' '' '$1 $2'}));
         ntmp = length(tmp); propvaluenum{i} = zeros(1,ntmp); propvalunit{i} = cell(1,ntmp);
         for j=1:ntmp
             propvaluenum{i}(j) = mean(str2double(uncell(regexp(tmp{j},sprintf('(%s)',num(2:end)),'tokens'))));
@@ -406,7 +413,7 @@ end
 %% EPI section data (added 04/04/15)
 EPIclean = @(s) regexprep(strtrim(regexprep(s,{'\(.*?\)','\[.*?\]','/','-',','},{'','','_','_','_'})),'\s','');
 EPIproppattern = {... generic parser (update it if new needs)
-    '^(?<prop>[\w\s]*)\s\((?<unit>.*)\)\s*[:=]\s*(?<num>[-+]?[0-9]*\.?[0-9]+([eEdD][-+]?[0-9]+)?)\s*\((?<nfo>.*?)\)'
+    '^(?<prop>[\w\s]*)\s?\((?<unit>.*)\)\s*[:=]\s*(?<num>[-+]?[0-9]*\.?[0-9]+([eEdD][-+]?[0-9]+)?)\s*\((?<nfo>.*?)\)'
     '^(?<prop>[\w\s]*)\s\((?<nfo>.*)\)\s*[:=]\s*(?<num>[-+]?[0-9]*\.?[0-9]+([eEdD][-+]?[0-9]+)?)\s*(?<unit>.*)'
     '^(?<prop>[\w\s]*)\s*[:=]\s*(?<num>[-+]?[0-9]*\.?[0-9]+([eEdD][-+]?[0-9]+)?)\s*(?<unit>.*)'
     '^(?<prop>[\w\s]*)\s*\[(?<nfo>.*)\]\s*[:=]\s*(?<num>[-+]?[0-9]*\.?[0-9]+([eEdD][-+]?[0-9]+)?)\s*(?<unit>.*)'

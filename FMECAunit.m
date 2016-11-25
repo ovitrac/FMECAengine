@@ -43,7 +43,7 @@ function num=FMECAunit(quantity,str,quantitychecked,defaultunit)
 %}
 
 
-% INRA\FMECAengine v 0.6 - 02/04/2015 - Olivier Vitrac - rev. 03/04/2016
+% INRA\FMECAengine v 0.6 - 02/04/2015 - Olivier Vitrac - rev. 05/09/2016
 
 % Revision history
 % 03/04/2015 release candidate with examples
@@ -55,6 +55,7 @@ function num=FMECAunit(quantity,str,quantitychecked,defaultunit)
 % 25/02/2016 fix conversion of Temp units on itself (identity)
 % 31/03/2016 add defaultunit
 % 03/04/2016 add diffusion coefficients
+% 05/09/2016 prevents the creation on units conversion from zero values (it corrupts the database with NaN)
 
 % PREFETCH management
 persistent DBunit DBunitprefetch
@@ -220,7 +221,7 @@ else
         num = nconverted * DBunit.(q).scale(iprefetch) + DBunit.(q).offset(iprefetch);
         return
     end
-    % do the conversation
+    % do the conversion
     try
         if istemperature 
             num = convertunit(u,uSI,nconverted,'abstemp');
@@ -235,12 +236,14 @@ else
 end
 
 %% update prefetch
-DBunit.(q).unit{end+1} =  u;
-if strcmp(unit2SI.(q),u)
-    DBunit.(q).offset(end+1) = 0;
-    DBunit.(q).scale(end+1) = 1;
-else
-    DBunit.(q).offset(end+1) = offset.(q);
-    DBunit.(q).scale(end+1) = (num-offset.(q))/nconverted;
+if ~isnan(nconverted) && nconverted~=0
+    DBunit.(q).unit{end+1} =  u;
+    if strcmp(unit2SI.(q),u)
+        DBunit.(q).offset(end+1) = 0;
+        DBunit.(q).scale(end+1) = 1;
+    else
+        DBunit.(q).offset(end+1) = offset.(q);
+        DBunit.(q).scale(end+1) = (num-offset.(q))/nconverted;
+    end
+    save(DBunitprefetch,'DBunit')
 end
-save(DBunitprefetch,'DBunit')

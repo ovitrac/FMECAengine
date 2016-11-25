@@ -270,7 +270,7 @@ if isnumeric(x)
     elseif any(xp<o.min)
         output = struct('value',xp,'errorcode',0,'suberrorcode',o.errorsubcode.min,'errormessage',errmsg(sprintf('lower than %0.6g',o.min),o.errrorsubcode.min));
     elseif any(xp>o.max)
-        output = struct('value',xp,'errorcode',0,'suberrorcode',o.errorsubcode.max,'errormessage',errmsg(sprintf('lower than %0.6g',o.max),o.errrorsubcode.max));
+        output = struct('value',xp,'errorcode',0,'suberrorcode',o.errorsubcode.max,'errormessage',errmsg(sprintf('greater than %0.6g',o.max),o.errrorsubcode.max));
     else
         output = struct('value',xp,'errorcode',0,'suberrorcode',0,'errormessage','');
     end

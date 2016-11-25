@@ -51,7 +51,7 @@ function [tab,attrout] = xlstblread(filename,sheetname,headerlines,varargin)
 %
 %   See also: BYKEYWORDS, LOADODS, LOADODSPREFETCH, XLSREAD
 
-% MS 2.0 - 15/01/08 - INRA\Olivier Vitrac - rev. 27/03/16
+% MS 2.0 - 15/01/08 - INRA\Olivier Vitrac - rev. 26/07/16
 
 % Revision History
 % 21/01/08 automatic conversion of text into numbers when possible (e.g. after OCR, when mixed types are used)
@@ -65,6 +65,7 @@ function [tab,attrout] = xlstblread(filename,sheetname,headerlines,varargin)
 % 14/11/15 add '~' to the table of replacement characters ('~' is replaced by '')
 % 15/03/16 accepts xlsm as file extension, add property 'headerrowindex' to set line which contains header
 % 27/03/16 instead of repeating dupdupdup..., repeated fields appear as dup01, dup02,...
+% 26/07/16 fix _dup suffix 
 
 % Default
 default = struct('headerrowindex',1);
@@ -83,7 +84,6 @@ lastsheeton = false;
 VARMAXLEN   = 48; % increase this number if required
 varlineseparator = '__';
 varlineseparatorpat = [regexptranslate('escape',varlineseparator) '$'];
-duplicates = struct([]); % added March 27, 2016 (duplicates.(field) = number of copies)
 duplicatesuffix = 'dup%02d'; % suffix for duplicated column name
 
  
@@ -148,6 +148,7 @@ for i=1:m % each file
     filename_clean = replacefromtable(localfile,table);
     if filename_clean(1)<='9', filename_clean = ['file_' filename_clean]; end %#ok<AGROW>
     for j=1:n % each sheet
+        duplicates = struct([]); % added March 27, 2016 (duplicates.(field) = number of copies)
         sheetname_clean = replacefromtable(sheetname{j},table);
         if sheetname_clean(1)<='9', sheetname_clean = ['sheet_' sheetname_clean]; end %#ok<AGROW>
         if ~isempty(sheetname{j})

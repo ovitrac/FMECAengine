@@ -5,7 +5,7 @@ function data = gcfd(figurehandle)
 %
 %   See also: scfd
 
-% INRA\Olivier Vitrac 28/10/02 - rev. 19/09/15
+% INRA\Olivier Vitrac 28/10/02 - rev. 07/06/16
 
 % REVISION HISTORY
 % 29/10/02 release candidate
@@ -14,6 +14,7 @@ function data = gcfd(figurehandle)
 % 28/12/11 add Position, Units, fix texts on several lines
 % 03/05/14 add handles to fields
 % 19/09/15 copy legend for object lines as UserData
+% 07/06/16 replace any by ~isempty for new Matlab graphical objects
 
 % Default properties
 propAXESlist  = {'sXlabel','sYlabel','nXscale','nYscale','nXlim','nYlim','nPosition','nUnits'};
@@ -66,7 +67,7 @@ for hi = flipud(hc(indisaxes))'
         end
         % Axes properties
         for p = propAXESlist
-            if any(get(hi,p{1}(2:end)))
+            if ~isempty(get(hi,p{1}(2:end))) %any(get(hi,p{1}(2:end)))
                 if p{1}(1)=='s'
                     haxprop = get(hi,p{1}(2:end));
                     data = setfield(data,{i},p{1}(2:end),get(haxprop,'string'));

@@ -188,7 +188,20 @@ function [val,dbout,keytreeout] = key2key(db,key,interpreterflag,recursionflag,s
 %     [~,~,details] = key2key(db,key9c); key2keygraph(details)
 % %}
 %
-%
+% %  EXAMPLE 10: with list contains number as CAS number
+%     db.substance =  ...
+%           struct('class', {{'antoxidants' 'antoxidants' 'antoxidants' 'antiUV' 'antiUV' 'antiUV'}'},...
+%                   'name', {{'antiox1' 'antiox2' 'antiox3' 'antiUV1' 'antiUV2' 'antiUV3'}'},...
+%                   'M',     [  101       102      103       201       202       203 ]',...
+%                   'CAS', {{'0000112-84-5' '0002082-79-3' '0006683-19-8' '0041484-35-9' '0000123-28-4' '0000057-11-4'}'},...
+%                   'CASm', {{'C0000112-84-5' 'C0002082-79-3' 'C0006683-19-8' 'C0041484-35-9' 'C0000123-28-4' 'C0000057-11-4'}'});
+%    db.result = struct('sample', {{'S1' 'S2'}'},...
+%                       'mol',{{'0000112-84-5;0000057-11-4;0041484-35-9' '0002082-79-3;0006683-19-8'}'},...
+%                       'molm',{{'C0000112-84-5;C0000057-11-4;C0041484-35-9' 'C0002082-79-3;C0006683-19-8'}'});
+%     key10a = 'S1:result::sample->mol:substance::CAS->name'; 
+%     key2key(db,key10a)
+%     key10b = 'S1:result::sample->molm:substance::CASm->name'; 
+%     [~,~,details] = key2key(db,key10b); key2keygraph(details)
 %
 %   See also: FMECAENGINE FMECASINGLE ISMEMBERLIST EXPANDTEXTASLIST LOADFMECAENGINEDB KEY2KEYGRAPH
 
@@ -209,6 +222,7 @@ function [val,dbout,keytreeout] = key2key(db,key,interpreterflag,recursionflag,s
 % 27/12/11 keytreeout returns val and isterminal
 % 28/12/11 modified examples to plot the the query tree
 % 29/12/11 fix multiple keys, fix static/dynamic nodes
+% 07/01/15 add example 10 with CAS number list for debugging
 
 %default (do not modify the regular expressions without keeping a copy)
 % patternkey = '^(?<key>[A-Za-z0-9_\.\-;,\|\s\\#\{\}\?]+):(?<tablesource>[A-Za-z][A-Za-z0-9_]*)::(?<columnsource>[A-Za-z][A-Za-z0-9_]*)->(?<columndestination>[A-Za-z][A-Za-z0-9_]*)';
