@@ -27,7 +27,6 @@ function [tab,attrout] = xlstblread(filename,sheetname,headerlines,varargin)
 %   'notext2values': prevent an attempt the automatic conversion of text into numbers when possible (i.e. when the result of str2double is not NaN)
 %'mergeheaderlines': merge header lines
 %       'maketable': converts the generated structure into a table and populate attributes as metadata
-
 %
 %           OUTPUTS:
 %               tab: structure with fields 
@@ -51,7 +50,7 @@ function [tab,attrout] = xlstblread(filename,sheetname,headerlines,varargin)
 %
 %   See also: BYKEYWORDS, LOADODS, LOADODSPREFETCH, XLSREAD
 
-% MS 2.0 - 15/01/08 - INRA\Olivier Vitrac - rev. 26/07/16
+% MS 2.0 - 15/01/08 - INRA\Olivier Vitrac - rev. 09/12/16
 
 % Revision History
 % 21/01/08 automatic conversion of text into numbers when possible (e.g. after OCR, when mixed types are used)
@@ -65,11 +64,12 @@ function [tab,attrout] = xlstblread(filename,sheetname,headerlines,varargin)
 % 14/11/15 add '~' to the table of replacement characters ('~' is replaced by '')
 % 15/03/16 accepts xlsm as file extension, add property 'headerrowindex' to set line which contains header
 % 27/03/16 instead of repeating dupdupdup..., repeated fields appear as dup01, dup02,...
-% 26/07/16 fix _dup suffix 
+% 26/07/16 fix _dup suffix
+% 09/12/16 implement structarray as in loadods
 
 % Default
 default = struct('headerrowindex',1);
-keywords = {'noheader' 'emptyisnotnan' 'notext2values' 'mergeheaderlines' 'maketable' 'transpose'};
+keywords = {'noheader' 'emptyisnotnan' 'notext2values' 'mergeheaderlines' 'maketable' 'transpose' 'structarray'};
 
 % Definitions
 kwlist = {'Inf' '+Inf' '-Inf' 'NaN' 'ActiveX VT_ERROR: '}; % values which are replaced 
@@ -239,6 +239,8 @@ for i=1:m % each file
                 tmp.Properties.UserData = attrtmp;
                 tmp.Properties.Description = sprintf('%s::%s:%s',attrtmp(1).filename,attrtmp(1).table,attrtmp(1).title);
                 tmp.Properties.VariableDescriptions = {attrtmp.description};
+            elseif o.structarray % struct array if needed % added on 09/12/2016
+                tmp = struct2structtab(tmp);
             end
             % final form
             if m>1 && n>1,      tab.(filename_clean).(sheetname_clean) = tmp;

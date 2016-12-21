@@ -3,7 +3,7 @@ function scfd(data,varargin)
 %   syntax: scfd(data)
 %   options: scfd(data [,'noaxes','nolegend'])
 
-% INRA\Olivier Vitrac 28/10/02 - rev. 19/09/16
+% INRA\Olivier Vitrac 28/10/02 - rev. 12/12/16
 
 % REVISION HISTORY
 % 29/10/02 release candidate
@@ -14,6 +14,7 @@ function scfd(data,varargin)
 % 14/12/11 add patch
 % 19/09/15 retrieve legends stored as UserData in line objects (see gcfd to see the implementation)
 % 19/09/16 fix empty Ydata
+% 12/12/16 fix for Matlab 2015b and later
 
 % object properties
 propAXESlist = {'sXlabel','sYlabel','nXscale','nYscale','nXlim','nYlim'};
@@ -83,9 +84,9 @@ for i=1:length(data)
                     end
                     hl = [];
                     if  ~nolegend
-                        if nline>1 && nline<5, hl = legend(hp,legp,0);
-                        elseif nline>4 && nline<10, hl = legend(hp,legp,-1); end
-                        if any(hl), set(hl,'box','off'), end
+                        if nline>1 && nline<5, hl = legend(hp,legp,'location','best');
+                        elseif nline>4 && nline<10, hl = legend(hp,legp,'location','NorthEastOutside'); end
+                        if ~isempty(hl), set(hl,'box','off'), end
                     end
                 case 'image'
                     propOBJECTlist = propIMAGElist;
