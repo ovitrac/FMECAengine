@@ -126,7 +126,7 @@ gifmultilayers(manymodel,'Fo',logspace(-2,log10(200),1200),'filename','manylayer
     gifmultilayers('xticklabel',{sprintf('%0.3g',1+ratio(1)) '2' '3'},'title','right approximation (2)',S2right,'makegif')
 %}
 
-% Migration 2.1 - 17/12/2015 - INRA\Olivier Vitrac - rev. 25/12/2015
+% Migration 2.1 - 17/12/2015 - INRA\Olivier Vitrac - rev. 21/04/2017
 
 % Revision history
 % 17/12/2015 release candidate as a function with examples, based on the script used by Mai and a former script used for EU Commission in 2012
@@ -134,6 +134,8 @@ gifmultilayers(manymodel,'Fo',logspace(-2,log10(200),1200),'filename','manylayer
 % 24/12/2015 function renamed as gifmultilayers (to be integrated within MIGRATION toolbox)
 % 24/12/2015 example for Sartorius completed, add restriction, plots with arbitrary concentration units
 % 25/12/2015 second approximation of superpoposition (preferred): mass balance and thickness correction
+% 26/02/2017 returns npart() for 3D
+% 21/04/2017 add nscale and nscaleleg to remove the effect of n (legacy maintained)
 
 % default
 ndefault = 20;
@@ -148,6 +150,8 @@ default = struct(...
     'D',[1 1 1 1e4],... ABC + Food
     'k',[1 1 1 1],... ABC + Food
     'n',[ndefault ndefault ndefault 1],... ABC + Food
+    'nscale',1,... 1 is for legacy
+    'nscaleleg',2,...
     'Fo',logspace(log10(Fomin),log10(Fomax),nFodefault),...
     'ind',[],...
     'colors', rgb({'Salmon' 'FireBrick'}),...
@@ -215,7 +219,7 @@ if ~exist(prefetchfile,'file') || o.restart
         expandmat(o.k,o.n) %ones(1,n)    ones(1,n)    ones(1,n)  1
         ];
     n = max(o.n);
-    Fo = o.Fo*n;
+    Fo = o.Fo*n.^o.nscale;
     dispf('run simulation, defined as:'),disp(s)
     C = roe_patankar(s,Fo,0,'','struct',1,'nmesh',o.nmesh);
     save(prefetchfile,'o','s','Fo','C','n')
@@ -231,7 +235,7 @@ end
 
 %% plot profiles and animate
 nFo = length(Fo);
-if isempty(o.ind), itlist = 1:nFo; else itlist = o.ind((o.ind>=1) & (o.ind<=nFo)); itlist = round(itlist(:)'); end
+if isempty(o.ind), itlist = 1:nFo; else, itlist = o.ind((o.ind>=1) & (o.ind<=nFo)); itlist = round(itlist(:)'); end
 colfull = o.colormap(512); colfull = colfull(round(interp1(linspace(0,sqrt(Fo(end)-Fo(1)),512).^2,1:512,Fo-Fo(1),'pchip')),:);
 col = colfull(itlist,:); j = 1;
 if o.ploton
@@ -249,12 +253,12 @@ if o.ploton
             'xlim',[0 sum(s(2,:))],...
             'xtick',[0 cumsum(o.n.*o.l)],...
             'xticklabel',o.xticklabel)
-        title(sprintf('%s   Fo = D\\cdott/l_0^2 = \\bf%s\\rm \\fontsize{10}(-)',o.title, formatsci(Fo(it)/n^2)),'fontsize',o.fontsize)
+        title(sprintf('%s   Fo = D\\cdott/l_0^2 = \\bf%s\\rm \\fontsize{10}(-)',o.title, formatsci(Fo(it)/n^o.nscaleleg)),'fontsize',o.fontsize)
         drawnow
         % make gif
         if o.makegif
             frame = getframe(1); im = frame2im(frame); [A,map] = rgb2ind(im,256);
-            if it == itlist(1);
+            if it == itlist(1)
                 imwrite(A,map,giffile,'gif','LoopCount',Inf,'DelayTime',o.delaytime);
             else
                 imwrite(A,map,giffile,'gif','WriteMode','append','DelayTime',o.delaytime);
@@ -274,6 +278,7 @@ if nargout
     out.Cmean = cat(2,tmp{:});
     out.Ceq   = eqConc(o);
     Cmax = max(o.C0);
+    out.npart = @(N0,C,dx) round(N0*C*dx);
     out.plotbnd = @() plotbnd(s,Cmax);
     out.plotpart = @(it) plotpart(C,x(s),it,(s(1,:)>0)+1,Cmax);
     out.plot = @(it,icolor) plot(C.x,C.Cx(it,:),'-','linewidth',o.linewidth,'color',col(icolor,:));

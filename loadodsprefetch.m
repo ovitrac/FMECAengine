@@ -44,7 +44,7 @@ function [data,isupdated,attrout]=loadodsprefetch(filename,varargin)
 %       [f(i).data,~,f(i).attr] = loadodsprefetch(fullfile(f(i).path,f(i).file));
 %   end
 
-% MS 2.1 - 20/01/12 - INRA\Olivier Vitrac rev. 08/11/15
+% MS 2.1 - 20/01/12 - INRA\Olivier Vitrac rev.  10/03/17
 
 % Revision history
 % 24/01/12 add a comparison based on requested sheetnames
@@ -58,6 +58,7 @@ function [data,isupdated,attrout]=loadodsprefetch(filename,varargin)
 % 08/11/15 updated help
 % 15/03/16 add xlsm format, add 'headerrowindex' property for excel file reading
 % 09/12/16 add structarray for XLS files
+% 10/03/17 propagate 'noprefetch' flag when 'prefetchsheet' is set
 
 % default
 default = struct(...
@@ -108,7 +109,7 @@ elseif options.prefetchsheet
             loadodsprefetch(...
             filename,'sheetname',wsk,'realname','','prefetchsheet',false,...
             'prefetchpath',options.prefetchpath,...
-            'prefetchprefix',sprintf('%s_%s_',options.prefetchprefix,wsk),...
+            'prefetchprefix',sprintf('%s_%s_',options.prefetchprefix,wsk),'noprefetch',options.noprefetch,...
             loadodsoptions{:} ... all options except sheetname
             );
         updtd = isupdatedtmp || updtd;

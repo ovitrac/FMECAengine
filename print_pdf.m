@@ -20,7 +20,7 @@ function print_pdf(resolution,fichier,chemin,options,varargin)
 %           figure(i), print_pdf(600,'myPDFfile.pdf',pwd,'append','pagenum',i,'pagestart',1,'pagestop',numfig)
 %       end
 
-% Woodox 1.0/MS 2.1 - 13/08/07 - Olivier Vitrac - rev. 03/03/12
+% Woodox 1.0/MS 2.1 - 13/08/07 - Olivier Vitrac - rev. 04/06/17
 
 % revision
 % 25/07/07 add options and fix chemin option
@@ -33,12 +33,14 @@ function print_pdf(resolution,fichier,chemin,options,varargin)
 % 22/07/11 fix extension with 'nocheck'
 % 03/03/12 add append
 % 12/03/12 help improvements, add example using append
+% 04/06/17 fix figure number for R2013b and later
 
 
 % definitions
 resolution_default = 600; % PDF
 ext_default = '.pdf';
 currentfig = gcf;
+if verLessThan('matlab','9.0'), currentfignum = currentfig; else, currentfignum = currentfig.Number; end
 options_default = '-loose';
 pmode = get(currentfig,'paperpositionmode');
 psdefault = struct('pagenum',NaN,'pagestart',1,'pagestop',Inf);
@@ -52,7 +54,7 @@ psoptions = argcheck(varargin,psdefault);
 if isempty(resolution), resolution = resolution_default; end
 if isempty(fichier), [~,fichier] = fileparts(get(currentfig,'filename')); end
 if isempty(fichier), [~,fichier] = fileparts(get(currentfig,'name')); end
-if isempty(fichier), fichier = sprintf('Figure_%d',currentfig); end
+if isempty(fichier), fichier = sprintf('Figure_%d',currentfignum); end
 if isempty(options), options = options_default; end
 if any(chemin) 
     if chemin(1)=='-', options = chemin; chemin = ''; end
@@ -77,10 +79,10 @@ elseif strcmpi(options,'append')
     if ~isnan(psoptions.pagenum) && (psoptions.pagenum>=psoptions.pagestart)
         if isinf(psoptions.pagestop) || isnan(psoptions.pagestop)
              psmsg = sprintf('page %d (first page=page %d)',psoptions.pagenum,psoptions.pagestart);
-        else psmsg = sprintf('page %d/%d (first page=page %d)',psoptions.pagenum,psoptions.pagestop,psoptions.pagestart);
+        else, psmsg = sprintf('page %d/%d (first page=page %d)',psoptions.pagenum,psoptions.pagestop,psoptions.pagestart);
              okps2pdf = psoptions.pagenum>=psoptions.pagestop;
         end
-    else     psmsg = '(specify ''pagenum'', ''pagestart'', ''pagestop'' for optimization)';
+    else,     psmsg = '(specify ''pagenum'', ''pagestart'', ''pagestop'' for optimization)';
     end
     if exist(tmppsfile,'file') && ~isnan(psoptions.pagenum) && (psoptions.pagenum<=psoptions.pagestart), delete(tmppsfile), end
     % PS print

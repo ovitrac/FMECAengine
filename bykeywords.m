@@ -62,7 +62,7 @@ function [X0,foundindexout,nfound]=bykeywords(X,f,varargin)
 %
 %   See also: XLSTBLREAD, LOADODS, LOADODSPREFETCH, STRUCT2STRUCTTAB, STRUCTTAB2STRUCT, SUBSTRUCTARRAY, CLEANTABLE
 
-% MS 2.0 - 20/01/2008 - INRA\Olivier Vitrac - rev. 16/11/2015
+% MS 2.0 - 20/01/2008 - INRA\Olivier Vitrac - rev. 12/04/2017
 
 % Revision history
 % 29/01/2008 add finindex, new rules for missing KEYVALUES
@@ -73,10 +73,11 @@ function [X0,foundindexout,nfound]=bykeywords(X,f,varargin)
 % 27/10/2015 add slicing capability along one dimension (example:  bykeywords(db.layout,{'table','sample'},'oven',{'batter' 'batter'}))
 % 14/11/2O15 implement table objects
 % 16/11/2015 impose the original order the title of columns when tables are used (pb with setdiff, to remove Properties)
+% 12/04/2017 add Row and Variables to the list of fields to be removed for Matlab 2016b (see the fix of 16/11/2015)
 
 % Definitions
 reshapeon =false;
-if verLessThan('matlab','8.2'), isatable = false; else isatable = istable(X); end 
+if verLessThan('matlab','8.2'), isatable = false; else, isatable = istable(X); end 
 
 % arg check
 if nargin<3, error('syntax: X0 = bykeywords(X,key,keyvalues)\nX0 = bykeywords(X,{key1 key2...},keyvaluesforkey1,keyvaluesforkey2,...)'), end
@@ -96,8 +97,8 @@ if isstruct(X) || isatable
         Properties = X.Properties;
         X = structtab2struct(table2struct(X));
         if nXfields>size(X,2)
-            [~,iokfield] = setdiff(Xfields,'Properties');
-            % make order stable without using 'stable' (don't work on old Matlabs, before 2012)
+            [~,iokfield] = setdiff(Xfields,{'Properties','Row','Variables'});
+            % make order stable without using 'table' (don't work on old Matlabs, before 2012)
             Xfields = Xfields(sort(iokfield,'ascend'));
         end
     end

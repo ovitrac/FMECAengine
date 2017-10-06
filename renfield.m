@@ -18,15 +18,17 @@ function X0=renfield(X,f,f0)
 %
 %   Dependencies for distribution: NONE
 
-% MS 2.1 - 23/01/08 - INRA\Olivier Vitrac rev. 03/11/16
+% MS 2.1 - 23/01/08 - INRA\Olivier Vitrac rev. 03/08/17
 
 % revision history
 % 30/01/08 remplace length(X) by numel(X)
 % 03/11/16 fix nargchk (for future Matlab versions)
+% 03/08/2017 accept tables
 
 % arg check
 if nargin<2 || nargin>3, error('syntax: X0=renfield(X,f,f0) or X0=renfield(X,f0)'), end
-if ~isstruct(X), error('X must be a structure'), end
+isatable = istable(X);
+if ~isstruct(X) && ~isatable, error('X must be a structure or a table'), end
 if nargin==2, f0=f; f=fieldnames(X); end
 if ~iscell(f), f = {f}; end
 if ~iscell(f0), f0 = {f0}; end
@@ -35,8 +37,13 @@ if ~iscellstr(f0), error('f0 must be a string or cell array of strings'), end
 if numel(f)~=numel(f0), error('f and f0 must be of a same size'), end
 
 % scan
-fX = fieldnames(X);
-m = numel(X);
+if isatable
+    fX = X.Properties.VariableNames;
+    m = 1;
+else
+    fX = fieldnames(X);
+    m = numel(X); % for array of structure
+end
 for i=1:length(fX)
     j = find(ismember(f,fX{i}));
     if any(j)
@@ -46,3 +53,5 @@ for i=1:length(fX)
         [X0(1:m).(fX{i})] = deal(X.(fX{i}));
     end
 end
+
+if isatable, X0 = struct2table(X0); end

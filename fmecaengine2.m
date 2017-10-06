@@ -267,7 +267,7 @@ function [fmecadb,data0out,dataout,options] = fmecaengine2(varargin)
 % Any question to this script/function must be addressed to: olivier.vitrac@agroparistech.fr
 % The script/function was designed to run on the cluster of JRU 1145 Food Process Engineering (admin: Olivier Vitrac)
 %
-% Migration 2.1 (Fmecaengine v0.6023) - 10/04/2011 - INRA\Olivier Vitrac - Audrey Goujon - Mai Nguyen - rev. 05/03/2016
+% Migration 2.1 (Fmecaengine v0.61) - 10/04/2011 - INRA\Olivier Vitrac - Audrey Goujon - Mai Nguyen - rev. 30/08/2017
 
 % Revision history
 % 06/04/2011 release candidate
@@ -350,6 +350,7 @@ function [fmecadb,data0out,dataout,options] = fmecaengine2(varargin)
 % 19/02/2016 optimized cache and fix the comparison of simulations
 % 20/02/2016 first documented example for flows (version 0.60019)
 % 05/03/2016 add CPi, CFi: concentrations at the interface, add savememory, add  enginesingle,enginerestart,enginedelete,enginesetoff (version 0.6023)
+% 30/08/2017 fix CF0 in s(map(isim,iseries)).restart (version 0.61, major bug correction)
 
 %% RAMDISK
 persistent RAMDISK % usage RAMDISK.(session).(jobid).r
@@ -1117,9 +1118,14 @@ for iseries = 1:nseries  % Main loop on each series of independent simulations (
                     end
                 else % simulation with a previously calculated profile
                     screen = dispb(screen,'[%d/%d (%d/%d)]\t%s\t %s (engine=%s)...\nreusing ''%s'' located in ''%s''',count,countmax,isim,nsim,currentid,msg,func2str(o.enginerestart),previousid,previousfile);
+                    if isempty(data(map(isim,iseries)).parentF)  %added OV 30/08/2017
+                        CFrestart = interp1(previousres.r.t*previousres.r.timebase,previousres.r.CF,data(map(isim-1,iseries)).(o.print_t),o.interp1);
+                    else
+                        CFrestart = s(map(isim,iseries)).CF0;
+                    end
                     s(map(isim,iseries)).restart = struct('x',previousres.r.x,... the initial solution is interpolatedd at the previous requested contact time
                        'C',interp1(sqrt(previousres.r.tC*previousres.r.timebase),previousres.r.Cx,sqrt(data(map(isim-1,iseries)).(o.print_t)),o.interp1),...
-                       'CF',interp1(previousres.r.t*previousres.r.timebase,previousres.r.CF,data(map(isim-1,iseries)).(o.print_t),o.interp1),...
+                       'CF',CFrestart,... added OV 30/08/2017
                        'layerid',previousres.r.layerid,'xlayerid',previousres.r.xlayerid,'C0eq',previousres.r.C0eq,'lengthscale',previousres.r.F.lengthscale);
                     r = o.enginerestart(s(map(isim,iseries))); %senspatankarC(senspatankar_wrapper(s(map(isim,iseries))));
                 end

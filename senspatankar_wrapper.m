@@ -12,7 +12,11 @@ function S=senspatankar_wrapper(S0,varargin)
 %          'tlabel' time label (default = 'time')
 %          'llabel' position label (default = 'position')
 %  INPUTS:: keywords
-%           'display' displays the reference layer and its related conductance conductance
+%           'display' displays the reference layer and its related  conductance
+%  INPUTS:: pair property/value for execution and evaluation (default=[])
+%           'run' sets an anonymous function to run output S
+%           'eval' sets an anonymous function to evaluate the previous result at some particular conditions (time and position)
+%           TIP: uses 'run' and 'eval' for fitting (see advanced example)
 %  INPUTS:: properties of senspatankar (to be overdefined)
 %       example: senspatankar_wrapper(S0,'k',[10 1 1 1])
 %  Note: parameters defined after S0 have higher precedence
@@ -55,8 +59,45 @@ function S=senspatankar_wrapper(S0,varargin)
     subplot(121), plot(R.t*S.wrap.time.scale(R),R.CF), xlabel(S.wrap.time.label), ylabel('Concentration (?)')
     subplot(122), plot(R.x*S.wrap.position.scale(R),R.Cx'), xlabel(S.wrap.position.label)
 %}
+%
+%
+% ADVANCED EXAMPLE including fitting
+%{
+    expkin = struct(... migration data of 4-nitrophenol from the master of Sofiane (2016)
+        't', [0    0.0153    0.0358    0.9589    3.9951    4.9951    5.9469    7.0947    8.0947   13.0551   26.0214   46.9040]',... days
+       'CF', [0     0.1276    0.0947    0.3050    1.2825    1.6613    1.7807    2.0758    2.1898    2.8587    2.4089    2.8855] );
+    inthefit = true(size(expkin.t));    
+    days = FMECAunit('t','1 day');
+    S0 = struct('Bi',1e6,...
+                'k',1,...
+                'D',1e-14,...
+                'k0',1,...
+                'l',150e-06,...
+                'L',0.0783,...
+                'C0',37.5,...
+                'CF0',0,...
+                't',(linspace(0,sqrt(50),1e4).^2)*days,...
+                'run',@senspatankar ...
+            );
+    A0 = log10([S0.D S0.k]);
+    evalR = @(res,inthefit) interp1(res.timebase*res.t,res.CF,expkin.t(inthefit)*days,'pchip');
+    Rsim = @(A,evalR) senspatankar_wrapper(S0,'D',10^A(1),'k',10^A(2),'eval',evalR);
+    crit = @(A,inthefit) norm(expkin.CF(inthefit)-Rsim(A,@(R) evalR(R,inthefit))).^2;
+    fitoptions = optimset('display','iter','FunValCheck','on','MaxIter',1e3,'TolFun',1e-4,'TolX',1e-4);
+    [Aopt,err] = fminsearch(@(A) crit(A,inthefit),A0,fitoptions);
+    Ropt = Rsim(Aopt,[]);
+    hp = plot(expkin.t,expkin.CF,'ro',Ropt.t*Ropt.timebase/days,Ropt.CF,'b-',expkin.t(inthefit),evalR(Ropt,inthefit),'bx');
+    hl = legend(hp,{'experiment' 'fitted' 'calculated'},'location','southeast','fontsize',12); set(hl,'box','off')
+    title(sprintf('\\rmD = \\bf%s\\rm m^2\\cdots^{-1}  -  K_{F/P} = \\bf%s',formatsci(10^Aopt(1)),formatsci(10^Aopt(2),'eco')),'fontsize',18)
+    % as before, without end-1
+    inthefit(end-1) = false;
+    [Aopt2,err2] = fminsearch(@(A) crit(A,inthefit),A0,fitoptions);
+    Ropt2 = Rsim(Aopt2,[]);
+    hp2 = plot(Ropt2.t*Ropt2.timebase/days,Ropt2.CF,'g-',expkin.t(inthefit),evalR(Ropt2,inthefit),'g+');
+%}
 
-% MS-MATLAB-WEB 1.0 - 13/05/09 - Olivier Vitrac - rev. 01/12/2015
+
+% MS-MATLAB-WEB 1.0 - 13/05/09 - Olivier Vitrac - rev. 14/04/2017
 
 % revision history
 % 28/04/11 add S.lengthscale
@@ -66,10 +107,11 @@ function S=senspatankar_wrapper(S0,varargin)
 % 28/11/2015 extract options correctly
 % 30/11/2015 keep case on S0, iref based only on existing layers only
 % 01/12/2015 fix the size control of C0
+% 14/04/2017 add 'run' and 'eval'
 
 %% default
 keywords = 'display';
-default = struct('iref',[],'options',[],'tunit','days','lunit','um','tlabel','time','llabel','position');
+default = struct('iref',[],'options',[],'tunit','days','lunit','um','tlabel','time','llabel','position','run',[],'eval',[]);
 usertscale = 24*3600; % it should match default.tunit
 userlscale = 1e-6;    % it should match default.lunit
 mandatoryfields = {'t' 'L' 'l' 'k' 'D' 'C0'};
@@ -88,6 +130,8 @@ if ~isempty(missingfields)
 end
 % 2) populate S with overdefined user parameters
 S = argcheck(remain,S0,'','keep','case');
+if isfield(S,'run') && isempty(options.run), options.run = S.run; end
+if isfield(S,'eval') && isempty(options.eval), options.eval = S.eval; end
 if ~isempty(options.options), S.options = options.options; end
 n = unique(cellfun(@(f) length(S.(f)),mandatoryfields(isvector)));
 if length(n)>1, error('the size of l, k D, C0 are not consistent (ranged between %d and %d)',min(n),max(n)); end
@@ -127,4 +171,24 @@ S.wrap = struct(...
 %% diplay
 if options.display
     dispf('\n%s::\nthe reference layer is the %dth of %d (conductance %0.4g m/s)',mfilename,iabsref,n,crit)
+end
+
+%% run if specified
+if ~isempty(options.run)
+     if isa(options.run,'function_handle')
+        R = options.run(S);
+    else
+        error('eval must define an anonymous function')
+     end
+     % eval if required
+    if ~isempty(options.eval)
+        if isa(options.eval,'function_handle')
+            S = options.eval(R);
+            return
+        else
+            error('eval must define an anonymous function')
+        end
+    else
+        S = R;
+    end
 end

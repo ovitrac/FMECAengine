@@ -19,7 +19,7 @@ function [flux_divl,Foout]=permeationcrank(Fo,n)
 % formatax(gca,'xlim',[0 .6],'ylim',[0 .35],'fontsize',12)
 % xlabel('Dt/l^2','fontsize',14)
 % ylabel('Q_t/(lC_1)','fontsize',14)
-% % finitions
+% definitions
 % set(gcf,'paperposition',[ 4.8225   10.1726   11.3391    9.3323])
 % print_pdf(600,'permeation','','nocheck')
 % print_png(400,'permeation','','',0,0,0)

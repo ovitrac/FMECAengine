@@ -3,6 +3,7 @@
 %
 % Usage:
 %   x = paste;
+%   x = paste(dec,sep,lf);
 %
 % The program will try to create an array. For this to succeed, the
 % material that is passed from the clipboard must be a tab delimited array,
@@ -10,6 +11,15 @@
 % this structure, the program simply returns a string. If the content is an
 % array, x will be a numerical array if all its components qualify as
 % numerical. If not, it will be a cell array.
+%
+% Optional arguments:
+%   dec   Single character that indicates the decimal separator. Default is
+%         the period ('.').
+%   sep   Single character that indicates how horizontal neigbors of a
+%         matrix or cell array are separated. Default is the tabulator code
+%         (char 9).
+%   lf    Single character that indicates how rows are separated.(lf stands
+%         for line feed). Default is the line feed code (char 10).
 %
 % Examples:
 %
@@ -64,6 +74,13 @@
 %        'A'    [1.3000]    [NaN]
 %    so x{1} is a string, but x{2} and x{3} are doubles.
 %
+% 6) If the clipboard contains '1,2', then x=paste with no arguments will
+%    be 12 (because Matlabs str2double('1,2') interprets this as the number
+%    12). However, x=paste(',') will return 1.2
+%
+% 7) If the clipboard contains '1,2 & 100', then x=paste with no arguments
+%    will return just the string '1,2 & 100'. x=paste(',','&'), on the
+%    other hand, will return a numerical array [1.2, 100].
 %
 % Here is a practical example:
 % ----------------------------
@@ -81,22 +98,37 @@
 %   Now, back in Excel, you can paste the result into your spreadsheet with
 %   Ctrl-V.
 %   
+% This program was selected 'Pick of the Week' on March 7, 2014. :-)
 %
 % Author : Yvan Lengwiler
-% Release: $1.04$
-% Date   : $2012-02-03$
+% Release: 1.51
+% Date   : 2014-03-19
 %
 % See also COPY, CLIPBOARD
 
 % History:
-%    Version 1.01 (2010-06-25): correction of a bug that occurred with
-%       multiple string cells on a single line.
-%    Version 1.02 (2011-06-05): Simplified detection of line feeds.
-%    Version 1.03 (2011-06-22): Removal of an unused variable.
-%    Version 1.04 (2012-02-03): Tries to identify non-conventional decimal
-%       and thousand separators.
+% 2010-06-25	correction of a bug that occurred with multiple string
+%               cells on a single line.
+% 2011-06-05	Simplified detection of line feeds.
+% 2011-06-22	Removal of an unused variable.
+% 2012-02-03	Tries to identify non-conventional decimal and thousand
+%               separators.
+% 2013-03-19	Three optional arguments (dec, sep, and lf).
+% 2014-02-21    Corrected a bug found by Jiro Doke. (Thanks, Jiro)
+% 2014-03-19    Bug fix, thanks to Soren Preus.
 
-function x = paste()
+function x = paste(dec,sep,lf)
+    
+    % handle optional parameters
+    if nargin < 3
+        lf = char(10);  % default is line feed (char 10)
+    end
+    if nargin < 2
+        sep = char(9);  % default is tabulator (char 9)
+    end
+    if nargin < 1
+        dec = '.';      % default is a period '.'
+    end
     
     % get the material from the clipboard
     p = clipboard('paste');
@@ -110,11 +142,11 @@ function x = paste()
     end
     
     % find linebreaks
-    if p(end) ~= char(10)
-        p = [p,char(10)];               % append linefeed if missing
+    if p(end) ~= lf
+        p = [p,lf];               % append linefeed if missing
     end
-    posLF = find(ismember(p,char(10))); % find linefeeds
-    nLF   = numel(posLF);               % count linefeeds
+    posLF = find(ismember(p,lf)); % find linefeeds
+    nLF   = numel(posLF);         % count linefeeds
     
     % break into separate lines; parse each line by tab
     lines  = cell(nLF,1);
@@ -122,12 +154,12 @@ function x = paste()
     numTab = zeros(nLF,1);
     last = 0;
     for i = 1:nLF
-        lines{i}  = [p(last+1:posLF(i)-1),char(9)]; % append a tabulator
+        lines{i}  = [p(last+1:posLF(i)-1),sep]; % append a tabulator
         last      = posLF(i);
-        tabs      = ismember(lines{i},char(9));     % find tabulators
+        tabs      = ismember(lines{i},sep);     % find tabulators
         aux       = linspace(1,numel(lines{i}),numel(lines{i}));
-        posTab{i} = aux(tabs);                      % positions of tabs
-        numTab(i) = sum(tabs(:));                   % count tabs in line
+        posTab{i} = aux(tabs);                  % positions of tabs
+        numTab(i) = sum(tabs(:));               % count tabs in line
     end
 
     % is it an array (i.e. a rectangle of cells)?
@@ -158,27 +190,33 @@ function x = paste()
                     x{i,j} = NaN;
                 else
                     aux = x{i,j};   % copy to work on
-                    % determine if the cell is numerical
-                    if numel(strfind(aux,'''')) > 0
-                        % remove apostrophes
-                        aux = strrep(aux,'''','');
-                        % if it is a number, it is formatted conventionally
+                    % deal with decimal and thousand separators
+                    if dec ~= '.'
+                        aux = strrep(aux,dec,'.');  % replace decimal
+                                                    % separators with periods
                     else
-                        % determine if decimal separator is comma and
-                        % thousand separator is period
-                        posComma  = strfind(aux,',');
-                        posPeriod = strfind(aux,'.');
-                        if numel(posComma == 1) && numel(posPeriod) > 0
-                            if all(mod(posComma-posPeriod,4) == 0) && ...
-                                    posComma > posPeriod(end)
-                                % this is potentially a non-conventionally
-                                % formatted number: remove periods first,
-                                % then replace comma with period
-                                aux = strrep(aux,'.','');
-                                aux = strrep(aux,',','.');
+                        if numel(strfind(aux,'''')) > 0
+                            % remove apostrophes
+                            aux = strrep(aux,'''','');
+                            % if it is a number, it is formatted conventionally
+                        else
+                            % determine if decimal separator is comma and
+                            % thousand separator is period
+                            posComma  = strfind(aux,',');
+                            posPeriod = strfind(aux,'.');
+                            if numel(posComma) == 1 && numel(posPeriod) > 0
+                                if all(mod(posComma-posPeriod,4) == 0) && ...
+                                        posComma > posPeriod(end)
+                                    % this is potentially a non-conventionally
+                                    % formatted number: remove periods first,
+                                    % then replace comma with period
+                                    aux = strrep(aux,'.','');
+                                    aux = strrep(aux,',','.');
+                                end
                             end
                         end
                     end
+                    % determine if the cell is numerical
                     aux = str2double(aux);  % try to make a double
                     if isnan(aux)
                         % this cell is not numerical (turn off switch for

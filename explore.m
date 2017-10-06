@@ -20,7 +20,7 @@ function list = explore(format,pathstr,profondeur,abbreviate)
 %           filelist = explore(filelist) which is equivalent to filelist = explore(filelist,'fullabbreviate')
 %           filelist = explore(filelist,'abbreviate');
 
-% TCPIP v. 1.0 - 26/02/01 - INRA\Olivier Vitrac rev. 04/01/11
+% TCPIP v. 1.0 - 26/02/01 - INRA\Olivier Vitrac rev. 21/07/2017
 
 % Revision history
 %   25/02/04 abbreviate format
@@ -34,6 +34,7 @@ function list = explore(format,pathstr,profondeur,abbreviate)
 %   24/01/08 improve compatibility with Matlab 7.5
 %   04/01/11 fix versn in FILEPARTS for Matlab later than 7.11 (not supported any more)
 %   04/01/11 add datenum
+%   21/07/17 fix subpath (change sizeofroot+2:end to sizeofroot+1:end)
 
 % default
 profondeur_default = 19;
@@ -105,7 +106,7 @@ else
                 list(i_list).info.path = cd;
                 list(i_list).info.file = fich{i_prof}(i_fich(i_prof)).name;
                 if length(list(i_list).info.path)>sizeofroot+1
-                    list(i_list).info.subpath = list(i_list).info.path(sizeofroot+2:end);
+                    list(i_list).info.subpath = list(i_list).info.path(sizeofroot+1:end); % before 21/07/2017 : (sizeofroot+1:end)
                 else
                     list(i_list).info.subpath = currentfilesep;
                 end

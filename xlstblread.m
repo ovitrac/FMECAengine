@@ -50,7 +50,7 @@ function [tab,attrout] = xlstblread(filename,sheetname,headerlines,varargin)
 %
 %   See also: BYKEYWORDS, LOADODS, LOADODSPREFETCH, XLSREAD
 
-% MS 2.0 - 15/01/08 - INRA\Olivier Vitrac - rev. 09/12/16
+% MS 2.0 - 15/01/08 - INRA\Olivier Vitrac - rev. 10/03/17
 
 % Revision History
 % 21/01/08 automatic conversion of text into numbers when possible (e.g. after OCR, when mixed types are used)
@@ -66,6 +66,7 @@ function [tab,attrout] = xlstblread(filename,sheetname,headerlines,varargin)
 % 27/03/16 instead of repeating dupdupdup..., repeated fields appear as dup01, dup02,...
 % 26/07/16 fix _dup suffix
 % 09/12/16 implement structarray as in loadods
+% 10/03/17 add 'true', 'false'
 
 % Default
 default = struct('headerrowindex',1);
@@ -73,6 +74,7 @@ keywords = {'noheader' 'emptyisnotnan' 'notext2values' 'mergeheaderlines' 'maket
 
 % Definitions
 kwlist = {'Inf' '+Inf' '-Inf' 'NaN' 'ActiveX VT_ERROR: '}; % values which are replaced 
+kw2list = {'true' 'false'; true false};
 varprefix = 'col'; % default variable name when no column name is found
 varprefixtranspose = 'row'; % variable name when transpose is used
 table = {' ' 'é' 'è' 'ê' 'à' 'ù' ':' ',' ';' '.' '-' '~' '+' '*' '\' '/' '°' 'µ' '(' ')' '[' ']' '{' '}' '=' '''' '%' '?' '!' '§' char(13) char(10)
@@ -131,7 +133,7 @@ for i=1:m % each file
     if (~strcmpi(ex,'.xls')) || (~strcmpi(ex,'.xlsx')) || (~strcmpi(ex,'.xlsm'))
         if exist([fullfile(pa,na) '.xls'],'file'), ex='.xls';
         elseif exist([fullfile(pa,na) '.xlsx'],'file'), ex='.xlsx';
-        else ex='.xlsm';
+        else, ex='.xlsm';
         end
     end
     filename{i} = [fullfile(pa,na) ex];
@@ -139,7 +141,7 @@ for i=1:m % each file
     [a,sheets,fmt] = xlsfinfo(filename{i});
     if isempty(a), error('the file ''%s'' in ''%s'' is not recognized',n,p), end
     fileinfo(filename{i})
-    if isempty(fmt), disp('No Excel ActiveX server found'), else dispf('Excel format: %s',fmt), end
+    if isempty(fmt), disp('No Excel ActiveX server found'), else, dispf('Excel format: %s',fmt), end
     if allsheetson, sheetname = sheets; n=length(sheets);
     elseif firstsheeton, sheetname = sheets(1); n=1;
     elseif lastsheeton, sheetname = sheets(end); n=1;
@@ -186,13 +188,14 @@ for i=1:m % each file
         end
         if ~iscell(raw), raw = {raw}; end % added OV 04/08/10
         if ~isempty(raw)
-            ichar = find(cellfun('isclass',raw,'char')); % index of char cells
+            ichar = find(cellfun(@ischar,raw)); % index of char cells
+            for ikw = 1:size(kw2list,2), raw(ichar(strcmpi(raw(ichar),kw2list{1,ikw})))=kw2list(2,ikw); end % Conversions 'True' 'False'
             for kw = kwlist, raw(ichar(strcmpi(raw(ichar),kw{1})))={str2double(kw{1})}; end % Conversions 'NaN' 'Inf' '+Inf' '-Inf'
             if ~o.emptyisnotnan, raw(cellfun('isempty',raw))={'NaN'}; end % replace empty cells by NaNs
             % headers/variables
             var = cell(1,nraw);
             for k=1:nraw
-                if ischar(headers{k}), var{k} = replacefromtable(headers{k},table); else var{k} = ''; end
+                if ischar(headers{k}), var{k} = replacefromtable(headers{k},table); else, var{k} = ''; end
                 varlen = length(var{k});
                 if varlen>VARMAXLEN, var{k} = var{k}(1:VARMAXLEN); end
                 if isempty(var{k}) || o.noheader, var{k} = sprintf('%s%02d',varprefix,k); end
@@ -211,7 +214,7 @@ for i=1:m % each file
             % columns content
             for k=1:nraw
                 if all(cellfun('isclass',raw(:,k),'double')) % numerical vector
-                    if o.transpose, val = [raw{:,k}]; else val = [raw{:,k}]'; end
+                    if o.transpose, val = [raw{:,k}]; else, val = [raw{:,k}]'; end
                 else % otherwise cell vector
                     val = raw(:,k);
                     if ~o.notext2values % automatic conversion of text numbers into values
@@ -222,7 +225,7 @@ for i=1:m % each file
                         if ~isempty(cval)
                             val(ichar(iconv)) = num2cell(cval); %mat2cell(cval,ones(size(cval)),1);
                             if all(cellfun('isclass',val,'double'))
-                                if o.transpose, val = [val{:}]; else val = [val{:}]'; end
+                                if o.transpose, val = [val{:}]; else, val = [val{:}]'; end
                             end
                         end
                     end
@@ -249,7 +252,7 @@ for i=1:m % each file
                                 attributes(1).(sheetname_clean) = attr;
             elseif m>1 && n==1, tab.(filename_clean) = tmp;
                                 attributes(1).(filename_clean) = attr;
-            else                tab = tmp;
+            else,               tab = tmp;
                                 attributes = attr;
             end
         else

@@ -20,8 +20,11 @@ function hsout = printtable(tr,th,styletr,styleth,stylesheet,varargin)
 %  verticalalignmenttd: vertical alignement for text content (default=middle)
 %         fontweightth: font weight for text at headers (default=bold)
 %         fontweighttd: font weight for text at content (default=normal)
+%            numlayout: anonymous function coding for numeric layout (default = [], no layout)
+%                       examples: @(x) formatsci(x,'eco') 
+%                                 @formatsci
 %        tablesubplotx: x dimension for subplots (draw general table)(default=[])
-%        tabmesubploty: y dimension for subplots (draw general table)(default=[])
+%        tablesubploty: y dimension for subplots (draw general table)(default=[])
 %          imgsubplotx: x dimension for subplots for image (if required) (default=[.2 .8 .1])
 %          imgsubploty: y dimension for subplots for image (if required) (default=[.05 .9 .05])
 %             imgalive: subplot to be kept for image (default=5)
@@ -41,17 +44,20 @@ function hsout = printtable(tr,th,styletr,styleth,stylesheet,varargin)
     figure, hs = subplots(1,[1 1],0,0); subplot(hs(2)),printtable(tr,[],[],[],[],'parent',hs(2))
 %}
 
-% MS v. 2.1 - 07/10/2013 - INRA\Olivier Vitrac, LNE\Mai Nguyen - rev. 13/03/15 
+% MS v. 2.1 - 07/10/2013 - INRA\Olivier Vitrac, LNE\Mai Nguyen - rev. 29/07/17 
 
 
 % Revision history
 % 22/10/13 : add print in eps format
 % 23/10/13 : add hsout
 % 13/03/15 : fix empty inputs and update accordingly help
+% 11/03/17 : fix the number of rows to match the number of headers
+% 29/07/17 : add numlayout
 
 % default
 default = struct('parent',[],'nrowmaxperpage',20,'horizontalalignmentth','center','verticalalignmentth','middle','horizontalalignmenttd','center',...
                  'verticalalignmenttd','middle','figname','page','linewidth',1,'fontweightth','bold','fontweighttd','normal','fontsizeth',10,'fontsizetd',8,...
+                 'numlayout',[],...
                  'paperposition',[],'tablesubplotx',[],'tablesubploty',[],'imgsubplotx',[.2 .8 .1],'imgsubploty',[.05 .9 .05],'imgalive',5,'printon',false,'figurefolder',cd,'resolution',300);
 styletr_default = 'td';
 styleth_default = 'th';
@@ -87,12 +93,12 @@ fillcell = @(texte,style) text(style.x,style.y,texte,rmfield(style,{'x','y'})); 
 nheaders = size(th,1); nrows = size(tr,1); ncolumn = size(tr,2);
 currentrow = 0; currentpage = 0; %npages = max(1,ceil(nrows/o.nrowmaxperpage));
 if ~isempty(o.tablesubplotx), tablesubplotx = o.tablesubplotx; else tablesubplotx = ones(1,ncolumn); end
-if ~isempty(o.tablesubploty), tablesubploty = o.tablesubploty; else tablesubploty = ones(1,min(nrows,o.nrowmaxperpage+nheaders)); end
+if ~isempty(o.tablesubploty), tablesubploty = o.tablesubploty; else tablesubploty = ones(1,min(nrows,o.nrowmaxperpage)+nheaders); end
 while currentrow<nrows
     % new page
     currentpage = currentpage + 1;
     if isempty(o.parent) 
-        if ~isempty(o.figname), figname = o.figname; else figname = sprintf('page%d',currentpage); end
+        if ~isempty(o.figname), figname = o.figname; else, figname = sprintf('page%d',currentpage); end
         formatfig(figure,'figname',figname,'paperposition',o.paperposition)
     end
     hs = subplots(tablesubplotx,tablesubploty,0,0); validrow = true(min(nrows,o.nrowmaxperpage+nheaders),ncolumn);
@@ -113,7 +119,12 @@ while currentrow<nrows
                  if iscellstr(tr{currentrow,icol}) || ischar(tr{currentrow,icol}), subplot(hs(irow+nheaders,icol)), fillcell(tr{currentrow,icol},stylesheet.(styletr{icol}))
                  elseif isnumeric(tr{currentrow,icol}) && ~ismatrix(tr{currentrow,icol}), him = subplots(o.imgsubplotx,o.imgsubploty,0,0,'position',hs(irow+nheaders,icol),'alive',o.imgalive,'strict'); % image, insert a small axes inside to incorporate margin
                         subplot(him),imshow(tr{currentrow,icol})
-                 elseif isnumeric(tr{currentrow,icol}), subplot(hs(irow+nheaders,icol)), fillcell(tr(currentrow,icol),stylesheet.(styletr{icol}))                
+                 elseif isnumeric(tr{currentrow,icol}), subplot(hs(irow+nheaders,icol))
+                     if isempty(o.numlayout)
+                         fillcell(tr(currentrow,icol),stylesheet.(styletr{icol}))
+                     else
+                         fillcell(o.numlayout(tr{currentrow,icol}),stylesheet.(styletr{icol}))
+                     end
                  end                
             else
                 validrow(irow+nheaders,:) = false;

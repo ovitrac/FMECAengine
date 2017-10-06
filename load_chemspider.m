@@ -17,6 +17,8 @@ function data = load_chemspider(mol,varargin)
 %            autocrop: flag (default=false)
 %         orientation: 'horiz' or 'horizontal', 'vert' or vertical', 'none' (default)
 %         cachefolder: fullfile(rootdir(which(mfilename)),'cache.ChemSpider')
+%         autocorrect: it should be m x 2 cell array to be used as regexprep(name,autocorrect{1},autocorrect{2}) (default='')
+%                      example {'^n-(.*ane)$','$1'} replaces 'n-pentane' in 'pentane'
 %   OUTPUTS:
 %       data: nx1 structure array with fields
 %            CSID: number, Chemispider identifier
@@ -70,6 +72,7 @@ function data = load_chemspider(mol,varargin)
 %          currently MAXNAMES is set to 15 corresponding to last valid name for tridecane (93924-07-3)
 % 24/11/16 fix unit properties with no space before (unit)
 % 25/11/16 remove <stong> tags in user properties (to be checked in the future)
+% 02/08/17 add autocorrect
 
 persistent CACHEDfiles CACHEglobal
 
@@ -87,7 +90,8 @@ default = struct('thumbnail',true,...
                  'reshashcache',false,...
                  'imsize',[640 480],...
                  'autocrop',false,...
-                 'orientation','none');
+                 'orientation','none',...
+                 'autocorrect',[]);
 MAXNAMES = 15;
 makehash = @(id) lower([{id.CSID};id.CAS;{id.SMILES};{id.InChI};{id.InChIKey};id.names(1:min(length(id.names),MAXNAMES))]);
 
@@ -118,6 +122,9 @@ if ~exist(fullfile(root,'@Search'),'file')
     cd(currentpath)
     dispf('\t CHEMSPIDER Search service has been installed.\n\tFollow this: <a href="http://www.chemspider.com/Search.asmx">link</a> for details')
 end
+if ~isempty(options.autocorrect)
+    if ~iscellstr(options.autocorrect) || size(options.autocorrect,2)~=2, error('autocorrect must be a mx2 cell of strings'), end
+end
 
 %cache index
 if isempty(CACHEDfiles) ||  isempty(CACHEglobal) || options.reshashcache
@@ -146,6 +153,7 @@ end
 
 %% Use Cache if enabled
 lowermol = lower(strtrim(mol));
+if ~isempty(options.autocorrect), lowermol = regexprep(lowermol,options.autocorrect{:,1},options.autocorrect{:,2},'ignorecase'); end
 if ~options.nocache && ~isempty(CACHEglobal.hash) && ismember(lowermol,CACHEglobal.hash)
     imol = CACHEglobal.idx(find(ismember(CACHEglobal.hash,lowermol),1,'first'));
     cachedfile = fullfile(CACHEDfiles(imol).path,CACHEDfiles(imol).file);
@@ -384,7 +392,7 @@ if ~isempty(propuser) && size(propuser,1)>1
     npropval = length(propvalue);
     [propvaluenum,propvalunit] = deal(cell(npropval,1));
     for i=1:npropval
-        if ~iscell(propvalue{i}), propvalue{i} = {propvalue{i}}; end % added on Nov 25, 2016
+        if ~iscell(propvalue{i}), propvalue{i} = {propvalue{i}}; end %#ok<CCAT1> % added on Nov 25, 2016
         tmp = strtrim(regexprep(propvalue{i},{'<span.*?>.*?</span>' '<strong.*?>.*?</strong>' '<a.*?>.*?</a>' '\(.*\)' '\[.*\]' '(-?\d+\.?\d*)-(-?\d+\.?\d*)'},{'' '' '' '' '' '$1 $2'}));
         ntmp = length(tmp); propvaluenum{i} = zeros(1,ntmp); propvalunit{i} = cell(1,ntmp);
         for j=1:ntmp
