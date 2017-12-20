@@ -166,7 +166,8 @@ for i=1:m % each file
                 raw = raw(sum(headerlines)+1:end,:); % raw values
             elseif ~isempty(o.headerrowindex)
                 headers = raw(o.headerrowindex,:); % header line
-                raw = raw(o.headerrowindex+1:end,:); %raw values
+                %raw = raw(o.headerrowindex+1:end,:); %raw values (before 20/12/2017)
+                raw = raw(headerlines+1:end,:);
             else
                 headers = raw(1:headerlines,:); % header lines
                 raw = raw(headerlines+1:end,:); % raw values

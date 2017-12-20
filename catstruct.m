@@ -40,10 +40,12 @@ function A = catstruct(varargin)
 %   2.1 (sep 2008) added warning and error identifiers
 %   2.2 (oct 2008) fixed error when dealing with empty structs (Thanks to
 %                  Lars Barring)
+% Revision INRA\Olivier Vitrac - 04/11/2017
 
 N = nargin ;
 
-error(nargchk(1,Inf,N)) ;
+% error(nargchk(1,Inf,N)) ;
+if nargin<1, error('CATSTRCUT: one argument is required'), end
 
 if ~isstruct(varargin{end}),
     if isequal(varargin{end},'sorted'),

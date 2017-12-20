@@ -18,7 +18,7 @@ if ~iscell(fieldstoremove), fieldstoremove={fieldstoremove}; end
 
 % remove fieldnames if asked
 if ~isempty(fieldstoremove);
-    for i=1:length(fieldstoremove);
+    for i=1:length(fieldstoremove)
         if isfield(s1,fieldstoremove{i}), s1 = rmfield(s1,fieldstoremove{i}); end
         if isfield(s2,fieldstoremove{i}), s2 = rmfield(s2,fieldstoremove{i}); end
     end

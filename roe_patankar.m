@@ -13,6 +13,7 @@ function [Cout,Fout,Cfullout,resout]=roe_patankar(stack,Fo,ploton,printname,vara
 %       ploton    = plot flag (default value = 0)
 %       printname = name of the figure to be printed as a pdf file. No printing if empty (default)
 %       recognized keywords: "nmesh' (default=300), 'options' (default, see code), 'struct' (if true output as a structure)
+%   advanced inputs: 'iref' (see senspatankar) and 'eval' (see applesim)
 %   outputs:
 %           Cout = nFoxnlayer numeric array, concentration in each layer (averaged over the thickness)
 %           Fout = 1xnFo numeric array, Fourier times where solutions are available
@@ -24,7 +25,7 @@ function [Cout,Fout,Cfullout,resout]=roe_patankar(stack,Fo,ploton,printname,vara
 % Example:
 %   roe_patankar([],[],1,'roe_patankar_maxorder_5')
                                                                                                                  
-% MOISAN TOOLBOX 1.0 - 12/03/09 - Guillaume Gillet - Olivier Vitrac - rev. 25/07/13
+% MOISAN TOOLBOX 1.0 - 12/03/09 - Guillaume Gillet - Olivier Vitrac - rev. 05/12/2017
 
 % revision history
 % 16/06/09 tunning
@@ -35,6 +36,7 @@ function [Cout,Fout,Cfullout,resout]=roe_patankar(stack,Fo,ploton,printname,vara
 % 13/11/11 add resout
 % 14/06/12 accept Fo values beyond 1000
 % 25/07/13 return respatankar.F
+% 05/12/17 add iref, eval
 
 % definitions
 stack_default = [0 0 0 0 1 0 0 0 0 1 0 0 0 0];
@@ -42,7 +44,7 @@ Fo_default = [.01:.01:.05 .08 .1:.1:1 1.5 2 5 10];
 ploton_default = false;
 prop_default = struct(...
         'options', odeset('RelTol',1e-4,'AbsTol',1e-4,'Initialstep',1e-8,'Maxstep',.1,'Maxorder',2), ... options of ode used in SENSPATANKAR
-        'nmesh', 300,'struct',false);
+        'nmesh', 300,'struct',false,'iref',[],'eval',[]);
 % options		= odeset('RelTol',1e-4,'AbsTol',1e-4,'Initialstep',1e-8,'Maxstep',.01,'Maxorder',5); % options of ode used in SENSPATANKAR
 
 
@@ -89,6 +91,7 @@ F = struct('Bi'		 , 0,...	Biot [hm.L1/D]
 		   'C0'		 , stack(1,:),...	initial concentration in each layer
            'nmesh'   , prop.nmesh,...
 		   'options' , prop.options);
+if ~isempty(prop.iref), F.iref = prop.iref; end
 
 % Simulation
 nFo = length(Fo);
@@ -158,3 +161,13 @@ if prop.struct
     Cout = struct('Fo',Fo,'C',C,'x',xmesh,'Cx',Cfull,'F',respatankar.F);
 end
 if nargout>3, resout = respatankar; end
+
+% eval if required
+if ~isempty(prop.eval)
+    if isa(prop.eval,'function_handle')
+        Cout = prop.eval(Cout);
+        return
+    else
+        error('eval must define an anonymous function')
+    end
+end

@@ -35,6 +35,7 @@ function list = explore(format,pathstr,profondeur,abbreviate)
 %   04/01/11 fix versn in FILEPARTS for Matlab later than 7.11 (not supported any more)
 %   04/01/11 add datenum
 %   21/07/17 fix subpath (change sizeofroot+2:end to sizeofroot+1:end)
+%   30/11/17 remove the use of cd as it fails with onedrive
 
 % default
 profondeur_default = 19;
@@ -46,7 +47,7 @@ if nargin<2, pathstr = []; end
 if isstruct(format), list = abbreviateform(format,pathstr,oldmatlab); return, end
 if nargin<3, profondeur = []; end
 if nargin<4, abbreviate = 'none'; end
-if isempty(pathstr), pathstr = cd; end
+if isempty(pathstr), pathstr = pwd; end
 if isempty(profondeur), profondeur = profondeur_default; end
 sizeofroot = length(pathstr);
 currentfilesep = filesep;
@@ -81,29 +82,30 @@ if profondeur <=1
     end
     list = abbreviateform(list,abbreviate,oldmatlab);
 else
-    origine = cd; cd(pathstr) %#ok<*MCCD>
+    %origine = pwd;  % fix 30/11/2017
+    mycd = pathstr; %cd(pathstr) %#ok<*MCCD> % fix 30/11/2017
     i_prof = 1 ;
     fich = cell(profondeur,1);
-    fich{i_prof} = dir;
+    fich{i_prof} = dir(mycd);
     i_fich = zeros(profondeur,1);
     i_fich(i_prof) = 1;
     i_list = 1;
     list = [];
     while (i_prof <= profondeur) && (i_prof > 0)
         if i_fich(i_prof) > length(fich{i_prof})
-            cd('..')
+            mycd = rootdir(mycd); %cd('..') % fix 30/11/2017
             i_prof = i_prof - 1;
         else
             format_match = isformat(fich{i_prof}(i_fich(i_prof)).name,format);
             if fich{i_prof}(i_fich(i_prof)).isdir && fich{i_prof}(i_fich(i_prof)).name(1) ~= '.'
-                cd(fich{i_prof}(i_fich(i_prof)).name)
+                mycd = fullfile(mycd,fich{i_prof}(i_fich(i_prof)).name); %cd(fich{i_prof}(i_fich(i_prof)).name) % fix 30/11/2017
                 i_prof = i_prof + 1;
                 i_fich(i_prof) = 0;
-                fich{i_prof} = dir;
+                fich{i_prof} = dir(mycd); % fix 30/11/2017
             elseif any(format_match) && fich{i_prof}(i_fich(i_prof)).bytes > 0
                 found = true;
                 list(i_list).format_match = format_match; %#ok<*AGROW>
-                list(i_list).info.path = cd;
+                list(i_list).info.path = mycd; % fix 30/11/2017
                 list(i_list).info.file = fich{i_prof}(i_fich(i_prof)).name;
                 if length(list(i_list).info.path)>sizeofroot+1
                     list(i_list).info.subpath = list(i_list).info.path(sizeofroot+1:end); % before 21/07/2017 : (sizeofroot+1:end)
@@ -122,7 +124,7 @@ else
         end
         if i_prof>0, i_fich(i_prof) = i_fich(i_prof) + 1; end
     end
-    cd(origine);
+    %cd(origine); % fix 30/11/2017
 
     % abbreviate
     if any(abbreviate), list = abbreviateform(list,abbreviate,oldmatlab); end
