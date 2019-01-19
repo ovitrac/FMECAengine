@@ -38,7 +38,7 @@ function [colormap]=cbrewer(ctype, cname, ncol, interp_method)
 % email: tannoudji@hotmail.com
 % Date: 06.12.2011
 %
-% repacked for MS 2.1 - INRA\Olivier Vitrac - 29/01/12 - rev. 13/05/2014
+% repacked for MS 2.1 - INRA\Olivier Vitrac - 29/01/12 - rev. 13/05/2014, 01/05/2018
 
 if ~nargin, plot_brewer_cmap(); return, end
 
@@ -94,12 +94,14 @@ if (~isfield(colorbrewer.(ctype),cname))
 end
 
 if (ncol>length(colorbrewer.(ctype).(cname)))
-    disp(' ')
-    disp('----------------------------------------------------------------------')
-    disp(['The maximum number of colors for table *' cname '* is ' num2str(length(colorbrewer.(ctype).(cname)))])
-    disp(['The new colormap will be extrapolated from these ' num2str(length(colorbrewer.(ctype).(cname))) ' values'])
-    disp('----------------------------------------------------------------------')
-    disp(' ')
+    if ncol>32
+        disp(' ')
+        disp('----------------------------------------------------------------------')
+        disp(['The maximum number of colors for table *' cname '* is ' num2str(length(colorbrewer.(ctype).(cname)))])
+        disp(['The new colormap will be extrapolated from these ' num2str(length(colorbrewer.(ctype).(cname))) ' values'])
+        disp('----------------------------------------------------------------------')
+        disp(' ')
+    end
     cbrew_init=colorbrewer.(ctype).(cname){length(colorbrewer.(ctype).(cname))};
     colormap=interpolate_cbrewer(cbrew_init, interp_method, ncol);
     colormap=colormap./255;

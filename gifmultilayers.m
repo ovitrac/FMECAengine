@@ -126,7 +126,7 @@ gifmultilayers(manymodel,'Fo',logspace(-2,log10(200),1200),'filename','manylayer
     gifmultilayers('xticklabel',{sprintf('%0.3g',1+ratio(1)) '2' '3'},'title','right approximation (2)',S2right,'makegif')
 %}
 
-% Migration 2.1 - 17/12/2015 - INRA\Olivier Vitrac - rev. 21/04/2017
+% Migration 2.1 - 17/12/2015 - INRA\Olivier Vitrac - rev. 19/01/2019
 
 % Revision history
 % 17/12/2015 release candidate as a function with examples, based on the script used by Mai and a former script used for EU Commission in 2012
@@ -136,6 +136,8 @@ gifmultilayers(manymodel,'Fo',logspace(-2,log10(200),1200),'filename','manylayer
 % 25/12/2015 second approximation of superpoposition (preferred): mass balance and thickness correction
 % 26/02/2017 returns npart() for 3D
 % 21/04/2017 add nscale and nscaleleg to remove the effect of n (legacy maintained)
+% 16/01/2019 add plotpart2
+% 19/01/2018 add iref, L
 
 % default
 ndefault = 20;
@@ -150,6 +152,8 @@ default = struct(...
     'D',[1 1 1 1e4],... ABC + Food
     'k',[1 1 1 1],... ABC + Food
     'n',[ndefault ndefault ndefault 1],... ABC + Food
+    'L',1,...
+    'iref',[],...
     'nscale',1,... 1 is for legacy
     'nscaleleg',2,...
     'Fo',logspace(log10(Fomin),log10(Fomax),nFodefault),...
@@ -221,7 +225,11 @@ if ~exist(prefetchfile,'file') || o.restart
     n = max(o.n);
     Fo = o.Fo*n.^o.nscale;
     dispf('run simulation, defined as:'),disp(s)
-    C = roe_patankar(s,Fo,0,'','struct',1,'nmesh',o.nmesh);
+    if ~isempty(o.iref)
+        C = roe_patankar(s,Fo,0,'','struct',1,'nmesh',o.nmesh,'iref',o.iref,'L',o.L);
+    else
+        C = roe_patankar(s,Fo,0,'','struct',1,'nmesh',o.nmesh,'L',o.L);
+    end
     save(prefetchfile,'o','s','Fo','C','n')
     dispf('generate the following prefetch file:')
     fileinfo(prefetchfile)
@@ -281,6 +289,7 @@ if nargout
     out.npart = @(N0,C,dx) round(N0*C*dx);
     out.plotbnd = @() plotbnd(s,Cmax);
     out.plotpart = @(it) plotpart(C,x(s),it,(s(1,:)>0)+1,Cmax);
+    out.plotpart2 = @(it,xscale) plotpart(C,x(s)*xscale,it,expandmat(1:length(o.C0),o.n),Cmax);
     out.plot = @(it,icolor) plot(C.x,C.Cx(it,:),'-','linewidth',o.linewidth,'color',col(icolor,:));
 end
 

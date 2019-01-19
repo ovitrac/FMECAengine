@@ -7,19 +7,17 @@ function dbforsim = loadFMECAtemplate(filename,varargin)
 %       'step'
 % 'substances'
 %'composition'
-%          'D'
 %          'K'
 %        'CHI'
 %
 % EX. db = loadFMECAtemplate('C:\Data\Olivier\INRA\Projects\3SinPack2016\template_FMECAengine\template_FMECAengine_V6.xlsm');
 % 
-% INRA\Mai Nguyen, Olivier Vitrac   - history
-% 15/03/2016: release
-% 18/04/2018: add worksheet 'D' for add D numeric value or use Piringer/Fuller model
+% INRA\Mai Nguyen, Olivier Vitrac
+% 15/03/2016
 
 % default definition
-sheetnames = {'geometry' 'system' 'step' 'substances' 'composition' 'D'  'K' 'CHI'}; nsheets = length(sheetnames);
-hearderbysheet = [8 1;     8  1;    6 1;      6 1;        7 1;     7 1;  7 1;  7 1];
+sheetnames = {'geometry' 'system' 'step' 'substances' 'composition' 'K' 'CHI'}; nsheets = length(sheetnames);
+hearderbysheet = [8 1;     8  1;    6 1;      6 1;        7 1;     7 1;  7 1];
 quantitytype = struct('Thickness', 'length',...
                   'Density', 'density',...
                   'Grammage', 'grammage',...
@@ -101,13 +99,6 @@ end
 fcompositionremoved = arrayfun(@(m) sprintf('Concentration_L%d',m),alllayerindex(~ismember(alllayerindex,db.system.Index(2:end))),'UniformOutput',false);
 db.composition = rmfield(db.composition,fcompositionremoved);
 fieldbysheet.composition = fieldnames(db.composition)';
-% D sheet
-for f = fieldbysheet.D
-    db.D.(f{1}) = db.D.(f{1})(isolok);
-end
-fDremoved = arrayfun(@(m) sprintf('DP%d',m),alllayerindex(~ismember(alllayerindex,db.system.Index(2:end))),'UniformOutput',false);
-db.D = rmfield(db.D,fDremoved);
-fieldbysheet.D = fieldnames(db.D)';
 % K sheet
 for f = fieldbysheet.K
     db.K.(f{1}) = db.K.(f{1})(isolok);
@@ -138,8 +129,6 @@ for s = sheetnames(2:end)
             else
                 typetobechecked.(s{1}).(f{1}) = 'quantity';
             end
-        elseif any(regexp(f{1},'^DP')) % D
-            typetobechecked.(s{1}).(f{1}) = 'D';
         elseif any(regexp(f{1},'^K')) % K
             typetobechecked.(s{1}).(f{1}) = 'K';
         elseif any(regexp(f{1},'^chi')) % chi
@@ -245,26 +234,14 @@ Kvalues(izero) = Kvaluesfromchi(izero);
 % D model
 Dvalues = zeros(nsubstance,nlayer,nsteps);
 layertype = db.system.Type(2:nlayer+1);
+diffusionmodel = db.system.Diffusionmodel(2:nlayer+1);
 for isub = 1:nsubstance
     for ilayer = 1:nlayer
         for istep = 1:nsteps
-            model = parser.D.(sprintf('DP%d',ilayer))(isub).value;
-            if isnumeric(model)
-                Dvalues(isub,ilayer,istep) = model;
-            else
-                Dvalues(isub,ilayer,istep) = FMECADtemplate(layertype(ilayer),model,parser.step.Temperature(istep).value,db.substances.CASnumber(isub),parser.substances.Polarity(isub).value);
-            end
+            Dvalues(isub,ilayer,istep) = FMECADtemplate(layertype(ilayer),diffusionmodel(ilayer),parser.step.Temperature(istep).value,db.substances.CASnumber(isub));
         end
     end
 end
-% diffusionmodel = db.system.Diffusionmodel(2:nlayer+1);
-% for isub = 1:nsubstance
-%     for ilayer = 1:nlayer
-%         for istep = 1:nsteps
-%             Dvalues(isub,ilayer,istep) = FMECADtemplate(layertype(ilayer),diffusionmodel(ilayer),parser.step.Temperature(istep).value,db.substances.CASnumber(isub));
-%         end
-%     end
-% end
 
 % build data entry for FMECAengine
 fiedtoberemoved = {'Index','Code','Name','CASnumber'};
@@ -330,15 +307,6 @@ function [li,value] = parserconvert(type,strtest,testonly)
             li = ischar(strtest{1}); value = strtest{1};
         elseif strcmpi(regexp(type{1},'CAS','match'),'CAS')  % CAS number
             li = checkCAS(strtest); value = strtest{1};
-        elseif strcmpi(type{1},'D')  % diffusion coefficient
-            if ischar(strtest{1}) && strcmpi(strtest{1},'Fuller')
-                li = true;  value = strtest{1};
-            elseif ischar(strtest{1}) && strcmpi(strtest{1},'Piringer')
-                li = true;  value = strtest{1};
-            elseif isnumeric(strtest{1})
-                li = true; value = strtest{1};
-            else li = false; value = '';
-            end
         elseif strcmpi(type{1},'K')  % partion coefficient
             if ischar(strtest{1}) && strcmpi(strtest{1},'KairP')
                 li = true;  value = strtest{1};
@@ -412,7 +380,7 @@ function Dmodel = FMECADtemplate(type,model,T,solute,solutepolarity)
         elseif strcmpi(solutepolarity,'apolar'), type = 'Cardboard_apolarmigrant'; end
     end
     % build expression for calculation of D according to model
-    switch model
+    switch model{1}
         case 'Fuller'
             formula = dbsolute.QuickMass.formula;
             Dmodel = Dfuller(formula,T);

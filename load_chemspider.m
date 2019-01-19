@@ -44,7 +44,7 @@ function data = load_chemspider(mol,varargin)
 %
 %   SEE ALSO: LOAD_NIST, LOAD_NIST_IR, LOAD_NCBI, LOAD_NCBISTRUCT, LOAD_CHEMINDUSTRY
 
-% MS 2.1 - 21/05/11 - INRA\Olivier Vitrac - rev. 25/11/16
+% MS 2.1 - 21/05/11 - INRA\Olivier Vitrac - rev. 24/04/18
 
 %Revision history
 % 22/05/11 vectorization, minor bugs
@@ -73,6 +73,8 @@ function data = load_chemspider(mol,varargin)
 % 24/11/16 fix unit properties with no space before (unit)
 % 25/11/16 remove <stong> tags in user properties (to be checked in the future)
 % 02/08/17 add autocorrect
+% 16/04/18 fix CAS numbers with 0000 as prefix
+% 24/04/18 fix ;
 
 persistent CACHEDfiles CACHEglobal
 
@@ -154,6 +156,7 @@ end
 %% Use Cache if enabled
 lowermol = lower(strtrim(mol));
 if ~isempty(options.autocorrect), lowermol = regexprep(lowermol,options.autocorrect{:,1},options.autocorrect{:,2},'ignorecase'); end
+[iscas,cascleaned]=checkCAS(lowermol); if iscas, lowermol = cascleaned; end % added 16/04/2018
 if ~options.nocache && ~isempty(CACHEglobal.hash) && ismember(lowermol,CACHEglobal.hash)
     imol = CACHEglobal.idx(find(ismember(CACHEglobal.hash,lowermol),1,'first'));
     cachedfile = fullfile(CACHEDfiles(imol).path,CACHEDfiles(imol).file);
@@ -185,7 +188,7 @@ if ~options.csid
     try
         csid = SimpleSearch(obj,mol,token);
     catch errtyp
-        if strcmp(errtyp.identifier,'MATLAB:unassignedOutputs'),
+        if strcmp(errtyp.identifier,'MATLAB:unassignedOutputs')
             dispb(screen,'WARNING LOAD_CHEMSPIDER: unable to find any valid CSID for %s',mol);
             data = struct([]); return
         else

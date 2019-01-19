@@ -17,7 +17,7 @@ function t=struct2structtab(s)
 % argcheck
 if nargin<1 || nargin>1, error('one argument is required'), end
 if ~isstruct(s), error('the argument must be a structure'), end
-if isempty(s) || numel(s)>1, error('structure arrays or empty structure are not authorized'), end
+if isempty(s) || numel(s)>1, error('structure arrays or empty structures are not authorized'), end
 siz = structfun(@numel,s); sizmax = max(siz);
 if any(diff(siz(siz>0))), error('all fields must be of a same size'), end
 f = fieldnames(s);

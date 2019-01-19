@@ -47,6 +47,7 @@ function [gaussianpeak,outsum,outsumbaseline] = monotonepeakfit(p,varargin)
 %        isbaseline: index/point to define baseline of gaussian peak
 %         xbaseline: point based on x to define baseline of gaussian peak
 %            kernel: kernel function of gaussian peak
+%            nonneg: replace G\y by lsqnonneg(G,y) for the amplitude of peaks if true (default = false)
 %                r2: coefficient of determination of gaussian peak
 %             r2max: 2 maxima of coefficient of determination of gaussian peak
 %             sigma: standard deviation of gaussian peak
@@ -94,7 +95,7 @@ function [gaussianpeak,outsum,outsumbaseline] = monotonepeakfit(p,varargin)
 % hp = plot(x,[y model(x,3,1) model(x,3,2)]);
 %
 %
-% INRA\MS 2.1 - 24/03/2013 - Olivier Vitrac - rev. 06/12/15
+% INRA\MS 2.1 - 24/03/2013 - Olivier Vitrac - rev. 07/07/2018
 %
 %
 % TODO LIST
@@ -122,14 +123,17 @@ function [gaussianpeak,outsum,outsumbaseline] = monotonepeakfit(p,varargin)
 % 11/11/15 change argcheck behavior to expand structures while protecting options ('nostructaxpand')
 % 14/11/15 add area field
 % 06/12/15 replace keepinitialorder by keepfittedorder, implements a true keepinitialorder based on nearestpointunique
+% 29/06/18 add nonneg -> rank check
+% 04/07/18 add widthmin
+% 07/07/18 fix when all cumweights are NaN
 
 %% default
 keyword = {'baseline','sort','lorentzian','endforced','keeporder','keepinitialorder','keepfittedorder','independent','dispconstraints'};
 options = struct('display','iter','FunValCheck','on','MaxIter',1e3,'TolFun',1e-6,'TolX',1e-6);
 default = struct('x',[],'y',[],'significant',.95,'minpointsinbaseline',5,...
             'shiftmax',[],'shiftbuffer',[],'shiftpenaltyscale',[],...
-            'widthmax',Inf,'widthbuffer',[],'widthpenaltyscale',[],...
-            'preject',5);
+            'widthmax',Inf,'widthmin',-Inf,'widthbuffer',[],'widthpenaltyscale',[],...
+            'preject',5,'nonneg',false);
 minumunrequiredfields = {'center','width','ibase'};
 requiredfields = {'tail' 'wall' 'height' 'center' 'istart' 'start' 'stop' 'istop' 'width','ratioheight','ratiowidth','ibase'};
 maxpeaksforconstraints = 7;
@@ -173,9 +177,10 @@ if isempty(o.shiftmax), o.shiftmax = min([p.width]); end, o.shiftmax = abs(o.shi
 if isempty(o.shiftbuffer), o.shiftbuffer = dx; end
 if isempty(o.shiftpenaltyscale), o.shiftpenaltyscale = penaltyscale; end
 if isempty(o.widthmax), o.widthmax = o.shiftmax; end
+if isempty(o.widthmin), o.widthmin = -Inf(size(o.widthmax)); end
 if isempty(o.widthbuffer), o.widthbuffer = o.shiftbuffer; end
 if isempty(o.widthpenaltyscale), o.widthpenaltyscale = o.shiftpenaltyscale; end
-for prop = {'shiftmax' 'shiftbuffer' 'shiftpenaltyscale' 'widthmax' 'widthbuffer' 'widthpenaltyscale'}
+for prop = {'shiftmax' 'shiftbuffer' 'shiftpenaltyscale' 'widthmax' 'widthmin' 'widthbuffer' 'widthpenaltyscale'}
     o.(prop{1}) = argpad(o.(prop{1}),n);
     o.(prop{1}) = o.(prop{1})(:)';
 end
@@ -210,7 +215,7 @@ G = zeros(m,n);       % kernels (used by nested functions)
 widthguess = cat(2,p.width)/4; %first guess of s
 positionguess = cat(2,p.center); % first guess of p
 [width,position,sigma,area]  = deal(NaN(2,n)); % 2 solutions - row-wise
-[weight,cumweight,order,rank,relativeweight] = deal(NaN(n,2)); % 2 solutions - column-wise
+[weight,cumweight,order,rang,relativeweight] = deal(NaN(n,2)); % 2 solutions - column-wise
 [windowcenter,nsignificantpeaks] = deal(zeros(2,1));
 critfit = zeros(2,1); % 2 solutions - column-wise
 yfit    = NaN(m,2);   % 2 solutions - column-wise
@@ -255,10 +260,11 @@ end
 
 % distance
 warning on %#ok<WNON>
+numrank = zeros(1,2);
 for k=1:2
-    [yfit(:,k),weight(:,k)] = gaussian(o.x,position(k,:),width(k,:));
+    [yfit(:,k),weight(:,k),numrank(k)] = gaussian(o.x,position(k,:),width(k,:));
     [~,order(:,k)] = sort(weight(:,k),'descend');
-    rank(order(:,k),k) = 1:n;
+    rang(order(:,k),k) = 1:n;
 end
 
 % control plot (to be removed)
@@ -267,7 +273,7 @@ end
 % list of peaks
 gaussianpeak = repmat(struct('rank',[],'weight',[],'relativeweight',[],...
                              'width',[],'sigma',[],'area',[],'position',[],'baseline',[],'xbaseline',[],'isbaseline',[],...
-                             'kernel',[],'r2',NaN,'r2max',[],...
+                             'kernel',[],'r2',NaN,'r2max',[],'numrank',numrank,...
                              'window',struct('center',[],'width',[],'widthalpha',[],'alpha',[],'nsignificantpeaks',[],'significantproba',[])),[n,2]);
 alpha = 0.05; % probability of rejection
 for k = 1:2
@@ -281,7 +287,7 @@ for k = 1:2
         gaussianpeak(i,k).kernel =  @(x) gaussiankernel(x,position(k,i),width(k,i));
         gaussianpeak(i,k).weight = weight(i,k);  
         gaussianpeak(i,k).relativeweight = relativeweight(i,k);
-        gaussianpeak(i,k).rank = rank(i,k);
+        gaussianpeak(i,k).rank = rang(i,k);
         gaussianpeak(i,k).r2max = 1 - critfit(k).^2/sce;
         if o.baseline
             gaussianpeak(i,k).baseline = @(x) polyval(b,x);
@@ -314,8 +320,10 @@ if o.sort || (nargout>1),
         width(k,:) = width(k,order(:,k));
         weight(:,k) = weight(order(:,k),k);
         sigma(k,:) = sigma(k,order(:,k));
-        cumweight(:,k) = cumsum(relativeweight(order(:,k),k),1);      
-        nsignificantpeaks(k) = find(cumweight(:,k)>=o.significant,1,'first');
+        cumweight(:,k) = cumsum(relativeweight(order(:,k),k),1);
+        if ~all(isnan(cumweight(:,k)))
+            nsignificantpeaks(k) = find(cumweight(:,k)>=o.significant,1,'first');
+        end
         windowcenter(k) = position(k,1:nsignificantpeaks(k))*weight(1:nsignificantpeaks(k),k)/sum(weight(1:nsignificantpeaks,k),1);       
     end
     % user override
@@ -362,7 +370,7 @@ if nargout>2, outsumbaseline = expansion2; end
 
 %% Nested functions
     function err = fitgaussian(ps)
-        WC = sum(Hwidth( ps(2,:) - o.widthmax) .*o.widthpenaltyscale);
+        WC = sum( (Hwidth( ps(2,:) - o.widthmax) + Hwidth( o.widthmin - ps(2,:)))  .*o.widthpenaltyscale );
         SC = sum((Hshift( abs(ps(1,:)-[p.center]) - o.shiftmax) ).*o.shiftpenaltyscale);
         err = norm(gaussian(o.x,ps(1,:),ps(2,:))-o.y) ...
               + norm((1-H(ps(2,:)))*penaltyscale) ... force positive variance, constraint the displacement of peaks
@@ -378,17 +386,22 @@ if nargout>2, outsumbaseline = expansion2; end
         err = norm(gaussian(o.x,[p.center],s)-o.y) + norm((1-H(s))*penaltyscale);
     end
 
-    function [y,weights] = gaussian(x,c,s)
+    function [y,weights,rk] = gaussian(x,c,s)
         % base functions
         for j = 1:n
             G(:,j) = gaussiankernel(x,c(j),s(j));
         end
         % weights
-        W = abs(G\o.y);
+        if o.nonneg && rank(G)<n
+            W = lsqnonneg(G,double(o.y));
+        else
+            W = abs(G\o.y);
+        end 
         % fit
         y = G*W;
         % additional out if required
         if nargout>1, weights = W; end
+        if nargout>2, rk = rank(G); end
     end
 
 end

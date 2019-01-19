@@ -31,8 +31,10 @@ function [param,remaining]=argcheck(list,propdefault,keywordlist,varargin)
 %
 % NB: keywords have a higher precedence on properties (a missing keyword is always set to false whatever the value assigned in propdefault)
 %     e.g. argcheck({'a',false},struct('a',false),'a') returns TRUE
+%
+% TIP: Do not define the same parameter as both a parameter and a keyword with 'property' active, it will create a bug (it is a normal behavior, perhaps to be fixed in the future)
 
-% MS 2.1 - 25/12/09 - INRA/Olivier Vitrac - rev. 18/02/16
+% MS 2.1 - 25/12/09 - INRA/Olivier Vitrac - rev. 12/08/18
 
 % Revision history
 % 27/12/09: case insensitive, several fixes
@@ -51,6 +53,7 @@ function [param,remaining]=argcheck(list,propdefault,keywordlist,varargin)
 % 28/02/12 add three notes on conflict resolution when multiple definitions are found and when 'property' is used
 % 28/02/12 sort mixed structures list to keep precedence rules when user override (with multiple definitions) are used
 % 18/02/16 add isnan2() for cell inputs combined with 'NaNequalmissing'
+% 12/08/18 cosmetic for better compatibility with R2018 and a new TIP added
 
 % definitions
 options_list = {'case' 'property' 'order' 'keep' 'inherit' 'nostructexpand' 'NaNequalmissing' 'nosort'}; % inherit is a private property
@@ -127,8 +130,8 @@ end
 % search pairs property/value
 if ~isempty(propdefault)
     propertylist = fieldnames(propdefault)';
-    if options.case, proptosearch = propertylist; else proptosearch = lower(propertylist); end
-    if ~iscellstr(propertylist), error('list of properties must be a cell array of char'), end
+    if options.case, proptosearch = propertylist; else, proptosearch = lower(propertylist); end
+    if ~iscellstr(propertylist), error('list of properties must be a cell array of char'), end %#ok<ISCLSTR>
     iprop = 0;
     for prop = proptosearch
         iprop = iprop + 1;

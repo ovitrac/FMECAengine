@@ -30,7 +30,7 @@ function txt=formatsci(num,varargin)
         formatsci(numtotest,'texpattern','%0.2f\cdot10^{%d}', 'pattern','%0.2f','eco','mindigits',2) % force a minimum of digits
 %}
 
-% MS 2.1 - 25/10/11 - INRA\Olivier Vitrac - rev. 17/03/15
+% MS 2.1 - 25/10/11 - INRA\Olivier Vitrac - rev. 01/05/2018
 
 
 % revision history
@@ -42,6 +42,8 @@ function txt=formatsci(num,varargin)
 % 17/03/15 add 'eco' as a shorthand for 'economy)
 % 17/03/15 major fix for formats including %0.nf instead of %0.nf (see advanced example)
 % 17/03/15 fix formatsci(100,'eco') returns 100 instead of 10^2
+% 30/04/18 implement NaN
+% 01/05/18 respect initial layout
 
 
 % default values
@@ -68,9 +70,11 @@ rem = num./10.^(p10);
 % txt = sprintf(param.texpattern,[rem;p10]);
 % txt = arrayfun(@(x,y) sprintf(param.texpattern,x,y),rem,p10,'UniformOutput',false);
 n = numel(num);
-txt = cell(1,n);
+txt = cell(size(num));
 for i=1:n
-    if num(i)==0
+    if isnan(num(i))
+        txt{i} = 'n.d.';
+    elseif num(i)==0
         txt{i} = '0';
     elseif abs(p10(i))~=0
         if (abs(rem(i)-1)<sqrt(eps)/1e3) && (param.mindigits==0);
@@ -81,15 +85,19 @@ for i=1:n
     else
         txt{i} = sprintf(param.pattern,rem(i));
     end
-    if param.economy || param.eco
-        tmp  = sprintf(param.pattern,num(i));
-        tmpnum = tmp(tmp>='0' & tmp<='9');
-        tmpnumsignificant = tmpnum(find(tmpnum>'0',1,'first'):end);
-        tmpisallzero = isempty(tmpnumsignificant); %tmpisallzero = all(char(regexp(tmp,'\d','match'))=='0');
-        tmptex = regexprep(txt{i},{'10\^','\^|{|}|\\cdot','^e'},{'e','','1e'});
-        if (length(tmp)<=length(tmptex)) && ~any(tmp=='e')
-            if ((~tmpisallzero) && length(tmpisallzero)>=param.mindigits) || num(i)==0
-                txt{i} = tmp;
+    if (param.economy || param.eco)
+        if isnan(num(i))
+            txt{i} = '--';
+        else
+            tmp  = sprintf(param.pattern,num(i));
+            tmpnum = tmp(tmp>='0' & tmp<='9');
+            tmpnumsignificant = tmpnum(find(tmpnum>'0',1,'first'):end);
+            tmpisallzero = isempty(tmpnumsignificant); %tmpisallzero = all(char(regexp(tmp,'\d','match'))=='0');
+            tmptex = regexprep(txt{i},{'10\^','\^|{|}|\\cdot','^e'},{'e','','1e'});
+            if (length(tmp)<=length(tmptex)) && ~any(tmp=='e')
+                if ((~tmpisallzero) && length(tmpisallzero)>=param.mindigits) || num(i)==0
+                    txt{i} = tmp;
+                end
             end
         end
     end

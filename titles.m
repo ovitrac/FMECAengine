@@ -15,11 +15,12 @@ function htout = titles(hs,txt,varargin)
 %       ht(i).axes axes handles superposed
 %       ht(i).text text handles
 
-% MS 2.1 09/12/09 - INRA\Olivier Vitrac - rev. 26/12/09
+% MS 2.1 09/12/09 - INRA\Olivier Vitrac - rev. 10/05/18
 
 % revision history
 % 10/12/09 add searchkeywords
 % 26/12/09 use argcheck (remove private function)
+% 10/05/18 force xlim, ylim
 
 % default values
 default = struct(...
@@ -55,6 +56,7 @@ ht = repmat(struct('axes',[],'text',[]),nax,1);
 for ia=1:nax
     ht(ia).axes = axes('position',get(hs(ia),'position'),'visible','off');
     ht(ia).text = text(param.x(ia),param.y(ia),txt{ia},varargin{:});
+    set(ht(ia).axes,'xlim',[0 1],'ylim',[0 1])
 end
 
 % output

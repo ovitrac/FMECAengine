@@ -26,7 +26,7 @@ function [dydxout,dydxicout] = diffp(x,y,ordre,h,n,D,xD,alpha,ilist,fusion,wy,pr
 %	dydxic	= intervalles de confiance
 
 	
-% Thermique 1.1 - 13/06/01 - Olivier Vitrac - rev. 18/5/2015
+% Thermique 1.1 - 13/06/01 - Olivier Vitrac - rev. 22/12/2018
 
 % Revision history
 % 28/06/03 weighting and symmetry
@@ -39,6 +39,7 @@ function [dydxout,dydxicout] = diffp(x,y,ordre,h,n,D,xD,alpha,ilist,fusion,wy,pr
 % 15/10/2013 implements variable h
 % 10/03/2015 force increasing x and reverse order at the end of the calculations
 % 18/05/2015 fix dydxic
+% 22/12/2018 fix unable to restore the initial order (multiple h), expansion warning replaced by dispf
 
 % exemple : évaluation de la dérivée 1ère de sin(t) entre 0 et 10pi bruitée (à 14f)
 %{
@@ -107,7 +108,7 @@ hexpand         = 1.4;   % expansion factor (max expansion = it_max*hexpand)
 % arg check
 x = x(:);
 [my,ny]	= size(y);
-if my==1 && ny>1,y= y'; [my,ny] = size(y);end %#ok<NASGU>
+if my==1 && ny>1,y= y'; [my,ny] = size(y);end %#ok<ASGLU>
 if length(x)~=my, error('numel(x) and size(y,1) do not match'), end
 
 % Force x sorting (added 10/3/2015)
@@ -123,7 +124,7 @@ if nargin<4, h = h_defaut; end
 % Symmetric boundary conditions (added 9/06/03)
 if nargin<3, hsym = nhdefaut * max(diff(x));
 elseif isempty(h), hsym = nhdefaut * max(diff(x));
-else hsym = h;
+else hsym = h; %#ok<SEPEX>
 end
 if numel(hsym)>1, hsym=max(hsym(:)); end
 leftBC  = 2:find((x-x(1))<hsym, 1, 'last' );      mLBC = length(leftBC);
@@ -150,7 +151,7 @@ if nargin<3,			ordre		= ordre_defaut;									end
 if nargin<4,			h			= h_defaut;										end
 if nargin<5,			n			= degre_defaut;									end
 if nargin<6,			D			= [];											end
-if nargin<7,			xD			= []; else xD = xD(:);							end
+if nargin<7,			xD			= []; else, xD = xD(:);							end
 if nargin<8,			alpha		= alpha_defaut;									end
 if nargin<9,			ilist		= [];                                           end
 if nargin<10,			fusion		= fusion_defaut;								end
@@ -160,7 +161,7 @@ if isempty(ordre),		ordre		= ordre_defaut;									end
 if isempty(h), 			h 			= h_defaut;										end
 if isempty(n), 			n			= degre_defaut;									end
 if isempty(alpha),		alpha		= alpha_defaut;									end
-if isempty(ilist),		ilist		= ioriginal; else ilist = ioriginal(ilist);     end
+if isempty(ilist),		ilist		= ioriginal; else, ilist = ioriginal(ilist);    end
 if isempty(fusion),		fusion		= fusion_defaut;								end
 if isempty(proba),		proba		= proba_defaut;									end
 if length(n)>1,			error('n must be a scalar'),								end
@@ -177,11 +178,11 @@ if  length(h)>1
                       'hmin',[],'diffphmin',[],...
                       'hmax',[],'diffphmax',[]);
     for i=1:nh
-        try
+%         try
             dydxout.diffp{i} = diffp(x,y,ordre,h(i),n,D,xD,alpha,ilist,fusion,wy,proba);
-        catch
-            dispf('DIFFP:: ERROR for h(%d)=%0.4g',i,h(i))
-        end
+%         catch
+%             dispf('DIFFP:: ERROR for h(%d)=%0.4g',i,h(i))
+%         end
     end
     [~,ind] = sort(h,'ascend');
     imin = find(~cellfun(@isempty,dydxout.diffp(ind)),1,'first');
@@ -202,7 +203,7 @@ for i=1:nDc
 	[nLi,k]	= size(D{i});
 	nL(i)	= nLi;
 	nxD(i)	= length(xD{i});
-	if k==1,
+	if k==1
 		D{i} = [D{i} zeros(nLi,1)];
 	elseif k>2
 		error('D must be a nLx1 or nLx2 matrix')
@@ -244,7 +245,7 @@ for i = ilist
     it = 0;
     mi = 0;
     while (mi<1.5*n) && (it<it_max)
-        if it==1, warning('DIFFP: sampling interval expanding for x=%0.3g',x(i)), end %#ok<WNTAG>
+        if it==1, dispf('DIFFP: sampling interval expanding for x=%0.3g',x(i)), end %#ok<WNTAG>
         if it>0, hi = hi * hexpand; end
         it = it + 1;
         choisir_voisins = 1;
@@ -255,7 +256,7 @@ for i = ilist
             ng		= i-indi(1);													% nb voisins à gauche de i
             nd		= indi(end)-i;												    % nb voisins à droite de i
             if (abs(nd-ng)>1) && (hi==h), hi = 2*hi*( 1 - min(ng,nd)/(ng+nd) );	        % élargissement
-            else choisir_voisins = 0; end
+            else, choisir_voisins = 0; end
         end
         mi = length(indi);															% nombre de points voisins retenus
     end
@@ -387,5 +388,9 @@ for i = ilist
 end % end for
 
 % reverse initial sorting
-dydxout = dydxout(ixsortreverse,:);
-if compute_IC, dydxicout = dydxicout(ixsortreverse,:); end
+if length(ixsortreverse)==size(ixsortreverse,1)
+    dydxout = dydxout(ixsortreverse,:);
+    if compute_IC, dydxicout = dydxicout(ixsortreverse,:); end
+else
+    dispf('WARNING: unable to restore initial order (likely cause =  boundary conditions)')
+end

@@ -16,6 +16,7 @@ function [data,isupdated,attrout]=loadodsprefetch(filename,varargin)
 %       'structarray': false  ... to transform the original structure of arrays into a structure array (available only with LOADODS)
 %      'forceboolean': false  ... convert to a boolean any column with uniquely 0 and 1 (available only with LOADODS)
 %         'maketable': false  ... convert generated structures into tables with attributes (works only on recent versions of Matlab, since 2012)
+%          'forceods': true   ... if the XLS file is missing, it tries to use an ODS file instead
 %   
 %    SPECIFIC PROPERTIES TO MANAGE PREFETCH FILES
 %           prefetchprefix: prefetch extension (default = 'PREFETCH_')
@@ -44,7 +45,7 @@ function [data,isupdated,attrout]=loadodsprefetch(filename,varargin)
 %       [f(i).data,~,f(i).attr] = loadodsprefetch(fullfile(f(i).path,f(i).file));
 %   end
 
-% MS 2.1 - 20/01/12 - INRA\Olivier Vitrac rev.  10/03/17
+% MS 2.1 - 20/01/12 - INRA\Olivier Vitrac rev.  23/07/18
 
 % Revision history
 % 24/01/12 add a comparison based on requested sheetnames
@@ -59,6 +60,7 @@ function [data,isupdated,attrout]=loadodsprefetch(filename,varargin)
 % 15/03/16 add xlsm format, add 'headerrowindex' property for excel file reading
 % 09/12/16 add structarray for XLS files
 % 10/03/17 propagate 'noprefetch' flag when 'prefetchsheet' is set
+% 23/04/18 add 'forceods' 
 
 % default
 default = struct(...
@@ -67,7 +69,8 @@ default = struct(...
     'noprefetch',false,...
     'prefetchsheet',false,...
     'sheetname',[],...
-    'realname',[] ...
+    'realname',[],...
+    'forceods',true ...
     );
 validchars = '[^a-zA-Z0-9]'; % accepted characters for fields
 propertiesODS2XLS = struct(...
@@ -128,7 +131,17 @@ if ~exist(filename,'file'), error('the supplied file ''%s'' does not exist',file
 [~,~,ext] = fileparts(filename); ext = lower(ext);
 isods = strcmp(ext,'.ods');
 if ~isods && ~strcmp(ext,'.xls') && ~strcmp(ext,'.xlsx') && ~strcmp(ext,'.xlsm'); error('only ODS, XLS, XLSX and XLSM files are managed'), end
-if isunix && ~isods, error('XLSTBLREAD and XLSREAD requires a WINDOWS environment to run'), end
+if isunix && ~isods
+    if options.forceods
+        dispf('LOADODSPREFETCH shifts to the equivalent ODS file because the XLS file is missing or it is Linux')
+        [fpath,fname] = fileparts(filename); ext = lower(ext);
+        filename = fullfile(fpath,[fname '.ods']);
+        if ~exist(filename,'file'), error('\t the surrogate ODS file ''%s'' is missing',filename); end
+        isods = true;
+    else
+        error('XLSTBLREAD and XLSREAD requires a WINDOWS environment to run')
+    end
+end
 prefetchfile = fullfile(options.prefetchpath,[options.prefetchprefix prefetchfile '.mat']);
 prefetchupdate = false;
 

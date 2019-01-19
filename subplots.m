@@ -142,7 +142,7 @@ if ~isempty(options.position)
             pos = get(postmp,'position'); %delete(postmp)
         elseif strcmp(typ,'figure')
             pos = [0.1300    0.1100    0.7750    0.8150];
-        else error('invalid type ''%s'' as position/handle',typ);
+        else, error('invalid type ''%s'' as position/handle',typ);
         end
     elseif isempty(postmp)
         pos = [0.1300    0.1100    0.7750    0.8150];

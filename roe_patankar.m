@@ -25,7 +25,7 @@ function [Cout,Fout,Cfullout,resout]=roe_patankar(stack,Fo,ploton,printname,vara
 % Example:
 %   roe_patankar([],[],1,'roe_patankar_maxorder_5')
                                                                                                                  
-% MOISAN TOOLBOX 1.0 - 12/03/09 - Guillaume Gillet - Olivier Vitrac - rev. 05/12/2017
+% MOISAN TOOLBOX 1.0 - 12/03/09 - Guillaume Gillet - Olivier Vitrac - rev. 19/01/2019
 
 % revision history
 % 16/06/09 tunning
@@ -37,16 +37,17 @@ function [Cout,Fout,Cfullout,resout]=roe_patankar(stack,Fo,ploton,printname,vara
 % 14/06/12 accept Fo values beyond 1000
 % 25/07/13 return respatankar.F
 % 05/12/17 add iref, eval
+% 16/01/19 fix argcheck for options
+% 19/01/19 add L, robusteps
 
 % definitions
 stack_default = [0 0 0 0 1 0 0 0 0 1 0 0 0 0];
 Fo_default = [.01:.01:.05 .08 .1:.1:1 1.5 2 5 10];
 ploton_default = false;
-prop_default = struct(...
-        'options', odeset('RelTol',1e-4,'AbsTol',1e-4,'Initialstep',1e-8,'Maxstep',.1,'Maxorder',2), ... options of ode used in SENSPATANKAR
-        'nmesh', 300,'struct',false,'iref',[],'eval',[]);
+options_default = odeset('RelTol',1e-4,'AbsTol',1e-4,'Initialstep',1e-8,'Maxstep',.1,'Maxorder',2); %options of ode used in SENSPATANKAR
+prop_default = struct('nmesh', 300,'struct',false,'iref',[],'eval',[],'L',1);
 % options		= odeset('RelTol',1e-4,'AbsTol',1e-4,'Initialstep',1e-8,'Maxstep',.01,'Maxorder',5); % options of ode used in SENSPATANKAR
-
+robusteps = 100*eps;
 
 % arg check
 %if nargchk(0,4,nargin), error('syntax: [Cout,Fout,Cfullout]=roe_patankar([stack],[Fo],[ploton],[printname])'), end %#ok<NCHK>
@@ -54,7 +55,9 @@ if nargin<1, stack = []; end
 if nargin<2, Fo = []; end
 if nargin<3, ploton = []; end
 if nargin<4, printname = []; end
-prop = argcheck(varargin,prop_default);
+[options,remain] = argcheck(varargin,struct('options',options_default),'','nostructexpand','keep');
+prop = argcheck(remain,prop_default);
+prop.options = options.options;
 if isempty(stack), stack = stack_default; end
 if ndims(stack)==1, stack = stack(:)'; end
 nlayer = size(stack,2);
@@ -87,7 +90,7 @@ F = struct('Bi'		 , 0,...	Biot [hm.L1/D]
            'D'       , stack(3,:),... diffusion coefficient
            'k0'      , 1,... 0 = liquid
            'l'       , stack(2,:),...[50 20 10 120]*1e-6,... m
-		   'L'		 , 1,...	dilution factor (respectively to iref)
+		   'L'		 , prop.L,...	dilution factor (respectively to iref)
 		   'C0'		 , stack(1,:),...	initial concentration in each layer
            'nmesh'   , prop.nmesh,...
 		   'options' , prop.options);
@@ -114,10 +117,10 @@ xmesh = xlayerpos(end) * respatankar.x/respatankar.x(end); % length rescaling
 indlayer = false(length(xmesh),nlayer);
 left = -Inf;
 for ilayer=1:nlayer
-    indlayer(:,ilayer) = (xmesh>left) & (xmesh<=xlayerpos(ilayer+1));
+    indlayer(:,ilayer) = (xmesh>left) & (xmesh<=(xlayerpos(ilayer+1)+robusteps));
     left = max(xmesh(indlayer(:,ilayer)));
 end
-% averaging for reach layer
+% averaging for each layer
 res = repmat(struct('C',[],'Cx',[],'layer',[]),nFo,1);
 for i=1:nFo
     iFo = (F.t==Fo(i));

@@ -39,7 +39,7 @@ function [hax_out,hleg_out] = legendpub(hplot,leg,hax,pos,varargin)
 %    figure, h=plotpub(x1,{y1 2*y1 4*y1 8*y1},{'a-' 's-v'});
 %    hp=legendpub(h,{{'reference' 'curve'} '*2' '*4' '*8'},1)
 
-% MS 2.0 - 10/08/07 - Olivier Vitrac - rev. 17/06/08
+% MS 2.0 - 10/08/07 - Olivier Vitrac - rev. 16/04/18
 
 % history
 % 09/08/07 Release candidate
@@ -54,6 +54,7 @@ function [hax_out,hleg_out] = legendpub(hplot,leg,hax,pos,varargin)
 % 05/09/07 fix legend of a single plot with several lines as legend (if ny>1 is replaced by if nlines>1)
 % 05/09/07 optimize the positioning of multiple lines using the readonly extent property of text objects
 % 17/06/08 fix legend objects for Matlab 7.4 and higher
+% 16/04/18 compatibility with R2014b and later, replace any() by ~isempty()
 
 % TODO list
 
@@ -122,7 +123,7 @@ if ~ishandle(currentax) || ~strcmp(get(currentax,'type'),'axes'), error('no prop
 allhandlesok = true;
 for f=fieldnames(hplot)'
     for i=1:length(hplot)
-        if any(hplot(i).(f{1}))
+        if ~isempty(hplot(i).(f{1})) %any(hplot(i).(f{1}))
             allhandlesok = allhandlesok & all(ishandle( hplot(i).(f{1})));
         end
     end
@@ -199,7 +200,7 @@ end
 if length(hax)>1, error('a single axes is expected'), end
 if ~ishandle(hax) || ~strcmp(get(hax,'type'),'axes'), error('invalid axes handle, see AXES, SUBPLOTS'), end
 childrens = get(hax,'children');
-if any(childrens), delete(childrens), end
+if ~isempty(childrens), delete(childrens), end
 
 % plot
 hleg = repmat(struct('plot',[],'text',[]),ny,1);
@@ -209,7 +210,7 @@ for i=1:ny % for each plotted curve
     yleg = yleg*(1-2*pos(4))+pos(4); % resizing between 0 and 1
     allobjects = setdiff(fieldnames(hplot),'leg');
     for object = allobjects(:)' % for all valid objects
-        if any(hplot(i).(object{1})) && ishandle(hplot(i).(object{1})(1))
+        if ~isempty(hplot(i).(object{1})) && ishandle(hplot(i).(object{1})(1))
             propvalues = get(hplot(i).(object{1})(1),prop.(object{1})); % get current values
             param = reshape({prop.(object{1}){:} propvalues{:}},length(propvalues),2)'; % pairwise property value
             switch object{1}
@@ -225,7 +226,7 @@ for i=1:ny % for each plotted curve
             end
         end
     end % each object
-    if any(hleg(i).plot)
+    if ~isempty(hleg(i).plot)
         % new method to center the along the first subline
         set(hax,'xlim',[0 1],'ylim',[0 1])
         if nlines>1, yleg = 1-iline(i)/(nlines-1); else yleg=.5; end

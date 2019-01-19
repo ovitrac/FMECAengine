@@ -3,9 +3,16 @@ function dispf(varargin)
 % see help on SPRINTF
 % see also FPRINTF (the main difference is that LF is used after disp)
 
-% MS 2.1 - 16/03/08 - INRA\Olivier Vitrac rev. 29/12/12
+% MS 2.1 - 16/03/08 - INRA\Olivier Vitrac rev. 19/08/18
 
 % Revision history
 % 29/12/12 updated help
+% 19/08/18 implement varargin{1} as a cell
 
-disp(sprintf(varargin{:})) %#ok<DSPS>
+if iscell(varargin{1})
+    for i=1:numel(varargin{1})
+        dispf(varargin{1}{i})
+    end
+else
+    disp(sprintf(varargin{:})) %#ok<DSPS>
+end

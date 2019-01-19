@@ -1,6 +1,8 @@
-function list = explore(format,pathstr,profondeur,abbreviate)
+function list = explore(format,pathstr,depth,abbreviate,recursionprefix)
 % EXPLORE look for files matching a given or a list of formats
-% 		Syntax: filelist = explore(format, [path],[depth],['abbreviate' or 'fullabbreviate'])
+% 	 SYNTAX
+%       filelist = explore(format, [path],[depth],['abbreviate' or 'fullabbreviate'])
+%     INPUTS
 %		format =  string ou cells of string (see isformat for details, very powerfull)
 %                 format are not case sensitive (required on WIN machines)
 %                 Main metacharacters based on the old syntax of isformat
@@ -12,15 +14,17 @@ function list = explore(format,pathstr,profondeur,abbreviate)
 %                       *  = any list of characters
 %                       ==> any combinations and occurences are possible
 %       path = any valid path (local or remote) or current directory
+%              several paths can be used as {'path1' 'path2' ....}    
 %		maxdepth = maximum of examined levels (par défaut = 10)
+%      FLAG abbreviate can be
 %       'abbreviate' generate a simplified structure of filenames
 %       'fullabbreviate' generate only a cell string of filenames
-%
+%    CONVERSION
 %       Conversion between formats is possible with:
 %           filelist = explore(filelist) which is equivalent to filelist = explore(filelist,'fullabbreviate')
 %           filelist = explore(filelist,'abbreviate');
 
-% TCPIP v. 1.0 - 26/02/01 - INRA\Olivier Vitrac rev. 21/07/2017
+% TCPIP v. 1.0 - 26/02/01 - INRA\Olivier Vitrac rev. 22/07/2018
 
 % Revision history
 %   25/02/04 abbreviate format
@@ -36,6 +40,9 @@ function list = explore(format,pathstr,profondeur,abbreviate)
 %   04/01/11 add datenum
 %   21/07/17 fix subpath (change sizeofroot+2:end to sizeofroot+1:end)
 %   30/11/17 remove the use of cd as it fails with onedrive
+%   29/12/17 add recursion when pathstr is a cell array of string
+%   20/07/18 add recursionprefix to include lastdir in subpath
+%   22/07/18 initialize recursionprefix to '' instead of false
 
 % default
 profondeur_default = 19;
@@ -45,15 +52,28 @@ oldmatlab = verLessThan('matlab','7.11');
 % arg check
 if nargin<2, pathstr = []; end
 if isstruct(format), list = abbreviateform(format,pathstr,oldmatlab); return, end
-if nargin<3, profondeur = []; end
+if nargin<3, depth = []; end
 if nargin<4, abbreviate = 'none'; end
+if nargin<5, recursionprefix = ''; end
 if isempty(pathstr), pathstr = pwd; end
-if isempty(profondeur), profondeur = profondeur_default; end
+if isempty(depth), depth = profondeur_default; end
+if isempty(recursionprefix), recursionprefix = ''; end
+recursionflagprefix = ~isempty(recursionprefix);
+
+% recursion if multiple paths
+if iscell(pathstr)
+    list = explore(format,pathstr{1},depth,abbreviate,lastdir(pathstr{1}));
+    for i=2:length(pathstr)
+        list = [list, explore(format,pathstr{i},depth,abbreviate,lastdir(pathstr{i}))];
+    end
+    return
+end
+
 sizeofroot = length(pathstr);
 currentfilesep = filesep;
 
 % exploration
-if profondeur <=1
+if depth <=1
     rawlist = dir(fullfile(pathstr,format));
     j = 0;
     list = repmat(struct('path','','file','','subpath','','name','','ext','','ver','','date','','datenum',[],'bytes',[]),0,0);
@@ -85,13 +105,13 @@ else
     %origine = pwd;  % fix 30/11/2017
     mycd = pathstr; %cd(pathstr) %#ok<*MCCD> % fix 30/11/2017
     i_prof = 1 ;
-    fich = cell(profondeur,1);
+    fich = cell(depth,1);
     fich{i_prof} = dir(mycd);
-    i_fich = zeros(profondeur,1);
+    i_fich = zeros(depth,1);
     i_fich(i_prof) = 1;
     i_list = 1;
     list = [];
-    while (i_prof <= profondeur) && (i_prof > 0)
+    while (i_prof <= depth) && (i_prof > 0)
         if i_fich(i_prof) > length(fich{i_prof})
             mycd = rootdir(mycd); %cd('..') % fix 30/11/2017
             i_prof = i_prof - 1;
@@ -111,6 +131,9 @@ else
                     list(i_list).info.subpath = list(i_list).info.path(sizeofroot+1:end); % before 21/07/2017 : (sizeofroot+1:end)
                 else
                     list(i_list).info.subpath = currentfilesep;
+                end
+                if recursionflagprefix % added 20/07/2018
+                    list(i_list).info.subpath = fullfile(recursionprefix,list(i_list).info.subpath);
                 end
                 list(i_list).info.date = fich{i_prof}(i_fich(i_prof)).date;
                 if oldmatlab
