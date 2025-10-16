@@ -1,6 +1,22 @@
-FMECAengine is developed by Olivier Vitrac, PhD (Institut National de la Recherche Agronomique)
-and distributed under licence CeCILL-B (compatible GPL) as detailed below.
+FMECAengine is developed by Olivier Vitrac, PhD, HDR, and distributed under the CeCILL-B license (compatible with the GPL), as detailed below.
+> The simulation engine and library have been used in numerous publications of Dr Olivier Vitrac and Dr Phuong-Mai Nguyen; please refer to them. 
 
+### 📖 Manual
+
+<a href="https://deepwiki.com/ovitrac/FMECAengine" title="Detailed manual of FMECAengine" target="_blank">
+
+  <picture>
+    <source media="(prefers-color-scheme: dark)"
+            srcset="https://img.shields.io/badge/DeepWiki-FMECAengine-1f6feb?style=flat&logo=bookstack&logoColor=white&labelColor=0d1117">
+    <source media="(prefers-color-scheme: light)"
+            srcset="https://img.shields.io/badge/DeepWiki-FMECAengine-0969da?style=flat&logo=bookstack&logoColor=white&labelColor=f6f8fa">
+    <img alt="DeepWiki: FMECAengine"
+         src="https://img.shields.io/badge/DeepWiki-FMECAengine-0969da?style=flat&logo=bookstack&logoColor=white">
+  </picture>
+</a>
+
+
+### ⚖️ License
 
 CeCILL-B FREE SOFTWARE LICENSE AGREEMENT
 
@@ -22,7 +38,7 @@ the two main principles guiding its drafting:
 The authors of the CeCILL-B (for Ce[a] C[nrs] I[nria] L[ogiciel] L[ibre])
 license are: 
 
-Commissariat � l'Energie Atomique - CEA, a public scientific, technical
+Commissariat à l'Energie Atomique - CEA, a public scientific, technical
 and industrial research establishment, having its principal place of
 business at 25 rue Leblanc, immeuble Le Ponant D, 75015 Paris, France.
 
@@ -339,7 +355,7 @@ The Licensee expressly undertakes:
 
 The Licensee undertakes not to directly or indirectly infringe the
 intellectual property rights of the Holder and/or Contributors on the
-Software and to take, where applicable, vis-�-vis its staff, any and all
+Software and to take, where applicable, vis-à-vis its staff, any and all
 measures required to ensure respect of said intellectual property rights
 of the Holder and/or Contributors.
 
@@ -513,6 +529,7 @@ that may arise during the performance of the Agreement.
 occurrence, and unless emergency proceedings are necessary, the
 disagreements or disputes shall be referred to the Paris Courts having
 jurisdiction, by the more diligent Party.
+
 
 
 Version 1.0 dated 2006-09-05.
